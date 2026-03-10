@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "checkAvailability response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "available",
+    "timezone",
+    "slots",
+    "message"
+  ],
+  "properties": {
+    "requestId": {
+      "type": "string"
+    },
+    "available": {
+      "type": "boolean"
+    },
+    "timezone": {
+      "type": "string"
+    },
+    "normalizedRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "serviceId",
+        "durationMinutes",
+        "windowStart",
+        "windowEnd"
+      ],
+      "properties": {
+        "serviceId": {
+          "type": "string"
+        },
+        "durationMinutes": {
+          "type": "integer"
+        },
+        "windowStart": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "windowEnd": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "requestedDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "requestedTime": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timePreference": {
+          "type": "string"
+        }
+      }
+    },
+    "slots": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "start",
+          "end",
+          "label"
+        ],
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "label": {
+            "type": "string"
+          },
+          "calendarId": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "message": {
+      "type": "string"
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "requestId": "req_001",
+      "available": true,
+      "timezone": "Europe/Warsaw",
+      "normalizedRequest": {
+        "serviceId": "consultation",
+        "durationMinutes": 30,
+        "windowStart": "2026-03-12T08:00:00+01:00",
+        "windowEnd": "2026-03-12T12:00:00+01:00",
+        "requestedDate": "2026-03-12",
+        "requestedTime": null,
+        "timePreference": "morning"
+      },
+      "slots": [
+        {
+          "start": "2026-03-12T09:00:00+01:00",
+          "end": "2026-03-12T09:30:00+01:00",
+          "label": "Czwartek 12 marca o 09:00",
+          "calendarId": "primary"
+        }
+      ],
+      "message": "Znalazlam kilka dostepnych terminow."
+    }
+  ]
+}

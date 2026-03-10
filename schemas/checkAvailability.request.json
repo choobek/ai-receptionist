@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "checkAvailability request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "service",
+    "requestedDate",
+    "timezone"
+  ],
+  "properties": {
+    "requestId": {
+      "type": "string",
+      "description": "Optional trace identifier passed through logs and responses."
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Clinic-specific service identifier such as consultation or hygiene."
+        },
+        "name": {
+          "type": "string"
+        },
+        "durationMinutes": {
+          "type": "integer",
+          "minimum": 15,
+          "maximum": 240,
+          "default": 30
+        }
+      }
+    },
+    "requestedDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "requestedTime": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+      "description": "Local clinic time in 24-hour HH:MM format."
+    },
+    "timePreference": {
+      "type": "string",
+      "enum": [
+        "specific_time",
+        "morning",
+        "afternoon",
+        "evening",
+        "first_available"
+      ],
+      "default": "first_available"
+    },
+    "timezone": {
+      "type": "string",
+      "default": "Europe/Warsaw"
+    },
+    "locationId": {
+      "type": "string",
+      "default": "main-clinic"
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "default": 3
+    },
+    "patient": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fullName": {
+          "type": "string"
+        },
+        "phoneE164": {
+          "type": "string",
+          "pattern": "^\\+[1-9]\\d{7,14}$"
+        },
+        "isExistingPatient": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "timePreference": {
+            "const": "specific_time"
+          }
+        },
+        "required": [
+          "timePreference"
+        ]
+      },
+      "then": {
+        "required": [
+          "requestedTime"
+        ]
+      }
+    }
+  ],
+  "examples": [
+    {
+      "requestId": "req_001",
+      "service": {
+        "id": "consultation",
+        "name": "Konsultacja",
+        "durationMinutes": 30
+      },
+      "requestedDate": "2026-03-12",
+      "timePreference": "morning",
+      "timezone": "Europe/Warsaw",
+      "limit": 3
+    }
+  ]
+}

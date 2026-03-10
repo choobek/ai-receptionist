@@ -1,0 +1,372 @@
+{
+  "name": "AI Receptionist - createEvent",
+  "nodes": [
+    {
+      "id": "cc5bd2e2-fdd7-4570-bcf2-86f8b7d80cca",
+      "name": "Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -980,
+        -140
+      ],
+      "parameters": {
+        "color": 5,
+        "width": 340,
+        "height": 240,
+        "content": "Purpose: book an appointment after Vapi has confirmed the slot and patient details.\n\nFlow:\n- Parse direct JSON or Vapi tool wrapper\n- Validate patient fields\n- Re-check the slot in Google Calendar\n- Create the event\n- Return Vapi-compatible confirmation"
+      }
+    },
+    {
+      "id": "df7c2820-7c42-405c-93c2-b10ff4bbad3e",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -920,
+        60
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-receptionist/create-event",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "80db97f7-731f-48f8-b7b0-7364da6cd339",
+      "name": "Parse Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -660,
+        60
+      ],
+      "parameters": {
+        "jsCode": "const payload = $json.body ?? $json;\nconst toolCall = payload.message?.toolCalls?.[0] ?? payload.toolCall ?? null;\nconst rawArgs = toolCall?.function?.arguments ?? payload.arguments ?? payload;\nconst args = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;\nconst timezone = args.timezone || $env.CLINIC_TIMEZONE || 'Europe/Warsaw';\nconst details = [];\nif (!args.service?.id) details.push('service.id is required');\nif (!args.slotStart) details.push('slotStart is required');\nif (!args.slotEnd) details.push('slotEnd is required');\nif (!args.patient?.fullName) details.push('patient.fullName is required');\nif (!args.patient?.phoneE164) details.push('patient.phoneE164 is required');\nreturn [{ json: {\n  ok: details.length === 0,\n  toolCallId: toolCall?.id || payload.toolCallId || null,\n  requestId: args.requestId || payload.requestId || null,\n  calendarId: args.calendarId || $env.GOOGLE_CALENDAR_ID || 'primary',\n  timezone,\n  service: args.service,\n  slotStart: args.slotStart,\n  slotEnd: args.slotEnd,\n  patient: args.patient,\n  notes: args.notes || '',\n  consentToSms: Boolean(args.consentToSms),\n  source: args.source || 'phone',\n  validationErrors: details\n} }];"
+      }
+    },
+    {
+      "id": "dd183c8b-0cfd-45d8-bf1d-b6df25060d90",
+      "name": "Valid Request?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        60
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.ok }}",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "7a15bce7-f639-4f9d-8b22-8a0d67f3240f",
+      "name": "Re-check Busy Events",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        -140,
+        -40
+      ],
+      "alwaysOutputData": true,
+      "parameters": {
+        "resource": "calendar",
+        "operation": "availability",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.calendarId }}"
+        },
+        "start": "={{ $json.slotStart }}",
+        "end": "={{ $json.slotEnd }}",
+        "options": {
+          "outputFormat": "bookedSlots",
+          "timezone": "={{ $json.timezone }}"
+        }
+      }
+    },
+    {
+      "id": "f89d4b0f-d30d-41d4-9e30-8d1af6bf5c41",
+      "name": "Slot Available?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        120,
+        -40
+      ],
+      "parameters": {
+        "jsCode": "const request = $('Parse Request').first().json;\nconst events = $input.all().map((item) => item.json).filter((item) => item.start || item.end);\nconst requestedStart = new Date(request.slotStart);\nconst requestedEnd = new Date(request.slotEnd);\nconst hasConflict = events.some((event) => {\n  const start = new Date(event.start?.dateTime || event.start || request.slotStart);\n  const end = new Date(event.end?.dateTime || event.end || request.slotEnd);\n  return requestedStart < end && requestedEnd > start;\n});\nreturn [{ json: {\n  ...request,\n  slotAvailable: !hasConflict\n} }];"
+      }
+    },
+    {
+      "id": "ab0a5073-86a4-44a5-a244-8441e5af7255",
+      "name": "Slot Free?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        360,
+        -40
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.slotAvailable }}",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "268db79d-ed5e-43c5-9258-2e24373999c6",
+      "name": "Create Calendar Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        620,
+        -120
+      ],
+      "parameters": {
+        "resource": "event",
+        "operation": "create",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.calendarId }}"
+        },
+        "start": "={{ $json.slotStart }}",
+        "end": "={{ $json.slotEnd }}",
+        "additionalFields": {
+          "summary": "={{ `${$json.service.name || $json.service.id} - ${$json.patient.fullName}` }}",
+          "description": "={{ `Service: ${$json.service.name || $json.service.id}\\nPatient: ${$json.patient.fullName}\\nPhone: ${$json.patient.phoneE164}\\nEmail: ${$json.patient.email || '-'}\\nNotes: ${$json.notes || '-'}\\nSource: ${$json.source}` }}"
+        }
+      }
+    },
+    {
+      "id": "0d20da7d-c718-4d16-b962-9075f9c512bf",
+      "name": "Format Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "const request = $('Slot Available?').first().json;\nconst event = $json;\nconst result = {\n  requestId: request.requestId,\n  created: true,\n  calendarEventId: event.id || event.eventId || null,\n  appointment: {\n    calendarId: request.calendarId,\n    start: request.slotStart,\n    end: request.slotEnd,\n    timezone: request.timezone,\n    service: {\n      id: request.service.id,\n      name: request.service.name || request.service.id\n    },\n    patient: {\n      fullName: request.patient.fullName,\n      phoneE164: request.patient.phoneE164,\n      email: request.patient.email || null\n    }\n  },\n  message: 'Wizyta zostala potwierdzona.'\n};\nconst body = request.toolCallId\n  ? { results: [{ toolCallId: request.toolCallId, result }] }\n  : result;\nreturn [{ json: body }];"
+      }
+    },
+    {
+      "id": "aa9a5557-d1cf-493a-a5cd-b557e9dfb82d",
+      "name": "Format Validation Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        180
+      ],
+      "parameters": {
+        "jsCode": "const result = {\n  requestId: $json.requestId,\n  created: false,\n  message: 'Brakuje wymaganych danych do rezerwacji.',\n  error: {\n    code: 'VALIDATION_ERROR',\n    details: $json.validationErrors || []\n  }\n};\nconst body = $json.toolCallId\n  ? { results: [{ toolCallId: $json.toolCallId, result }] }\n  : result;\nreturn [{ json: body }];"
+      }
+    },
+    {
+      "id": "dcb2f1df-9f41-4cb7-85b0-e76c92ce4091",
+      "name": "Format Conflict",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        40
+      ],
+      "parameters": {
+        "jsCode": "const result = {\n  requestId: $json.requestId,\n  created: false,\n  message: 'Ten termin nie jest juz dostepny. Sprawdz prosze inne opcje.',\n  error: {\n    code: 'SLOT_UNAVAILABLE',\n    details: ['Requested slot overlaps with an existing calendar event']\n  }\n};\nconst body = $json.toolCallId\n  ? { results: [{ toolCallId: $json.toolCallId, result }] }\n  : result;\nreturn [{ json: body }];"
+      }
+    },
+    {
+      "id": "c58f33f0-381e-41f8-8584-bb159f27cdf9",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1140,
+        -120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    },
+    {
+      "id": "b4c873c2-9a9d-42e0-a4bc-fdc51ea8c0a2",
+      "name": "Respond Validation Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        120,
+        180
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    },
+    {
+      "id": "2fb90109-eb72-412d-8bf5-1ea2f5e8d526",
+      "name": "Respond Conflict",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        40
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Request": {
+      "main": [
+        [
+          {
+            "node": "Valid Request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Request?": {
+      "main": [
+        [
+          {
+            "node": "Re-check Busy Events",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-check Busy Events": {
+      "main": [
+        [
+          {
+            "node": "Slot Available?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slot Available?": {
+      "main": [
+        [
+          {
+            "node": "Slot Free?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slot Free?": {
+      "main": [
+        [
+          {
+            "node": "Create Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Format Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Success": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Validation Error": {
+      "main": [
+        [
+          {
+            "node": "Respond Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Conflict": {
+      "main": [
+        [
+          {
+            "node": "Respond Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "9012c4c8-60b5-4fbe-8d20-7d3f18b1b8e2",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "aiReceptionistCreateEvent",
+  "tags": []
+}

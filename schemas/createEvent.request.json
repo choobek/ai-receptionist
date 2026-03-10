@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "createEvent request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "service",
+    "slotStart",
+    "slotEnd",
+    "timezone",
+    "patient"
+  ],
+  "properties": {
+    "requestId": {
+      "type": "string"
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "durationMinutes": {
+          "type": "integer",
+          "minimum": 15,
+          "maximum": 240,
+          "default": 30
+        }
+      }
+    },
+    "slotStart": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "slotEnd": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "timezone": {
+      "type": "string",
+      "default": "Europe/Warsaw"
+    },
+    "locationId": {
+      "type": "string",
+      "default": "main-clinic"
+    },
+    "patient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fullName",
+        "phoneE164"
+      ],
+      "properties": {
+        "fullName": {
+          "type": "string"
+        },
+        "phoneE164": {
+          "type": "string",
+          "pattern": "^\\+[1-9]\\d{7,14}$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "isExistingPatient": {
+          "type": "boolean"
+        }
+      }
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "consentToSms": {
+      "type": "boolean",
+      "default": false
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "phone",
+        "manual"
+      ],
+      "default": "phone"
+    }
+  },
+  "examples": [
+    {
+      "requestId": "req_002",
+      "service": {
+        "id": "consultation",
+        "name": "Konsultacja",
+        "durationMinutes": 30
+      },
+      "slotStart": "2026-03-12T09:00:00+01:00",
+      "slotEnd": "2026-03-12T09:30:00+01:00",
+      "timezone": "Europe/Warsaw",
+      "patient": {
+        "fullName": "Jan Kowalski",
+        "phoneE164": "+48500100200",
+        "email": "jan@example.com"
+      },
+      "notes": "Pierwsza wizyta",
+      "consentToSms": true,
+      "source": "phone"
+    }
+  ]
+}

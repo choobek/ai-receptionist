@@ -1,0 +1,260 @@
+{
+  "name": "AI Receptionist - checkAvailability",
+  "nodes": [
+    {
+      "id": "7ceecdc8-72d5-4ea5-948c-4dff77be2c00",
+      "name": "Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -980,
+        -140
+      ],
+      "parameters": {
+        "color": 6,
+        "width": 340,
+        "height": 220,
+        "content": "Purpose: return a short list of valid appointment slots for Vapi.\n\nAssumptions:\n- Accepts direct JSON or Vapi custom-tool webhook body\n- Uses Europe/Warsaw by default\n- Reads busy events from one Google Calendar\n- Returns raw JSON for direct tests, or Vapi results[] when toolCallId exists"
+      }
+    },
+    {
+      "id": "f4cd9877-1d4b-4605-9131-cc1d9c2e22c1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -920,
+        60
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-receptionist/check-availability",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "6ebed4ee-1d0f-4a75-9ec9-16cc3c6755a3",
+      "name": "Parse Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -660,
+        60
+      ],
+      "parameters": {
+        "jsCode": "const payload = $json.body ?? $json;\nconst toolCall = payload.message?.toolCalls?.[0] ?? payload.toolCall ?? null;\nconst rawArgs = toolCall?.function?.arguments ?? payload.arguments ?? payload;\nconst args = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;\nconst timezone = args.timezone || $env.CLINIC_TIMEZONE || 'Europe/Warsaw';\nconst durationMinutes = Number(args.service?.durationMinutes || $env.DEFAULT_APPOINTMENT_DURATION_MINUTES || 30);\nconst timePreference = args.timePreference || (args.requestedTime ? 'specific_time' : 'first_available');\nconst limit = Math.min(Number(args.limit || $env.DEFAULT_SLOT_SEARCH_LIMIT || 3), 5);\nconst workingStart = $env.CLINIC_WORKING_HOURS_START || '08:00';\nconst workingEnd = $env.CLINIC_WORKING_HOURS_END || '18:00';\nconst requestedDate = args.requestedDate;\nconst requestedTime = args.requestedTime || null;\nconst details = [];\nif (!args.service?.id) details.push('service.id is required');\nif (!requestedDate) details.push('requestedDate is required');\nif (!timezone) details.push('timezone is required');\nif (timePreference === 'specific_time' && !requestedTime) details.push('requestedTime is required when timePreference is specific_time');\nconst windows = {\n  morning: ['08:00', '12:00'],\n  afternoon: ['12:00', '16:00'],\n  evening: ['16:00', '19:00'],\n  first_available: [workingStart, workingEnd],\n  specific_time: [requestedTime || workingStart, requestedTime || workingStart]\n};\nconst [windowStartTime, windowEndTime] = windows[timePreference] || windows.first_available;\nlet windowStart = null;\nlet windowEnd = null;\nif (requestedDate) {\n  const startDate = new Date(`${requestedDate}T${windowStartTime}:00`);\n  const endDate = timePreference === 'specific_time'\n    ? new Date(startDate.getTime() + durationMinutes * 60000)\n    : new Date(`${requestedDate}T${windowEndTime}:00`);\n  if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime())) {\n    windowStart = startDate.toISOString();\n    windowEnd = endDate.toISOString();\n  }\n}\nreturn [{ json: {\n  ok: details.length === 0,\n  toolCallId: toolCall?.id || payload.toolCallId || null,\n  requestId: args.requestId || payload.requestId || null,\n  calendarId: args.calendarId || $env.GOOGLE_CALENDAR_ID || 'primary',\n  timezone,\n  service: args.service,\n  requestedDate,\n  requestedTime,\n  timePreference,\n  durationMinutes,\n  limit,\n  workingStart,\n  workingEnd,\n  windowStart,\n  windowEnd,\n  patient: args.patient || null,\n  validationErrors: details\n} }];"
+      }
+    },
+    {
+      "id": "3ad2f8f9-637d-428c-afc0-e1c2f2daf3da",
+      "name": "Valid Request?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        60
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.ok }}",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "86cb93df-c7b0-41a5-8e57-4ab7f4adf321",
+      "name": "Get Busy Events",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        -140,
+        -40
+      ],
+      "alwaysOutputData": true,
+      "parameters": {
+        "resource": "calendar",
+        "operation": "availability",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.calendarId }}"
+        },
+        "start": "={{ $json.windowStart }}",
+        "end": "={{ $json.windowEnd }}",
+        "options": {
+          "outputFormat": "bookedSlots",
+          "timezone": "={{ $json.timezone }}"
+        }
+      }
+    },
+    {
+      "id": "91d09786-48d9-433b-b344-c83af639026d",
+      "name": "Build Slots",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        120,
+        -40
+      ],
+      "parameters": {
+        "jsCode": "const config = $('Parse Request').first().json;\nconst events = $input.all().map((item) => item.json).filter((item) => item.start || item.end);\nconst incrementMinutes = Number($env.DEFAULT_SLOT_INCREMENT_MINUTES || 30);\nconst durationMinutes = Number(config.durationMinutes || 30);\nconst limit = Number(config.limit || 3);\nconst rangeStart = new Date(config.windowStart);\nconst rangeEnd = new Date(config.windowEnd);\nconst busy = events.map((event) => ({\n  start: new Date(event.start?.dateTime || event.start || event.dateTime || rangeStart),\n  end: new Date(event.end?.dateTime || event.end || event.dateTime || rangeStart)\n})).filter((event) => !Number.isNaN(event.start.getTime()) && !Number.isNaN(event.end.getTime()));\nconst slots = [];\nfor (let cursor = new Date(rangeStart); cursor < rangeEnd; cursor = new Date(cursor.getTime() + incrementMinutes * 60000)) {\n  const slotStart = new Date(cursor);\n  const slotEnd = new Date(cursor.getTime() + durationMinutes * 60000);\n  if (slotEnd > rangeEnd) break;\n  const overlaps = busy.some((event) => slotStart < event.end && slotEnd > event.start);\n  if (overlaps) continue;\n  const label = new Intl.DateTimeFormat('pl-PL', {\n    weekday: 'long',\n    day: 'numeric',\n    month: 'long',\n    hour: '2-digit',\n    minute: '2-digit',\n    timeZone: config.timezone\n  }).format(slotStart);\n  slots.push({\n    start: slotStart.toISOString(),\n    end: slotEnd.toISOString(),\n    label,\n    calendarId: config.calendarId\n  });\n  if (slots.length >= limit) break;\n}\nreturn [{ json: {\n  requestId: config.requestId,\n  toolCallId: config.toolCallId,\n  available: slots.length > 0,\n  timezone: config.timezone,\n  normalizedRequest: {\n    serviceId: config.service.id,\n    durationMinutes: config.durationMinutes,\n    windowStart: rangeStart.toISOString(),\n    windowEnd: rangeEnd.toISOString(),\n    requestedDate: config.requestedDate,\n    requestedTime: config.requestedTime,\n    timePreference: config.timePreference\n  },\n  slots,\n  message: slots.length > 0\n    ? 'Znalazlam najblizsze dostepne terminy.'\n    : 'Nie widze wolnych terminow w podanym zakresie.'\n} }];"
+      }
+    },
+    {
+      "id": "25f2a27d-a4d9-4b4a-be41-0d1f6dddf94a",
+      "name": "Format Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        360,
+        -40
+      ],
+      "parameters": {
+        "jsCode": "const result = $json;\nconst body = result.toolCallId\n  ? { results: [{ toolCallId: result.toolCallId, result: { requestId: result.requestId, available: result.available, timezone: result.timezone, normalizedRequest: result.normalizedRequest, slots: result.slots, message: result.message } }] }\n  : { requestId: result.requestId, available: result.available, timezone: result.timezone, normalizedRequest: result.normalizedRequest, slots: result.slots, message: result.message };\nreturn [{ json: body }];"
+      }
+    },
+    {
+      "id": "9f13a1c0-2cbe-40ad-9cdb-fccdb4d9f833",
+      "name": "Format Validation Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        180
+      ],
+      "parameters": {
+        "jsCode": "const result = {\n  requestId: $json.requestId,\n  available: false,\n  timezone: $json.timezone,\n  slots: [],\n  message: 'Brakuje danych do sprawdzenia dostepnosci.',\n  error: {\n    code: 'VALIDATION_ERROR',\n    details: $json.validationErrors || []\n  }\n};\nconst body = $json.toolCallId\n  ? { results: [{ toolCallId: $json.toolCallId, result }] }\n  : result;\nreturn [{ json: body }];"
+      }
+    },
+    {
+      "id": "4ce87c86-af87-4fe4-a1b2-a8dd4c4f492b",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        620,
+        -40
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    },
+    {
+      "id": "cbf57839-65cb-4a37-a611-e046c9d3d983",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        120,
+        180
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Request": {
+      "main": [
+        [
+          {
+            "node": "Valid Request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Request?": {
+      "main": [
+        [
+          {
+            "node": "Get Busy Events",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Busy Events": {
+      "main": [
+        [
+          {
+            "node": "Build Slots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Slots": {
+      "main": [
+        [
+          {
+            "node": "Format Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Success": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Validation Error": {
+      "main": [
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1177cbab-a40f-4c45-8554-3f904e23089a",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "aiReceptionistCheckAvailability",
+  "tags": []
+}
