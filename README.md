@@ -68,6 +68,17 @@ This first version is intentionally small:
 5. Set the Vapi custom tool server URLs to the two n8n webhook endpoints.
 6. Paste [`prompts/system-prompt.md`](./prompts/system-prompt.md) and [`prompts/first-message.md`](./prompts/first-message.md) into your Vapi assistant.
 
+## Deploy on a VPS
+
+For a stable public HTTPS setup on a server, use the production bundle in [`deploy/vps/`](./deploy/vps/):
+
+- [`deploy/vps/docker-compose.yml`](./deploy/vps/docker-compose.yml) runs n8n behind Caddy
+- [`deploy/vps/Caddyfile`](./deploy/vps/Caddyfile) terminates HTTPS and proxies to n8n
+- [`deploy/vps/.env.example`](./deploy/vps/.env.example) is the production env template
+- [`docs/vps-deployment.md`](./docs/vps-deployment.md) is the step-by-step server guide
+
+This path avoids temporary tunnel URLs and gives Vapi stable webhook endpoints.
+
 ### Start n8n locally
 
 ```bash
