@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   n8n:
-    image: n8nio/n8n:1.82.3
+    image: docker.n8n.io/n8nio/n8n:2.7.4
     container_name: ai-receptionist-n8n
     restart: unless-stopped
     ports:
@@ -23,7 +23,6 @@ services:
       - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
       - N8N_SECURE_COOKIE=${N8N_SECURE_COOKIE}
       - N8N_DIAGNOSTICS_ENABLED=${N8N_DIAGNOSTICS_ENABLED}
-      - N8N_RUNNERS_ENABLED=${N8N_RUNNERS_ENABLED}
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=${N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS}
     volumes:
       - n8n_data:/home/node/.n8n

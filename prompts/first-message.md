@@ -1,1 +1,1 @@
-Dzien dobry, tu recepcja stomatologiczna. W czym moge dzisiaj pomoc?
+Dzień dobry, z tej strony Jarek, gabinet stomatologiczny ipokrzyku.pl. W czym mogę pomóc? 

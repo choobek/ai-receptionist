@@ -40,12 +40,9 @@
       "format": "date"
     },
     "requestedTime": {
-      "type": [
-        "string",
-        "null"
-      ],
+      "type": "string",
       "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
-      "description": "Local clinic time in 24-hour HH:MM format."
+      "description": "Optional local clinic time in 24-hour HH:MM format. Omit when unknown."
     },
     "timePreference": {
       "type": "string",

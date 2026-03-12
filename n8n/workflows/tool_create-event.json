@@ -31,7 +31,8 @@
         "path": "ai-receptionist/create-event",
         "responseMode": "responseNode",
         "options": {}
-      }
+      },
+      "webhookId": "48475d3f-4e48-4b1b-803e-0dcd7b522601"
     },
     {
       "id": "80db97f7-731f-48f8-b7b0-7364da6cd339",
@@ -43,14 +44,14 @@
         60
       ],
       "parameters": {
-        "jsCode": "const payload = $json.body ?? $json;\nconst toolCall = payload.message?.toolCalls?.[0] ?? payload.toolCall ?? null;\nconst rawArgs = toolCall?.function?.arguments ?? payload.arguments ?? payload;\nconst args = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;\nconst timezone = args.timezone || $env.CLINIC_TIMEZONE || 'Europe/Warsaw';\nconst details = [];\nif (!args.service?.id) details.push('service.id is required');\nif (!args.slotStart) details.push('slotStart is required');\nif (!args.slotEnd) details.push('slotEnd is required');\nif (!args.patient?.fullName) details.push('patient.fullName is required');\nif (!args.patient?.phoneE164) details.push('patient.phoneE164 is required');\nreturn [{ json: {\n  ok: details.length === 0,\n  toolCallId: toolCall?.id || payload.toolCallId || null,\n  requestId: args.requestId || payload.requestId || null,\n  calendarId: args.calendarId || $env.GOOGLE_CALENDAR_ID || 'primary',\n  timezone,\n  service: args.service,\n  slotStart: args.slotStart,\n  slotEnd: args.slotEnd,\n  patient: args.patient,\n  notes: args.notes || '',\n  consentToSms: Boolean(args.consentToSms),\n  source: args.source || 'phone',\n  validationErrors: details\n} }];"
+        "jsCode": "const payload = $json.body ?? $json;\nconst toolCall = payload.message?.toolCallList?.[0] ?? payload.message?.toolCalls?.[0] ?? payload.toolCall ?? null;\nconst wrappedToolCall = payload.message?.toolWithToolCallList?.[0]?.toolCall ?? null;\nconst rawArgs = toolCall?.parameters ?? toolCall?.arguments ?? wrappedToolCall?.function?.parameters ?? wrappedToolCall?.function?.arguments ?? toolCall?.function?.arguments ?? payload.arguments ?? payload;\nconst args = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;\nconst timezone = args.timezone || $env.CLINIC_TIMEZONE || 'Europe/Warsaw';\nconst details = [];\nif (!args.service?.id) details.push('service.id is required');\nif (!args.slotStart) details.push('slotStart is required');\nif (!args.slotEnd) details.push('slotEnd is required');\nif (!args.patient?.fullName) details.push('patient.fullName is required');\nif (!args.patient?.phoneE164) details.push('patient.phoneE164 is required');\nreturn [{ json: {\n  ok: details.length === 0,\n  toolCallId: toolCall?.id || wrappedToolCall?.id || payload.toolCallId || null,\n  requestId: args.requestId || payload.requestId || null,\n  calendarId: args.calendarId || $env.GOOGLE_CALENDAR_ID || 'primary',\n  timezone,\n  service: args.service,\n  slotStart: args.slotStart,\n  slotEnd: args.slotEnd,\n  patient: args.patient,\n  notes: args.notes || '',\n  consentToSms: Boolean(args.consentToSms),\n  source: args.source || 'phone',\n  validationErrors: details\n} }];"
       }
     },
     {
       "id": "dd183c8b-0cfd-45d8-bf1d-b6df25060d90",
       "name": "Valid Request?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
+      "typeVersion": 1,
       "position": [
         -420,
         60
@@ -60,6 +61,7 @@
           "boolean": [
             {
               "value1": "={{ $json.ok }}",
+              "operation": "equal",
               "value2": true
             }
           ]
@@ -109,7 +111,7 @@
       "id": "ab0a5073-86a4-44a5-a244-8441e5af7255",
       "name": "Slot Free?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
+      "typeVersion": 1,
       "position": [
         360,
         -40
@@ -119,6 +121,7 @@
           "boolean": [
             {
               "value1": "={{ $json.slotAvailable }}",
+              "operation": "equal",
               "value2": true
             }
           ]
