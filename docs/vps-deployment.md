@@ -69,14 +69,15 @@ Edit [`deploy/vps/.env`](../deploy/vps/.env) and set at minimum:
 
 - `N8N_DOMAIN`
 - `LETSENCRYPT_EMAIL`
+- `CADDY_ADMIN_PASSWORD_HASH`
 - `N8N_ENCRYPTION_KEY`
-- `N8N_BASIC_AUTH_PASSWORD`
 - `GOOGLE_CALENDAR_ID` if not `primary`
 
 Generate strong secrets like this:
 
 ```bash
 openssl rand -hex 32
+docker run --rm caddy:2 caddy hash-password --plaintext 'choose-a-strong-editor-password'
 ```
 
 Required production values:
@@ -84,8 +85,10 @@ Required production values:
 ```dotenv
 N8N_DOMAIN=n8n.example.com
 LETSENCRYPT_EMAIL=ops@example.com
+CADDY_ADMIN_USER=admin
+CADDY_ADMIN_PASSWORD_HASH=replace-with-caddy-hash
 N8N_ENCRYPTION_KEY=replace-with-openssl-output
-N8N_BASIC_AUTH_PASSWORD=replace-with-a-strong-password
+N8N_BASIC_AUTH_ACTIVE=false
 N8N_SECURE_COOKIE=true
 N8N_PROXY_HOPS=1
 ```
@@ -132,6 +135,8 @@ Update:
 - Vapi custom tool `checkAvailability`
 - Vapi custom tool `createEvent`
 - any Vapi webhook target for `call.ended`
+
+The Caddy config protects the n8n editor with HTTP basic auth while leaving `/webhook/*` public for Vapi.
 
 ## 7. Verify from the server
 

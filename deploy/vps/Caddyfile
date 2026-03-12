@@ -5,6 +5,18 @@
 {$N8N_DOMAIN} {
 	encode zstd gzip
 
+	@public_endpoints {
+		path /webhook/* /webhook-test/* /healthz /healthz/*
+	}
+
+	@protected {
+		not path /webhook/* /webhook-test/* /healthz /healthz/*
+	}
+
+	basic_auth @protected {
+		{$CADDY_ADMIN_USER} {$CADDY_ADMIN_PASSWORD_HASH}
+	}
+
 	header {
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
