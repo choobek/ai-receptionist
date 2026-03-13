@@ -1,33 +1,31 @@
 # Manual Test Plan
 
-This checklist verifies the full flow after reconnecting a Cloudflare tunnel.
+This checklist verifies the full flow against the permanent hosted n8n instance:
 
-## 1. Update n8n to the new public URL
+- `https://vps-2c8bbf65.vps.ovh.net`
 
-If your tunnel domain changed, update n8n:
+## 1. Verify the configured public URL
+
+Confirm that your deployed n8n instance is reachable at the permanent public hostname:
 
 ```bash
-./scripts/update-n8n-public-url.sh https://YOUR-NEW-TUNNEL.trycloudflare.com
-cd n8n
-docker-compose up -d
+curl -I https://vps-2c8bbf65.vps.ovh.net
 ```
 
-This updates:
-- `WEBHOOK_URL` in `n8n/.env`
-- `N8N_EDITOR_BASE_URL` in `n8n/.env`
+You should get an HTTP response from the server. A 404 is acceptable here; connection failures are not.
 
-## 2. Update external URLs that depend on the tunnel
+## 2. Confirm the public endpoints used in Vapi
 
-When the tunnel URL changes, these public endpoints change too:
+These are the URLs that should be configured in Vapi:
 
-- `https://YOUR-NEW-TUNNEL/webhook/ai-receptionist/lookup-patient`
-- `https://YOUR-NEW-TUNNEL/webhook/ai-receptionist/check-availability`
-- `https://YOUR-NEW-TUNNEL/webhook/ai-receptionist/create-event`
-- `https://YOUR-NEW-TUNNEL/webhook/ai-receptionist/search-knowledge-base`
-- `https://YOUR-NEW-TUNNEL/webhook/ai-receptionist/create-reception-task`
-- `https://YOUR-NEW-TUNNEL/webhook/ai-receptionist/vapi-call-ended`
+- `https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/lookup-patient`
+- `https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/check-availability`
+- `https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/create-event`
+- `https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/search-knowledge-base`
+- `https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/create-reception-task`
+- `https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/vapi-call-ended`
 
-Update them in:
+Confirm them in:
 - Vapi custom tool `lookupPatient`
 - Vapi custom tool `checkAvailability`
 - Vapi custom tool `createEvent`
@@ -35,24 +33,16 @@ Update them in:
 - Vapi custom tool `createReceptionTask`
 - any Vapi webhook/server configuration that sends `call.ended` events to n8n
 
-Nothing in the Google Calendar credentials needs to change because the tunnel only affects the public HTTP ingress.
+Nothing in the Google Calendar credentials should need to change if the workflows are already connected correctly in n8n.
 
-## 3. Verify the tunnel is alive
-
-Quick smoke check:
-
-```bash
-curl -I https://YOUR-NEW-TUNNEL.trycloudflare.com
-```
-
-You should get an HTTP response from the tunnel. A 404 is acceptable here; connection failures are not.
+## 3. Verify the hosted instance is alive
 
 ## 4. Direct tool test: `lookupPatient`
 
 Run a direct webhook test against n8n through the public URL:
 
 ```bash
-curl -sS -X POST https://YOUR-NEW-TUNNEL.trycloudflare.com/webhook/ai-receptionist/lookup-patient \
+curl -sS -X POST https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/lookup-patient \
   -H "Content-Type: application/json" \
   -d '{
     "requestId": "test_lookup_001",
@@ -71,7 +61,7 @@ Expected:
 Run a direct webhook test against n8n through the public URL:
 
 ```bash
-curl -sS -X POST https://YOUR-NEW-TUNNEL.trycloudflare.com/webhook/ai-receptionist/search-knowledge-base \
+curl -sS -X POST https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/search-knowledge-base \
   -H "Content-Type: application/json" \
   -d '{
     "requestId": "test_kb_001",
@@ -92,7 +82,7 @@ Expected:
 Run a direct webhook test against n8n through the public URL:
 
 ```bash
-curl -sS -X POST https://YOUR-NEW-TUNNEL.trycloudflare.com/webhook/ai-receptionist/check-availability \
+curl -sS -X POST https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/check-availability \
   -H "Content-Type: application/json" \
   -d '{
     "requestId": "test_check_001",
@@ -118,7 +108,7 @@ Expected:
 - `message` present
 
 Failure indicators:
-- Cloudflare or connection error: tunnel problem
+- connection error: hosting or DNS problem
 - auth or HTML response: wrong target or n8n basic auth issue
 - validation error: payload shape issue
 
@@ -127,7 +117,7 @@ Failure indicators:
 Use one slot returned from `checkAvailability`.
 
 ```bash
-curl -sS -X POST https://YOUR-NEW-TUNNEL.trycloudflare.com/webhook/ai-receptionist/create-event \
+curl -sS -X POST https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/create-event \
   -H "Content-Type: application/json" \
   -d '{
     "requestId": "test_create_001",
@@ -161,7 +151,7 @@ After the test:
 ## 8. Direct tool test: `createReceptionTask`
 
 ```bash
-curl -sS -X POST https://YOUR-NEW-TUNNEL.trycloudflare.com/webhook/ai-receptionist/create-reception-task \
+curl -sS -X POST https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/create-reception-task \
   -H "Content-Type: application/json" \
   -d '{
     "requestId": "test_task_001",
@@ -186,7 +176,7 @@ Expected:
 Test the n8n router directly with a synthetic `call.ended` payload:
 
 ```bash
-curl -sS -X POST https://YOUR-NEW-TUNNEL.trycloudflare.com/webhook/ai-receptionist/vapi-call-ended \
+curl -sS -X POST https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/vapi-call-ended \
   -H "Content-Type: application/json" \
   -d '{
     "type": "call.ended",
@@ -220,7 +210,6 @@ Expected:
 - `route: "booked"`
 
 Then test a follow-up case by changing:
-- use your real tunnel URL instead of `YOUR-NEW-TUNNEL`
 - `callOutcome` to `needs_reception_follow_up`
 - `booking.bookingCreated` to `false`
 - add `followUp.receptionFollowUpNeeded` set to `true`
@@ -286,11 +275,11 @@ Verify:
 If tool calls fail:
 - Vapi tool request logs
 - n8n workflow executions
-- Cloudflare tunnel process output
+- VPS-side n8n and reverse proxy logs
 - Google Calendar credential status in n8n
 
 If the assistant speaks but no booking happens:
-- verify the Vapi tool URLs use the new tunnel base
+- verify the Vapi tool URLs use `https://vps-2c8bbf65.vps.ovh.net`
 - verify the schema names in Vapi still match `lookupPatient`, `checkAvailability`, `searchKnowledgeBase`, `createEvent`, and `createReceptionTask`
 - verify the system prompt is the current file from this repo
 
@@ -302,11 +291,11 @@ If structured output exists but router does not classify it:
 ## 12. Minimal acceptance criteria
 
 Consider the setup healthy when all of these are true:
-- public `lookupPatient` works through the tunnel
-- public `searchKnowledgeBase` works through the tunnel
-- public `checkAvailability` works through the tunnel
-- public `createEvent` works through the tunnel
-- public `createReceptionTask` works through the tunnel
+- public `lookupPatient` works through the hosted URL
+- public `searchKnowledgeBase` works through the hosted URL
+- public `checkAvailability` works through the hosted URL
+- public `createEvent` works through the hosted URL
+- public `createReceptionTask` works through the hosted URL
 - a real Vapi call creates a Google Calendar event
 - the call produces structured output
 - the `call.ended` n8n router returns the expected route

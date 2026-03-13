@@ -126,14 +126,20 @@ After first login:
 
 Use the stable HTTPS base:
 
+- `https://YOUR_HOSTNAME/webhook/ai-receptionist/lookup-patient`
 - `https://YOUR_HOSTNAME/webhook/ai-receptionist/check-availability`
+- `https://YOUR_HOSTNAME/webhook/ai-receptionist/search-knowledge-base`
 - `https://YOUR_HOSTNAME/webhook/ai-receptionist/create-event`
+- `https://YOUR_HOSTNAME/webhook/ai-receptionist/create-reception-task`
 - `https://YOUR_HOSTNAME/webhook/ai-receptionist/vapi-call-ended`
 
 Update:
 
+- Vapi custom tool `lookupPatient`
 - Vapi custom tool `checkAvailability`
+- Vapi custom tool `searchKnowledgeBase`
 - Vapi custom tool `createEvent`
+- Vapi custom tool `createReceptionTask`
 - any Vapi webhook target for `call.ended`
 
 The Caddy config protects the n8n editor with HTTP basic auth while leaving `/webhook/*` public for Vapi.
@@ -144,6 +150,21 @@ Quick checks:
 
 ```bash
 curl -I https://YOUR_HOSTNAME
+curl -sS -X POST https://YOUR_HOSTNAME/webhook/ai-receptionist/lookup-patient \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestId": "vps_smoke_lookup_001",
+    "fullName": "Anna Kowalska",
+    "phoneRaw": "500111001"
+  }'
+curl -sS -X POST https://YOUR_HOSTNAME/webhook/ai-receptionist/search-knowledge-base \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestId": "vps_smoke_kb_001",
+    "query": "Czym rozni sie bonding od licowek?",
+    "limit": 2,
+    "language": "pl"
+  }'
 curl -sS -X POST https://YOUR_HOSTNAME/webhook/ai-receptionist/check-availability \
   -H "Content-Type: application/json" \
   -d '{
@@ -161,12 +182,28 @@ curl -sS -X POST https://YOUR_HOSTNAME/webhook/ai-receptionist/check-availabilit
       "isExistingPatient": false
     }
   }'
+curl -sS -X POST https://YOUR_HOSTNAME/webhook/ai-receptionist/create-reception-task \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestId": "vps_smoke_task_001",
+    "taskType": "existing_patient_booking",
+    "patient": {
+      "fullName": "Anna Kowalska",
+      "phoneE164": "+48500111001",
+      "isExistingPatient": true
+    },
+    "summary": "Pacjentka chce umowic kolejna wizyte.",
+    "notes": "Test wdrozeniowy na VPS."
+  }'
 ```
 
 Expected:
 
 - HTTPS responds successfully
+- the patient lookup webhook returns JSON, not HTML
+- the knowledge-base webhook returns JSON, not HTML
 - the availability webhook returns JSON, not HTML
+- the reception task webhook returns JSON, not HTML
 
 ## Operations
 
