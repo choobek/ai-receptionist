@@ -231,6 +231,8 @@ Say something like:
 
 Verify:
 - the assistant speaks normally
+- the assistant resolves the relative date once and does not backtrack to a different day
+- the assistant avoids raw numeric speech and cut-off filler fragments
 - Vapi calls `checkAvailability`
 - the assistant offers 2-3 real slots
 - after you choose one, it collects name and phone
