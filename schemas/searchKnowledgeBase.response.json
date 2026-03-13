@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "searchKnowledgeBase response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "found",
+    "message"
+  ],
+  "properties": {
+    "requestId": {
+      "type": "string"
+    },
+    "found": {
+      "type": "boolean"
+    },
+    "answer": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "matches": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "category",
+          "sourceDocument",
+          "answer"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "sourceDocument": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "message": {
+      "type": "string"
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "requestId": "req_kb_001",
+      "found": true,
+      "answer": "Licowki to cienkie nakladki, najczesciej porcelanowe, przyklejane do przedniej powierzchni zeba. Bonding polega na modelowaniu zeba kompozytem bezposrednio na zebie.",
+      "matches": [
+        {
+          "id": "kb_veneers_vs_bonding",
+          "title": "Licowki a bonding",
+          "category": "prosthetics_and_aesthetics",
+          "sourceDocument": "protetyka.odt",
+          "answer": "Licowki to cienkie nakladki, najczesciej porcelanowe, przyklejane do przedniej powierzchni zeba. Bonding polega na modelowaniu zeba kompozytem bezposrednio na zebie.",
+          "score": 7.5
+        }
+      ],
+      "message": "Znalazlem odpowiedz w lokalnej bazie wiedzy."
+    }
+  ]
+}

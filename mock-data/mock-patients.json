@@ -1,0 +1,67 @@
+[
+  {
+    "patientId": "poc_001",
+    "fullName": "Anna Kowalska",
+    "phoneE164": "+48500111001",
+    "email": "anna.kowalska@example.com",
+    "lastVisitAt": "2026-02-11",
+    "preferredDoctor": "dr Magdalena Szajnar",
+    "notes": "Pacjentka po konsultacji implantologicznej, oczekuje dalszego planu leczenia.",
+    "tags": [
+      "implanty",
+      "powracajacy"
+    ]
+  },
+  {
+    "patientId": "poc_002",
+    "fullName": "Piotr Nowak",
+    "phoneE164": "+48500111002",
+    "email": "piotr.nowak@example.com",
+    "lastVisitAt": "2025-12-19",
+    "preferredDoctor": "dr Magdalena Szajnar",
+    "notes": "Pacjent ortodontyczny, kontrola co kilka tygodni.",
+    "tags": [
+      "ortodoncja",
+      "powracajacy"
+    ]
+  },
+  {
+    "patientId": "poc_003",
+    "fullName": "Maria Zielinska",
+    "phoneE164": "+48500111003",
+    "email": "maria.zielinska@example.com",
+    "lastVisitAt": "2026-01-09",
+    "preferredDoctor": "dr Karolina Wrobel",
+    "notes": "Pacjentka po higienizacji, preferuje kontakt rano.",
+    "tags": [
+      "higienizacja",
+      "powracajacy"
+    ]
+  },
+  {
+    "patientId": "poc_004",
+    "fullName": "Tomasz Wisniewski",
+    "phoneE164": "+48500111004",
+    "email": "tomasz.wisniewski@example.com",
+    "lastVisitAt": "2025-11-28",
+    "preferredDoctor": "dr Magdalena Szajnar",
+    "notes": "Pacjent po konsultacji estetycznej, prosi o szybki kontakt przy wolnych terminach.",
+    "tags": [
+      "estetyka",
+      "powracajacy"
+    ]
+  },
+  {
+    "patientId": "poc_005",
+    "fullName": "Katarzyna Mazur",
+    "phoneE164": "+48500111005",
+    "email": "katarzyna.mazur@example.com",
+    "lastVisitAt": "2026-02-24",
+    "preferredDoctor": "dr Michal Bielecki",
+    "notes": "Pacjentka z leczeniem zachowawczym, kontakt glownie po poludniu.",
+    "tags": [
+      "leczenie_zachowawcze",
+      "powracajacy"
+    ]
+  }
+]

@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "createReceptionTask response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "accepted",
+    "message"
+  ],
+  "properties": {
+    "requestId": {
+      "type": "string"
+    },
+    "accepted": {
+      "type": "boolean"
+    },
+    "taskId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "task": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "taskType": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "channel": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "patient": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "fullName": {
+              "type": "string"
+            },
+            "phoneE164": {
+              "type": "string"
+            }
+          }
+        },
+        "summary": {
+          "type": "string"
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preferredCallbackWindow": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sourceCallId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "message": {
+      "type": "string"
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "requestId": "req_task_001",
+      "accepted": true,
+      "taskId": "task_20260312_001",
+      "task": {
+        "taskType": "existing_patient_booking",
+        "status": "queued",
+        "channel": "n8n_execution_log",
+        "createdAt": "2026-03-12T10:30:00+01:00",
+        "patient": {
+          "fullName": "Anna Kowalska",
+          "phoneE164": "+48500111001"
+        },
+        "summary": "Pacjentka chce umowic kolejna wizyte.",
+        "notes": "Pacjentka prosila o kontakt rano."
+      },
+      "message": "Prosba dla recepcji zostala zapisana."
+    }
+  ]
+}

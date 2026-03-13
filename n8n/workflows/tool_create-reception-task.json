@@ -1,0 +1,200 @@
+{
+  "name": "AI Receptionist - createReceptionTask",
+  "nodes": [
+    {
+      "id": "fd8b7592-a1eb-4bc6-a8db-919cbde1a549",
+      "name": "Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -980,
+        -140
+      ],
+      "parameters": {
+        "color": 3,
+        "width": 360,
+        "height": 260,
+        "content": "Purpose: queue a receptionist follow-up task during the proof-of-concept phase.\n\nNotes:\n- No external CRM or SMS provider is required yet\n- The task is stored in the n8n execution payload for later downstream wiring\n- Replace this with a real clinic workflow in production"
+      }
+    },
+    {
+      "id": "49bcbb04-eb5a-4279-86a1-547267e95cbe",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -920,
+        60
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-receptionist/create-reception-task",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "c8a8d3c1-f518-4516-bdb5-c98715d4d9b8"
+    },
+    {
+      "id": "2851fa80-366a-46ff-9458-3e69f71bcf4f",
+      "name": "Parse Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -660,
+        60
+      ],
+      "parameters": {
+        "jsCode": "const payload = $json.body ?? $json;\nconst toolCall = payload.message?.toolCallList?.[0] ?? payload.message?.toolCalls?.[0] ?? payload.toolCall ?? null;\nconst wrappedToolCall = payload.message?.toolWithToolCallList?.[0]?.toolCall ?? null;\nconst rawArgs = toolCall?.parameters ?? toolCall?.arguments ?? wrappedToolCall?.function?.parameters ?? wrappedToolCall?.function?.arguments ?? toolCall?.function?.arguments ?? payload.arguments ?? payload;\nconst args = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;\nconst details = [];\nif (!args.taskType) details.push('taskType is required');\nif (!args.patient?.fullName) details.push('patient.fullName is required');\nif (!args.patient?.phoneE164) details.push('patient.phoneE164 is required');\nif (!args.summary) details.push('summary is required');\nreturn [{ json: {\n  ok: details.length === 0,\n  toolCallId: toolCall?.id || wrappedToolCall?.id || payload.toolCallId || null,\n  requestId: args.requestId || payload.requestId || null,\n  taskType: args.taskType || null,\n  patient: args.patient || null,\n  summary: args.summary || '',\n  notes: args.notes || '',\n  preferredCallbackWindow: args.preferredCallbackWindow || null,\n  sourceCallId: args.sourceCallId || payload.call?.id || payload.callId || null,\n  validationErrors: details\n} }];"
+      }
+    },
+    {
+      "id": "cb311e10-f0da-492d-a3d7-65f833694b39",
+      "name": "Valid Request?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        60
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.ok }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "cf2855f4-43a4-4877-b933-36f81de87df6",
+      "name": "Build Task",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        -20
+      ],
+      "parameters": {
+        "jsCode": "const request = $('Parse Request').first().json;\nconst now = new Date();\nconst taskId = `task_${now.toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}_${Math.random().toString(36).slice(2, 8)}`;\nconst result = {\n  requestId: request.requestId,\n  accepted: true,\n  taskId,\n  task: {\n    taskType: request.taskType,\n    status: 'queued',\n    channel: 'n8n_execution_log',\n    createdAt: now.toISOString(),\n    patient: {\n      fullName: request.patient.fullName,\n      phoneE164: request.patient.phoneE164\n    },\n    summary: request.summary,\n    notes: request.notes || null,\n    preferredCallbackWindow: request.preferredCallbackWindow || null,\n    sourceCallId: request.sourceCallId || null\n  },\n  message: 'Prosba dla recepcji zostala zapisana.'\n};\nconst body = request.toolCallId\n  ? { results: [{ toolCallId: request.toolCallId, result }] }\n  : result;\nreturn [{ json: body }];"
+      }
+    },
+    {
+      "id": "f9dd66df-353d-4706-a00d-acf139dfd76b",
+      "name": "Format Validation Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        180
+      ],
+      "parameters": {
+        "jsCode": "const result = {\n  requestId: $json.requestId,\n  accepted: false,\n  taskId: null,\n  task: null,\n  message: 'Brakuje danych do zapisania prosby dla recepcji.',\n  error: {\n    code: 'VALIDATION_ERROR',\n    details: $json.validationErrors || []\n  }\n};\nconst body = $json.toolCallId\n  ? { results: [{ toolCallId: $json.toolCallId, result }] }\n  : result;\nreturn [{ json: body }];"
+      }
+    },
+    {
+      "id": "33fc6608-1a91-4e84-81be-c0f03d9e405e",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        120,
+        -20
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    },
+    {
+      "id": "7cde442e-f8e8-46af-bcff-05c23182ef93",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        120,
+        180
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Request": {
+      "main": [
+        [
+          {
+            "node": "Valid Request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Request?": {
+      "main": [
+        [
+          {
+            "node": "Build Task",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Task": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Validation Error": {
+      "main": [
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "cce6f898-8998-4940-be0e-62440f3ea9a0",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "aiReceptionistCreateReceptionTask"
+}

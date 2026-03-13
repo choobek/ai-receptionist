@@ -1,0 +1,301 @@
+{
+  "name": "AI Receptionist - lookupPatient",
+  "nodes": [
+    {
+      "id": "8e605366-c564-4892-ae99-e9c8ab5fc8d5",
+      "name": "Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -980,
+        -140
+      ],
+      "parameters": {
+        "color": 4,
+        "width": 380,
+        "height": 260,
+        "content": "Purpose: look up an existing patient in the proof-of-concept registry.\n\nNotes:\n- Accepts direct JSON or Vapi custom-tool webhook body\n- Uses exact phone match first and exact normalized full-name match second\n- Returns a small patient object for branching, not a full CRM record"
+      }
+    },
+    {
+      "id": "4105803a-81ea-4cd4-aa72-3798f01022ea",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -920,
+        60
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-receptionist/lookup-patient",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "5c0d754e-8c56-4a8d-8cbe-0a0af44fe162"
+    },
+    {
+      "id": "662aa5f4-0c18-4e71-bd65-cf8095a23d03",
+      "name": "Parse Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -660,
+        60
+      ],
+      "parameters": {
+        "jsCode": "const payload = $json.body ?? $json;\nconst toolCall = payload.message?.toolCallList?.[0] ?? payload.message?.toolCalls?.[0] ?? payload.toolCall ?? null;\nconst wrappedToolCall = payload.message?.toolWithToolCallList?.[0]?.toolCall ?? null;\nconst rawArgs = toolCall?.parameters ?? toolCall?.arguments ?? wrappedToolCall?.function?.parameters ?? wrappedToolCall?.function?.arguments ?? toolCall?.function?.arguments ?? payload.arguments ?? payload;\nconst args = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;\nconst normalizeName = (value) => (value || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/\\s+/g, ' ').trim().toLowerCase();\nconst normalizePhone = (value) => {\n  if (!value) return null;\n  const digits = String(value).replace(/\\D/g, '');\n  if (!digits) return null;\n  if (digits.startsWith('00') && digits.length > 2) return `+${digits.slice(2)}`;\n  if (digits.length === 9) return `+48${digits}`;\n  if (digits.length === 11 && digits.startsWith('48')) return `+${digits}`;\n  if (String(value).trim().startsWith('+')) return `+${digits}`;\n  return digits.length >= 8 ? `+${digits}` : null;\n};\nconst fullName = args.fullName || null;\nconst phoneE164 = args.phoneE164 || normalizePhone(args.phoneRaw) || null;\nconst details = [];\nif (!fullName && !phoneE164 && !args.phoneRaw) details.push('fullName or phoneE164 or phoneRaw is required');\nreturn [{ json: {\n  ok: details.length === 0,\n  toolCallId: toolCall?.id || wrappedToolCall?.id || payload.toolCallId || null,\n  requestId: args.requestId || payload.requestId || null,\n  fullName,\n  normalizedFullName: normalizeName(fullName),\n  phoneE164,\n  validationErrors: details\n} }];"
+      }
+    },
+    {
+      "id": "7e1b2f5d-8c99-4d47-a792-0f4e32e96cdc",
+      "name": "Valid Request?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        60
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.ok }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "f60d07fc-9711-4dbc-9bb6-0991b3d4699d",
+      "name": "Find Patient",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        -20
+      ],
+      "parameters": {
+        "jsCode": "const request = $('Parse Request').first().json;\nconst normalizeName = (value) => (value || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/\\s+/g, ' ').trim().toLowerCase();\nconst registry = [\n  {\n    patientId: 'poc_001',\n    fullName: 'Anna Kowalska',\n    phoneE164: '+48500111001',\n    email: 'anna.kowalska@example.com',\n    lastVisitAt: '2026-02-11',\n    preferredDoctor: 'dr Magdalena Szajnar',\n    notes: 'Pacjentka po konsultacji implantologicznej, oczekuje dalszego planu leczenia.',\n    tags: ['implanty', 'powracajacy']\n  },\n  {\n    patientId: 'poc_002',\n    fullName: 'Piotr Nowak',\n    phoneE164: '+48500111002',\n    email: 'piotr.nowak@example.com',\n    lastVisitAt: '2025-12-19',\n    preferredDoctor: 'dr Magdalena Szajnar',\n    notes: 'Pacjent ortodontyczny, kontrola co kilka tygodni.',\n    tags: ['ortodoncja', 'powracajacy']\n  },\n  {\n    patientId: 'poc_003',\n    fullName: 'Maria Zielinska',\n    phoneE164: '+48500111003',\n    email: 'maria.zielinska@example.com',\n    lastVisitAt: '2026-01-09',\n    preferredDoctor: 'dr Karolina Wrobel',\n    notes: 'Pacjentka po higienizacji, preferuje kontakt rano.',\n    tags: ['higienizacja', 'powracajacy']\n  },\n  {\n    patientId: 'poc_004',\n    fullName: 'Tomasz Wisniewski',\n    phoneE164: '+48500111004',\n    email: 'tomasz.wisniewski@example.com',\n    lastVisitAt: '2025-11-28',\n    preferredDoctor: 'dr Magdalena Szajnar',\n    notes: 'Pacjent po konsultacji estetycznej, prosi o szybki kontakt przy wolnych terminach.',\n    tags: ['estetyka', 'powracajacy']\n  },\n  {\n    patientId: 'poc_005',\n    fullName: 'Katarzyna Mazur',\n    phoneE164: '+48500111005',\n    email: 'katarzyna.mazur@example.com',\n    lastVisitAt: '2026-02-24',\n    preferredDoctor: 'dr Michal Bielecki',\n    notes: 'Pacjentka z leczeniem zachowawczym, kontakt glownie po poludniu.',\n    tags: ['leczenie_zachowawcze', 'powracajacy']\n  }\n];\nlet match = null;\nlet matchedBy = null;\nif (request.phoneE164) {\n  match = registry.find((patient) => patient.phoneE164 === request.phoneE164) || null;\n  if (match) matchedBy = 'phone';\n}\nif (!match && request.normalizedFullName) {\n  match = registry.find((patient) => normalizeName(patient.fullName) === request.normalizedFullName) || null;\n  if (match) matchedBy = 'full_name';\n}\nconst patient = match ? {\n  patientId: match.patientId,\n  fullName: match.fullName,\n  phoneE164: match.phoneE164,\n  email: match.email || null,\n  isExistingPatient: true,\n  lastVisitAt: match.lastVisitAt || null,\n  preferredDoctor: match.preferredDoctor || null,\n  notes: match.notes || null,\n  tags: match.tags || []\n} : null;\nreturn [{ json: {\n  requestId: request.requestId,\n  toolCallId: request.toolCallId,\n  found: Boolean(match),\n  matchedBy,\n  patient,\n  message: match\n    ? 'Znalazlem pacjenta w proof-of-concept registry.'\n    : 'Nie widze tego pacjenta w proof-of-concept registry.'\n} }];"
+      }
+    },
+    {
+      "id": "545d3ec9-2f76-4f1b-bd98-3f7b28eca93e",
+      "name": "Patient Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        120,
+        -20
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.found }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "9859ae9d-ec6c-42db-b0f7-d43ae2fdb55f",
+      "name": "Format Found",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        380,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "const result = {\n  requestId: $json.requestId,\n  found: true,\n  matchedBy: $json.matchedBy,\n  patient: $json.patient,\n  message: $json.message\n};\nconst body = $json.toolCallId\n  ? { results: [{ toolCallId: $json.toolCallId, result }] }\n  : result;\nreturn [{ json: body }];"
+      }
+    },
+    {
+      "id": "2a02e834-b041-4a78-818e-d0530a8ea905",
+      "name": "Format Not Found",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        380,
+        20
+      ],
+      "parameters": {
+        "jsCode": "const result = {\n  requestId: $json.requestId,\n  found: false,\n  matchedBy: null,\n  patient: null,\n  message: $json.message\n};\nconst body = $json.toolCallId\n  ? { results: [{ toolCallId: $json.toolCallId, result }] }\n  : result;\nreturn [{ json: body }];"
+      }
+    },
+    {
+      "id": "b8880c40-6e78-4e5e-8789-ddc177cdf73b",
+      "name": "Format Validation Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        180
+      ],
+      "parameters": {
+        "jsCode": "const result = {\n  requestId: $json.requestId,\n  found: false,\n  matchedBy: null,\n  patient: null,\n  message: 'Brakuje danych do wyszukania pacjenta.',\n  error: {\n    code: 'VALIDATION_ERROR',\n    details: $json.validationErrors || []\n  }\n};\nconst body = $json.toolCallId\n  ? { results: [{ toolCallId: $json.toolCallId, result }] }\n  : result;\nreturn [{ json: body }];"
+      }
+    },
+    {
+      "id": "d5411607-54fd-4895-a7db-dced5d6ad0a5",
+      "name": "Respond Found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        -120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    },
+    {
+      "id": "26b82997-bd76-45f0-8c00-a7aa07cf5620",
+      "name": "Respond Not Found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        20
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    },
+    {
+      "id": "1ca278f1-8abc-4cb8-88d8-3ae290fdd960",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        120,
+        180
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Request": {
+      "main": [
+        [
+          {
+            "node": "Valid Request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Request?": {
+      "main": [
+        [
+          {
+            "node": "Find Patient",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Patient": {
+      "main": [
+        [
+          {
+            "node": "Patient Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Patient Found?": {
+      "main": [
+        [
+          {
+            "node": "Format Found",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Found": {
+      "main": [
+        [
+          {
+            "node": "Respond Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Not Found": {
+      "main": [
+        [
+          {
+            "node": "Respond Not Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Validation Error": {
+      "main": [
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "dbf3dbac-13ed-452f-9f84-1e0d3eb29f4f",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "aiReceptionistLookupPatient"
+}

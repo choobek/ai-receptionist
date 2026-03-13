@@ -1,0 +1,177 @@
+[
+  {
+    "id": "kb_consultation_overview",
+    "title": "Konsultacja stomatologiczna",
+    "category": "consultation",
+    "sourceDocument": "konsultacja.odt",
+    "tags": [
+      "konsultacja",
+      "pierwsza wizyta",
+      "plan leczenia",
+      "wywiad",
+      "badanie",
+      "cbct",
+      "rtg"
+    ],
+    "queryExamples": [
+      "Jak wyglada konsultacja stomatologiczna?",
+      "Co obejmuje pierwsza konsultacja?",
+      "Czy na konsultacji robicie tomografie?"
+    ],
+    "answerPl": "Konsultacja stomatologiczna obejmuje wywiad z pacjentem, badanie jamy ustnej, a w razie potrzeby takze diagnostyke obrazowa, na przyklad RTG lub CBCT. Na koncu lekarz omawia wyniki i proponuje plan leczenia, czasem w kilku wariantach pod wzgledem ceny, trwalosci i estetyki."
+  },
+  {
+    "id": "kb_consultation_interview",
+    "title": "Wywiad i badanie podczas konsultacji",
+    "category": "consultation",
+    "sourceDocument": "konsultacja.odt",
+    "tags": [
+      "wywiad",
+      "badanie",
+      "alergie",
+      "leki",
+      "choroby przewlekle",
+      "powod wizyty"
+    ],
+    "queryExamples": [
+      "O co lekarz pyta na konsultacji?",
+      "Jakie informacje trzeba podac na konsultacji?"
+    ],
+    "answerPl": "Podczas konsultacji lekarz pyta zwykle o powod wizyty, ogolny stan zdrowia, przyjmowane leki, alergie, oczekiwania oraz wczesniejsze leczenie stomatologiczne. Samo badanie obejmuje ocene zebow, dziasel, przyzebia, zgryzu oraz sluzowki jamy ustnej."
+  },
+  {
+    "id": "kb_implants_single_and_bridge",
+    "title": "Rodzaje implantow przy brakach jednego lub kilku zebow",
+    "category": "implantology",
+    "sourceDocument": "implanty.odt",
+    "tags": [
+      "implant",
+      "pojedynczy implant",
+      "most na implantach",
+      "kilka zebow",
+      "brak zeba"
+    ],
+    "queryExamples": [
+      "Jakie sa rodzaje implantow?",
+      "Co jesli brakuje jednego zeba?",
+      "Czy kilka zebow mozna uzupelnic mostem na implantach?"
+    ],
+    "answerPl": "Przy braku jednego zeba najczesciej stosuje sie pojedynczy implant z korona. Przy braku kilku zebow obok siebie mozna zastosowac implanty wielozebowe, czyli na przyklad most protetyczny oparty na dwoch lub trzech implantach zamiast wszczepiania implantu pod kazdy zab."
+  },
+  {
+    "id": "kb_implants_timing",
+    "title": "Implantacja natychmiastowa i dwuetapowa",
+    "category": "implantology",
+    "sourceDocument": "implanty.odt",
+    "tags": [
+      "implantacja natychmiastowa",
+      "zabieg dwuetapowy",
+      "po usunieciu zeba",
+      "czas leczenia",
+      "zintegrowanie z koscia"
+    ],
+    "queryExamples": [
+      "Co to jest implantacja natychmiastowa?",
+      "Czym rozni sie zabieg klasyczny od natychmiastowego?",
+      "Ile etapow ma leczenie implantologiczne?"
+    ],
+    "answerPl": "Implantacja natychmiastowa polega na wszczepieniu implantu od razu po usunieciu zeba, podczas tej samej wizyty, co moze skrocic czas leczenia, ale wymaga odpowiednich warunkow kostnych. Zabieg dwuetapowy to klasyczny schemat: najpierw wszczepienie implantu, a po mniej wiecej trzech do szesciu miesiacach odsloniecie implantu i zalozenie korony."
+  },
+  {
+    "id": "kb_implants_supporting_procedures",
+    "title": "Zabiegi przygotowujace do implantacji",
+    "category": "implantology",
+    "sourceDocument": "implanty.odt",
+    "tags": [
+      "augmentacja kosci",
+      "regeneracja kosci",
+      "sinus lift",
+      "podniesienie dna zatoki",
+      "plastyka dziasel"
+    ],
+    "queryExamples": [
+      "Jakie zabiegi dodatkowe moga byc potrzebne przed implantem?",
+      "Co to jest sinus lift?",
+      "Czy przed implantami trzeba odbudowac kosc?"
+    ],
+    "answerPl": "Przed implantacja czasem potrzebne sa zabiegi przygotowujace, takie jak augmentacja kosci, czyli odbudowa zaniku kostnego, podniesienie dna zatoki szczekowej przy brakujacym miejscu w gornej szczekce, albo plastyka dziasel poprawiajaca warunki do osadzenia korony i efekt estetyczny."
+  },
+  {
+    "id": "kb_implants_advanced",
+    "title": "Implanty zygomatyczne i podokostnowe",
+    "category": "implantology",
+    "sourceDocument": "implanty.odt",
+    "tags": [
+      "implanty zygomatyczne",
+      "zygomy",
+      "implanty podokostnowe",
+      "subperiostalne",
+      "zanik kosci",
+      "bezzebie"
+    ],
+    "queryExamples": [
+      "Co to sa implanty zygomatyczne?",
+      "Czym sa implanty podokostnowe?",
+      "Jakie sa opcje przy bardzo duzym zaniku kosci?"
+    ],
+    "answerPl": "Implanty zygomatyczne to dlugie implanty kotwiczone w kosci jarzmowej, stosowane glownie przy bardzo duzym zaniku kosci szczeki gornej, kiedy klasyczne implanty nie sa mozliwe. Implanty podokostnowe to indywidualnie projektowana metalowa konstrukcja ukladanа na powierzchni kosci pod okostna. Obie metody sa bardziej zaawansowane i wymagaja lekarza z duzym doswiadczeniem."
+  },
+  {
+    "id": "kb_all_on_4",
+    "title": "System All-on-4",
+    "category": "implantology",
+    "sourceDocument": "all-on-4.odt",
+    "tags": [
+      "all-on-4",
+      "bezzebie",
+      "zeby w 1 dzien",
+      "cztery implanty",
+      "pelny luk"
+    ],
+    "queryExamples": [
+      "Na czym polega all on 4?",
+      "Jakie sa zalety all-on-4?",
+      "Czy zeby w jeden dzien to all on 4?"
+    ],
+    "answerPl": "All-on-4 to metoda leczenia bezzebia, w ktorej staly most opiera sie na czterech strategicznie rozmieszczonych implantach. Jej glowne zalety to mniejsza inwazyjnosc niz przy wiekszej liczbie implantow, mozliwosc szybkiego efektu, czasem nawet tego samego dnia, czesto brak koniecznosci przeszczepu kosci oraz dobra stabilnosc i estetyka."
+  },
+  {
+    "id": "kb_veneers_vs_bonding",
+    "title": "Licowki a bonding",
+    "category": "prosthetics_and_aesthetics",
+    "sourceDocument": "protetyka.odt",
+    "tags": [
+      "licowki",
+      "bonding",
+      "estetyka",
+      "porcelana",
+      "kompozyt",
+      "przebarwienia"
+    ],
+    "queryExamples": [
+      "Czym sie roznia licowki od bondingu?",
+      "Co jest trwalsze licowki czy bonding?",
+      "Co lepsze do szybkiej poprawy estetyki?"
+    ],
+    "answerPl": "Licowki to cienkie nakladki, najczesciej porcelanowe, przyklejane do przedniej powierzchni zeba. Daja bardzo estetyczny i trwaly efekt, zwykle nawet na dziesiec do pietnastu lat, ale sa drozsze i czesto wymagaja szlifowania zeba. Bonding polega na modelowaniu zeba kompozytem bezposrednio na zebie. Jest mniej inwazyjny, tanszy i daje szybki efekt, ale zwykle jest mniej trwaly, bardziej podatny na przebarwienia i scieranie."
+  },
+  {
+    "id": "kb_veneers_vs_bonding_use_cases",
+    "title": "Kiedy rozwazyc licowki, a kiedy bonding",
+    "category": "prosthetics_and_aesthetics",
+    "sourceDocument": "protetyka.odt",
+    "tags": [
+      "hollywood smile",
+      "pekiecia",
+      "przebarwienia",
+      "ksztalt zebow",
+      "kolor zebow"
+    ],
+    "queryExamples": [
+      "Kiedy wybrac bonding?",
+      "Kiedy lepiej sprawdza sie licowka?",
+      "Co na drobne pekniecia i przebarwienia?"
+    ],
+    "answerPl": "Bonding bywa dobrym rozwiazaniem przy szybkiej poprawie estetyki nizszym kosztem oraz przy maskowaniu drobnych pekniec i przebarwien. Licowki czesciej rozwaza sie wtedy, gdy celem jest bardziej trwaly i naturalny efekt albo zmiana ksztaltu, koloru i ustawienia zebow."
+  }
+]

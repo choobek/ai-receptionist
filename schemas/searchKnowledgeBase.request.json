@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "searchKnowledgeBase request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "query"
+  ],
+  "properties": {
+    "requestId": {
+      "type": "string"
+    },
+    "query": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 500
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "default": 3
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "pl",
+        "en"
+      ],
+      "default": "pl"
+    }
+  },
+  "examples": [
+    {
+      "requestId": "req_kb_001",
+      "query": "Czym rozni sie bonding od licowek?",
+      "limit": 2,
+      "language": "pl"
+    }
+  ]
+}

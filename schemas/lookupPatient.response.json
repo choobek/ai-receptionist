@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "lookupPatient response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "found",
+    "message"
+  ],
+  "properties": {
+    "requestId": {
+      "type": "string"
+    },
+    "found": {
+      "type": "boolean"
+    },
+    "matchedBy": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "phone",
+        "full_name",
+        null
+      ]
+    },
+    "patient": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "patientId": {
+          "type": "string"
+        },
+        "fullName": {
+          "type": "string"
+        },
+        "phoneE164": {
+          "type": "string"
+        },
+        "email": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "isExistingPatient": {
+          "type": "boolean"
+        },
+        "lastVisitAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "preferredDoctor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "message": {
+      "type": "string"
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "requestId": "req_lookup_001",
+      "found": true,
+      "matchedBy": "phone",
+      "patient": {
+        "patientId": "poc_001",
+        "fullName": "Anna Kowalska",
+        "phoneE164": "+48500111001",
+        "email": "anna.kowalska@example.com",
+        "isExistingPatient": true,
+        "lastVisitAt": "2026-02-11",
+        "preferredDoctor": "dr Magdalena Szajnar",
+        "notes": "Pacjentka po konsultacji implantologicznej, oczekuje dalszego planu leczenia.",
+        "tags": [
+          "implanty",
+          "powracajacy"
+        ]
+      },
+      "message": "Znalazlem pacjenta w proof-of-concept registry."
+    }
+  ]
+}

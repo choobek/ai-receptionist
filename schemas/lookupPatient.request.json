@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "lookupPatient request",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "requestId": {
+      "type": "string"
+    },
+    "fullName": {
+      "type": "string",
+      "minLength": 3
+    },
+    "phoneE164": {
+      "type": "string",
+      "pattern": "^\\+[1-9]\\d{7,14}$"
+    },
+    "phoneRaw": {
+      "type": "string",
+      "minLength": 7
+    }
+  },
+  "anyOf": [
+    {
+      "required": [
+        "fullName"
+      ]
+    },
+    {
+      "required": [
+        "phoneE164"
+      ]
+    },
+    {
+      "required": [
+        "phoneRaw"
+      ]
+    }
+  ],
+  "examples": [
+    {
+      "requestId": "req_lookup_001",
+      "fullName": "Anna Kowalska",
+      "phoneRaw": "500111001"
+    }
+  ]
+}

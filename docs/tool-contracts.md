@@ -2,10 +2,13 @@
 
 ## Purpose
 
-This project exposes two Vapi custom tools backed by n8n webhooks:
+This project exposes five Vapi custom tools backed by n8n webhooks:
 
+- `lookupPatient`
 - `checkAvailability`
+- `searchKnowledgeBase`
 - `createEvent`
+- `createReceptionTask`
 
 The JSON schemas in [`schemas/`](../schemas) describe the tool arguments and result objects.
 
@@ -37,6 +40,40 @@ n8n should respond with a Vapi-compatible wrapper:
 ```
 
 If the request is sent directly without the Vapi envelope, the workflows return the raw `result` object instead.
+
+## Tool: `lookupPatient`
+
+### Intent
+
+Identify whether the caller already exists in the proof-of-concept patient registry before a real CRM integration exists.
+
+### Input shape
+
+Defined in [`schemas/lookupPatient.request.json`](../schemas/lookupPatient.request.json).
+
+Key fields:
+
+- `fullName`
+- `phoneE164` or `phoneRaw`
+
+### Workflow behavior
+
+1. Parse Vapi wrapper or direct body.
+2. Validate that at least one identifier is present.
+3. Normalize phone and name values.
+4. Search the proof-of-concept registry by phone first, then by full name.
+5. Return a compact patient match result.
+
+### Success response
+
+Defined in [`schemas/lookupPatient.response.json`](../schemas/lookupPatient.response.json).
+
+Important fields:
+
+- `found`
+- `matchedBy`
+- `patient`
+- `message`
 
 ## Tool: `checkAvailability`
 
@@ -74,6 +111,39 @@ Important fields:
 - `available`
 - `slots`
 - `normalizedRequest`
+- `message`
+
+## Tool: `searchKnowledgeBase`
+
+### Intent
+
+Answer supported general clinic questions from the local proof-of-concept knowledge base derived from clinic ODT source files.
+
+### Input shape
+
+Defined in [`schemas/searchKnowledgeBase.request.json`](../schemas/searchKnowledgeBase.request.json).
+
+Key fields:
+
+- `query`
+- optional `limit`
+
+### Workflow behavior
+
+1. Parse Vapi wrapper or direct body.
+2. Validate that a question is present.
+3. Score the curated local KB entries against the query.
+4. Return the best supported answer and matching entries, or a no-match result.
+
+### Success response
+
+Defined in [`schemas/searchKnowledgeBase.response.json`](../schemas/searchKnowledgeBase.response.json).
+
+Important fields:
+
+- `found`
+- `answer`
+- `matches`
 - `message`
 
 ## Tool: `createEvent`
@@ -114,9 +184,44 @@ Important fields:
 - `appointment`
 - `message`
 
+## Tool: `createReceptionTask`
+
+### Intent
+
+Queue a proof-of-concept receptionist follow-up task for cases that should not be completed fully by the assistant.
+
+### Input shape
+
+Defined in [`schemas/createReceptionTask.request.json`](../schemas/createReceptionTask.request.json).
+
+Key fields:
+
+- `taskType`
+- `patient.fullName`
+- `patient.phoneE164`
+- `summary`
+
+### Workflow behavior
+
+1. Parse Vapi wrapper or direct body.
+2. Validate the patient and task payload.
+3. Create a queued proof-of-concept task in the n8n execution payload.
+4. Return task confirmation data.
+
+### Success response
+
+Defined in [`schemas/createReceptionTask.response.json`](../schemas/createReceptionTask.response.json).
+
+Important fields:
+
+- `accepted`
+- `taskId`
+- `task`
+- `message`
+
 ## Error contract
 
-Both workflows return short, deterministic error objects.
+All workflows return short, deterministic error objects.
 
 Example:
 

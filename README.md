@@ -12,6 +12,8 @@ The repo keeps responsibilities separate:
 ```text
 docs/
   architecture.md
+  backlog.md
+  knowledge-base.md
   tool-contracts.md
   vapi-structured-output.json
   vapi-structured-output.md
@@ -19,12 +21,25 @@ prompts/
   system-prompt.md
   first-message.md
 schemas/
+  lookupPatient.request.json
+  lookupPatient.response.json
   checkAvailability.request.json
   checkAvailability.response.json
+  searchKnowledgeBase.request.json
+  searchKnowledgeBase.response.json
+  createReceptionTask.request.json
+  createReceptionTask.response.json
   createEvent.request.json
   createEvent.response.json
+knowledge-base/
+  clinic-knowledge.json
+mock-data/
+  mock-patients.json
 n8n/workflows/
+  tool_lookup-patient.json
   tool_check-availability.json
+  tool_search-knowledge-base.json
+  tool_create-reception-task.json
   tool_create-event.json
   webhook_vapi-call-ended-router.json
 .env.example
@@ -37,10 +52,20 @@ This first version is intentionally small:
 - one clinic
 - one Google Calendar
 - Polish language
-- appointment lookup and booking only
-- no CRM, SMS, payments, or patient history sync yet
+- appointment lookup and booking
+- proof-of-concept patient lookup against a mock registry
+- proof-of-concept knowledge base derived from clinic ODT materials
+- proof-of-concept receptionist task queue inside n8n
+- no real CRM, SMS, payments, or patient history sync yet
 
 ## Request flow
+
+### `lookupPatient`
+
+1. Vapi gathers the patient's full name and/or phone number.
+2. Vapi calls the `lookupPatient` tool.
+3. n8n normalizes the identifiers and checks the proof-of-concept patient registry.
+4. n8n returns whether the patient was matched.
 
 ### `checkAvailability`
 
@@ -49,6 +74,13 @@ This first version is intentionally small:
 3. n8n normalizes the date/time request.
 4. n8n checks the clinic calendar and builds up to a few valid slots.
 5. n8n returns structured slot data for Vapi to speak back naturally.
+
+### `searchKnowledgeBase`
+
+1. Vapi gathers the caller's question.
+2. Vapi calls the `searchKnowledgeBase` tool.
+3. n8n searches the local curated knowledge base derived from the clinic ODT files.
+4. n8n returns the best supported answer and matching KB entries, or a no-match result.
 
 ### `createEvent`
 
@@ -59,13 +91,20 @@ This first version is intentionally small:
 5. n8n creates the event in Google Calendar.
 6. n8n returns confirmation data.
 
+### `createReceptionTask`
+
+1. Vapi collects the patient details and a short follow-up summary.
+2. Vapi calls the `createReceptionTask` tool.
+3. n8n validates the payload and creates a queued proof-of-concept reception task.
+4. n8n returns confirmation data.
+
 ## Quick start
 
 1. Copy `.env.example` into your deployment environment.
 2. Start n8n with Docker Compose from [`n8n/docker-compose.yml`](./n8n/docker-compose.yml).
 3. Open n8n, complete the owner account setup on first launch, and then import the workflow files from [`n8n/workflows/`](./n8n/workflows).
 4. Create Google Calendar credentials in n8n and attach them to the Google Calendar nodes.
-5. Set the Vapi custom tool server URLs to the two n8n webhook endpoints.
+5. Set the Vapi custom tool server URLs to the five n8n webhook endpoints.
 6. Paste [`prompts/system-prompt.md`](./prompts/system-prompt.md) and [`prompts/first-message.md`](./prompts/first-message.md) into your Vapi assistant.
 
 ## Deploy on a VPS
@@ -100,6 +139,9 @@ The default Google Calendar ID for workflow execution is read from `n8n/.env` vi
 
 - `POST /webhook/ai-receptionist/check-availability`
 - `POST /webhook/ai-receptionist/create-event`
+- `POST /webhook/ai-receptionist/lookup-patient`
+- `POST /webhook/ai-receptionist/search-knowledge-base`
+- `POST /webhook/ai-receptionist/create-reception-task`
 
 The exported workflows already use these paths.
 
@@ -119,7 +161,14 @@ cloudflared tunnel --url http://localhost:5680
 
 or `ngrok http 5680`.
 
-Then configure two Vapi custom tools:
+Then configure five Vapi custom tools:
+
+### Tool: `lookupPatient`
+
+- Tool type: custom tool / server URL
+- Method: `POST`
+- URL: `https://YOUR-PUBLIC-URL/webhook/ai-receptionist/lookup-patient`
+- Parameters: use [`schemas/lookupPatient.request.json`](./schemas/lookupPatient.request.json)
 
 ### Tool: `checkAvailability`
 
@@ -128,6 +177,13 @@ Then configure two Vapi custom tools:
 - URL: `https://YOUR-PUBLIC-URL/webhook/ai-receptionist/check-availability`
 - Parameters: use [`schemas/checkAvailability.request.json`](./schemas/checkAvailability.request.json)
 
+### Tool: `searchKnowledgeBase`
+
+- Tool type: custom tool / server URL
+- Method: `POST`
+- URL: `https://YOUR-PUBLIC-URL/webhook/ai-receptionist/search-knowledge-base`
+- Parameters: use [`schemas/searchKnowledgeBase.request.json`](./schemas/searchKnowledgeBase.request.json)
+
 ### Tool: `createEvent`
 
 - Tool type: custom tool / server URL
@@ -135,12 +191,19 @@ Then configure two Vapi custom tools:
 - URL: `https://YOUR-PUBLIC-URL/webhook/ai-receptionist/create-event`
 - Parameters: use [`schemas/createEvent.request.json`](./schemas/createEvent.request.json)
 
+### Tool: `createReceptionTask`
+
+- Tool type: custom tool / server URL
+- Method: `POST`
+- URL: `https://YOUR-PUBLIC-URL/webhook/ai-receptionist/create-reception-task`
+- Parameters: use [`schemas/createReceptionTask.request.json`](./schemas/createReceptionTask.request.json)
+
 Recommended assistant wiring in Vapi:
 
 - assistant language: `pl-PL`
 - system prompt: [`prompts/system-prompt.md`](./prompts/system-prompt.md)
 - first message: [`prompts/first-message.md`](./prompts/first-message.md)
-- enable both tools on the assistant
+- enable all five tools on the assistant
 - let Vapi collect arguments and call the tools only when the prompt says to
 
 Optional post-call setup:
@@ -162,6 +225,8 @@ When the Cloudflare tunnel URL changes:
 - Tool payloads live in [`schemas/`](./schemas).
 - Tool behavior and Vapi wrapping are documented in [`docs/tool-contracts.md`](./docs/tool-contracts.md).
 - System boundaries and defaults are documented in [`docs/architecture.md`](./docs/architecture.md).
+- Knowledge-base source and curation notes live in [`docs/knowledge-base.md`](./docs/knowledge-base.md).
+- Implementation backlog lives in [`docs/backlog.md`](./docs/backlog.md).
 
 ## Assumptions baked into this starter
 
@@ -175,7 +240,15 @@ When the Cloudflare tunnel URL changes:
 - cancellation and rescheduling
 - multi-location routing
 - dentist-specific availability
-- reminders or follow-up automations
-- patient database lookup
+- reminders or real SMS delivery
+- real patient database lookup
 
 Those can be added later without changing the basic contract.
+
+## Proof-of-concept data
+
+The current patient registry for `lookupPatient` is a static demo list in [`mock-data/mock-patients.json`](./mock-data/mock-patients.json).
+
+For now this stands in for the clinic CRM. The n8n lookup workflow contains the same snapshot so it can run without any extra infrastructure.
+
+The current local knowledge base for `searchKnowledgeBase` is curated in [`knowledge-base/clinic-knowledge.json`](./knowledge-base/clinic-knowledge.json) from the ODT source files documented in [`docs/knowledge-base.md`](./docs/knowledge-base.md).

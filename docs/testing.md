@@ -20,13 +20,19 @@ This updates:
 
 When the tunnel URL changes, these public endpoints change too:
 
+- `https://YOUR-NEW-TUNNEL/webhook/ai-receptionist/lookup-patient`
 - `https://YOUR-NEW-TUNNEL/webhook/ai-receptionist/check-availability`
 - `https://YOUR-NEW-TUNNEL/webhook/ai-receptionist/create-event`
+- `https://YOUR-NEW-TUNNEL/webhook/ai-receptionist/search-knowledge-base`
+- `https://YOUR-NEW-TUNNEL/webhook/ai-receptionist/create-reception-task`
 - `https://YOUR-NEW-TUNNEL/webhook/ai-receptionist/vapi-call-ended`
 
 Update them in:
+- Vapi custom tool `lookupPatient`
 - Vapi custom tool `checkAvailability`
 - Vapi custom tool `createEvent`
+- Vapi custom tool `searchKnowledgeBase`
+- Vapi custom tool `createReceptionTask`
 - any Vapi webhook/server configuration that sends `call.ended` events to n8n
 
 Nothing in the Google Calendar credentials needs to change because the tunnel only affects the public HTTP ingress.
@@ -41,7 +47,47 @@ curl -I https://YOUR-NEW-TUNNEL.trycloudflare.com
 
 You should get an HTTP response from the tunnel. A 404 is acceptable here; connection failures are not.
 
-## 4. Direct tool test: `checkAvailability`
+## 4. Direct tool test: `lookupPatient`
+
+Run a direct webhook test against n8n through the public URL:
+
+```bash
+curl -sS -X POST https://YOUR-NEW-TUNNEL.trycloudflare.com/webhook/ai-receptionist/lookup-patient \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestId": "test_lookup_001",
+    "fullName": "Anna Kowalska",
+    "phoneRaw": "500111001"
+  }' | jq .
+```
+
+Expected:
+- HTTP 200
+- `found: true`
+- `patient.patientId` present
+
+## 5. Direct tool test: `searchKnowledgeBase`
+
+Run a direct webhook test against n8n through the public URL:
+
+```bash
+curl -sS -X POST https://YOUR-NEW-TUNNEL.trycloudflare.com/webhook/ai-receptionist/search-knowledge-base \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestId": "test_kb_001",
+    "query": "Czym rozni sie bonding od licowek?",
+    "limit": 2,
+    "language": "pl"
+  }' | jq .
+```
+
+Expected:
+- HTTP 200
+- `found: true`
+- `answer` present
+- `matches[0].sourceDocument` present
+
+## 6. Direct tool test: `checkAvailability`
 
 Run a direct webhook test against n8n through the public URL:
 
@@ -76,7 +122,7 @@ Failure indicators:
 - auth or HTML response: wrong target or n8n basic auth issue
 - validation error: payload shape issue
 
-## 5. Direct tool test: `createEvent`
+## 7. Direct tool test: `createEvent`
 
 Use one slot returned from `checkAvailability`.
 
@@ -112,7 +158,30 @@ After the test:
 - confirm the event exists in Google Calendar
 - delete the test event manually so later tests stay clean
 
-## 6. Structured output webhook router test
+## 8. Direct tool test: `createReceptionTask`
+
+```bash
+curl -sS -X POST https://YOUR-NEW-TUNNEL.trycloudflare.com/webhook/ai-receptionist/create-reception-task \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestId": "test_task_001",
+    "taskType": "existing_patient_booking",
+    "patient": {
+      "fullName": "Anna Kowalska",
+      "phoneE164": "+48500111001",
+      "isExistingPatient": true
+    },
+    "summary": "Pacjentka chce umowic kolejna wizyte.",
+    "notes": "Preferuje kontakt rano."
+  }' | jq .
+```
+
+Expected:
+- HTTP 200
+- `accepted: true`
+- `taskId` present
+
+## 9. Structured output webhook router test
 
 Test the n8n router directly with a synthetic `call.ended` payload:
 
@@ -162,7 +231,7 @@ Expected:
 
 For a payload shape closer to Vapi Server URL events, you can also test with `message.type: "end-of-call-report"` and `message.artifact.structuredOutputs`.
 
-## 7. End-to-end Vapi call test
+## 10. End-to-end Vapi call test
 
 After direct webhook tests pass, test the assistant in Vapi with a real call.
 
@@ -202,7 +271,17 @@ Verify:
 - structured output flags urgent symptoms
 - router returns follow-up if the structured output says human review is needed
 
-## 8. What to inspect if something fails
+### Scenario D: general knowledge-base question
+
+Say something like:
+- "Czym rozni sie bonding od licowek?"
+
+Verify:
+- the assistant calls `searchKnowledgeBase`
+- the answer stays within the ODT-derived source material
+- the assistant does not invent unsupported pricing or medical advice
+
+## 11. What to inspect if something fails
 
 If tool calls fail:
 - Vapi tool request logs
@@ -212,7 +291,7 @@ If tool calls fail:
 
 If the assistant speaks but no booking happens:
 - verify the Vapi tool URLs use the new tunnel base
-- verify the schema names in Vapi still match `checkAvailability` and `createEvent`
+- verify the schema names in Vapi still match `lookupPatient`, `checkAvailability`, `searchKnowledgeBase`, `createEvent`, and `createReceptionTask`
 - verify the system prompt is the current file from this repo
 
 If structured output exists but router does not classify it:
@@ -220,11 +299,14 @@ If structured output exists but router does not classify it:
 - verify the Vapi event actually includes `call.artifact.structuredOutputs`
 - inspect the raw event in n8n execution data
 
-## 9. Minimal acceptance criteria
+## 12. Minimal acceptance criteria
 
 Consider the setup healthy when all of these are true:
+- public `lookupPatient` works through the tunnel
+- public `searchKnowledgeBase` works through the tunnel
 - public `checkAvailability` works through the tunnel
 - public `createEvent` works through the tunnel
+- public `createReceptionTask` works through the tunnel
 - a real Vapi call creates a Google Calendar event
 - the call produces structured output
 - the `call.ended` n8n router returns the expected route
