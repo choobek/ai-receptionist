@@ -247,7 +247,10 @@ Say something like:
 
 Verify:
 - the assistant does not claim it can reschedule directly
+- if the caller already gives name and phone, the assistant does not ask for them again without reason
+- the assistant only says the request was saved after `createReceptionTask` succeeds
 - the call ends without `createEvent`
+- Vapi calls `createReceptionTask`
 - structured output indicates follow-up is needed
 - `call.ended` router returns `needs_reception_follow_up`
 
