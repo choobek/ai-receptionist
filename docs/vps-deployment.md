@@ -182,6 +182,20 @@ curl -sS -X POST https://YOUR_HOSTNAME/webhook/ai-receptionist/check-availabilit
       "isExistingPatient": false
     }
   }'
+curl -sS -X POST https://YOUR_HOSTNAME/webhook/ai-receptionist/check-availability \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestId": "vps_smoke_test_002",
+    "service": {
+      "id": "consultation",
+      "name": "Konsultacja",
+      "durationMinutes": 30
+    },
+    "timePreference": "first_available",
+    "timezone": "Europe/Warsaw",
+    "limit": 3,
+    "searchDays": 5
+  }'
 curl -sS -X POST https://YOUR_HOSTNAME/webhook/ai-receptionist/create-reception-task \
   -H "Content-Type: application/json" \
   -d '{

@@ -107,6 +107,33 @@ Expected:
 - `slots` array present
 - `message` present
 
+Multi-day first-available smoke test:
+
+```bash
+curl -sS -X POST https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/check-availability \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestId": "test_check_002",
+    "service": {
+      "id": "consultation",
+      "name": "Konsultacja",
+      "durationMinutes": 30
+    },
+    "timePreference": "first_available",
+    "timezone": "Europe/Warsaw",
+    "limit": 3,
+    "searchDays": 5,
+    "patient": {
+      "isExistingPatient": false
+    }
+  }' | jq .
+```
+
+Expected:
+- the request succeeds without `requestedDate`
+- `normalizedRequest.searchDays` is present
+- returned slots stay within clinic working hours
+
 Failure indicators:
 - connection error: hosting or DNS problem
 - auth or HTML response: wrong target or n8n basic auth issue

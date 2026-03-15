@@ -54,11 +54,12 @@ Deliver a first working version of an AI receptionist for a Polish dental clinic
 ### Availability check
 
 1. Caller asks for a dental appointment.
-2. Vapi collects `service`, `requestedDate`, and either `requestedTime` or a broader preference.
+2. Vapi collects `service` and either a concrete date/time or a broader preference such as `first_available`.
 3. Vapi calls `checkAvailability`.
 4. n8n converts the request into a search window.
-5. n8n fetches busy events from Google Calendar.
-6. n8n returns a short list of available slots.
+5. For `first_available`, n8n can start from today and search across multiple working days.
+6. n8n fetches busy events from Google Calendar.
+7. n8n returns a short list of available slots.
 
 ### Knowledge-base search
 

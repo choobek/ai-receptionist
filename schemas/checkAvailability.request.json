@@ -5,7 +5,6 @@
   "additionalProperties": false,
   "required": [
     "service",
-    "requestedDate",
     "timezone"
   ],
   "properties": {
@@ -37,7 +36,8 @@
     },
     "requestedDate": {
       "type": "string",
-      "format": "date"
+      "format": "date",
+      "description": "Preferred local clinic date. Optional for first_available searches; when omitted, the workflow starts from today in the clinic timezone."
     },
     "requestedTime": {
       "type": "string",
@@ -68,6 +68,12 @@
       "minimum": 1,
       "maximum": 5,
       "default": 3
+    },
+    "searchDays": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 14,
+      "description": "How many consecutive clinic days to search when timePreference is first_available."
     },
     "patient": {
       "type": "object",
@@ -103,6 +109,39 @@
           "requestedTime"
         ]
       }
+    },
+    {
+      "if": {
+        "required": [
+          "requestedTime"
+        ]
+      },
+      "then": {
+        "required": [
+          "requestedDate"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "timePreference": {
+            "enum": [
+              "morning",
+              "afternoon",
+              "evening"
+            ]
+          }
+        },
+        "required": [
+          "timePreference"
+        ]
+      },
+      "then": {
+        "required": [
+          "requestedDate"
+        ]
+      }
     }
   ],
   "examples": [
@@ -117,6 +156,18 @@
       "timePreference": "morning",
       "timezone": "Europe/Warsaw",
       "limit": 3
+    },
+    {
+      "requestId": "req_002",
+      "service": {
+        "id": "consultation",
+        "name": "Konsultacja",
+        "durationMinutes": 30
+      },
+      "timePreference": "first_available",
+      "timezone": "Europe/Warsaw",
+      "limit": 3,
+      "searchDays": 5
     }
   ]
 }

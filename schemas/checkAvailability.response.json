@@ -52,6 +52,9 @@
         },
         "timePreference": {
           "type": "string"
+        },
+        "searchDays": {
+          "type": "integer"
         }
       }
     },
@@ -115,13 +118,38 @@
         "windowEnd": "2026-03-12T12:00:00+01:00",
         "requestedDate": "2026-03-12",
         "requestedTime": null,
-        "timePreference": "morning"
+        "timePreference": "morning",
+        "searchDays": 1
       },
       "slots": [
         {
           "start": "2026-03-12T09:00:00+01:00",
           "end": "2026-03-12T09:30:00+01:00",
           "label": "Czwartek 12 marca o 09:00",
+          "calendarId": "primary"
+        }
+      ],
+      "message": "Znalazlam kilka dostepnych terminow."
+    },
+    {
+      "requestId": "req_002",
+      "available": true,
+      "timezone": "Europe/Warsaw",
+      "normalizedRequest": {
+        "serviceId": "consultation",
+        "durationMinutes": 30,
+        "windowStart": "2026-03-12T14:30:00+01:00",
+        "windowEnd": "2026-03-16T18:00:00+01:00",
+        "requestedDate": "2026-03-12",
+        "requestedTime": null,
+        "timePreference": "first_available",
+        "searchDays": 5
+      },
+      "slots": [
+        {
+          "start": "2026-03-13T08:00:00+01:00",
+          "end": "2026-03-13T08:30:00+01:00",
+          "label": "Piatek 13 marca o 08:00",
           "calendarId": "primary"
         }
       ],

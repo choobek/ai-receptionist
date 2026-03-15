@@ -88,9 +88,10 @@ Defined in [`schemas/checkAvailability.request.json`](../schemas/checkAvailabili
 Key fields:
 
 - `service.id`
-- `requestedDate`
+- `requestedDate` for date-specific searches, optional for `first_available`
 - `requestedTime` or `timePreference`
 - `timezone`
+- optional `searchDays` for multi-day `first_available` lookup
 - optional `limit`
 
 ### Workflow behavior
@@ -98,9 +99,11 @@ Key fields:
 1. Parse Vapi wrapper or direct body.
 2. Validate required fields.
 3. Normalize service duration and search window.
-4. Read busy events from Google Calendar.
-5. Build up to `limit` valid slots.
-6. Return a short structured response.
+4. For `first_available`, start from the requested date or from today in the clinic timezone if the date was omitted.
+5. Search across one or more working days while skipping overnight hours and past slots on the current day.
+6. Read busy events from Google Calendar.
+7. Build up to `limit` valid slots.
+8. Return a short structured response.
 
 ### Success response
 
