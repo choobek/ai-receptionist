@@ -50,4 +50,6 @@ docker exec "$CONTAINER" n8n list:workflow
 
 echo
 echo "Workflow backup saved to $BACKUP_DIR"
+echo "Warning: imported workflows may be inactive drafts without credentials."
+echo "Review credentials and publish state before unpublishing the currently active workflows."
 EOF

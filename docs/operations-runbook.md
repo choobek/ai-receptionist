@@ -109,6 +109,8 @@ Important:
 
 - The script assumes the repo on the VPS already contains the desired workflow JSON files. Run deploy first.
 - Because workflow import can create drift or duplicates if IDs do not line up, always inspect the post-import workflow list.
+- Credentials are not versioned in this repo. Imported workflows can arrive as inactive drafts without the credential attachments used by the currently active workflows.
+- Do not unpublish the active workflows until you confirm the imported copies have the right credentials and can be published safely.
 
 ## 6. Repo Health Checks
 
@@ -135,3 +137,5 @@ At the time of writing, the local running `n8n` instance lists only:
 - `AI Receptionist - Vapi call.ended router`
 
 while the repo contains more workflow JSON files. That means local n8n state is currently behind the repo and should be reconciled before treating the environment as clean.
+
+Also, importing the repo workflow JSONs into an existing n8n instance can create inactive duplicates instead of replacing the currently active workflows. This is expected until credentials and publish state are handled as an explicit migration step.
