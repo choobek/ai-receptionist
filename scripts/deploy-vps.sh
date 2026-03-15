@@ -44,6 +44,18 @@ set -euo pipefail
 
 cd "$APP_DIR"
 git remote set-url origin "$REMOTE_URL"
+
+if [ ! -f .env ]; then
+  if [ -f deploy/vps/.env ]; then
+    cp deploy/vps/.env .env
+  elif [ -f n8n/.env ]; then
+    cp n8n/.env .env
+  else
+    echo "No root .env found and no legacy env file available to migrate" >&2
+    exit 1
+  fi
+fi
+
 git fetch --all --prune
 git pull --ff-only
 
