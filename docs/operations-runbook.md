@@ -157,6 +157,7 @@ Run these when the repo starts to feel improvised:
 
 ```bash
 git status --short
+./scripts/check-repo-health.sh
 ./scripts/sync-n8n-workflow-data.sh --check
 docker exec ai-receptionist-n8n n8n list:workflow
 ./scripts/update-vapi-assistant.sh
@@ -165,18 +166,14 @@ docker exec ai-receptionist-n8n n8n list:workflow
 Interpretation:
 
 - `git status --short` should not show accidental secrets, throwaway scripts, or duplicate env templates.
+- `./scripts/check-repo-health.sh` should pass before deploys and after repo cleanup.
 - `./scripts/sync-n8n-workflow-data.sh --check` should pass after proof-of-concept data edits.
 - `n8n list:workflow` should roughly match the workflow files under [`n8n/workflows/`](../n8n/workflows/).
 - a clean Vapi update path means assistant changes are reproducible outside the dashboard.
 
-## 8. Current Known Drift
+## 8. Workflow State Notes
 
-At the time of writing, the local running `n8n` instance lists only:
-
-- `AI Receptionist - checkAvailability`
-- `AI Receptionist - createEvent`
-- `AI Receptionist - Vapi call.ended router`
-
-while the repo contains more workflow JSON files. That means local n8n state is currently behind the repo and should be reconciled before treating the environment as clean.
+Treat local and VPS `n8n` state as disposable runtime state, not source control.
+It is normal for a running instance to drift behind the repo until you explicitly import or reconcile the workflows.
 
 Also, importing the repo workflow JSONs into an existing n8n instance can create inactive duplicates instead of replacing the currently active workflows. This is expected until credentials and publish state are handled as an explicit migration step.

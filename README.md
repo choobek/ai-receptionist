@@ -236,6 +236,12 @@ Optional post-call setup:
 - import [`n8n/workflows/webhook_vapi-call-ended-router.json`](./n8n/workflows/webhook_vapi-call-ended-router.json) to route `call.ended` events inside n8n
 - or run [`scripts/create-vapi-structured-output.sh`](./scripts/create-vapi-structured-output.sh) with your Vapi API key and assistant ID
 
+Before deploys or repo cleanup, run:
+
+```bash
+./scripts/check-repo-health.sh
+```
+
 When the Cloudflare tunnel URL changes:
 
 - run [`scripts/update-n8n-public-url.sh`](./scripts/update-n8n-public-url.sh) with the new public base URL
