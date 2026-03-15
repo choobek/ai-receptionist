@@ -207,17 +207,8 @@ while IFS= read -r workflow_id; do
   docker exec "$CONTAINER" n8n publish:workflow --id="$workflow_id" >/dev/null
 done < "$REPORT_DIR/target-ids.txt"
 
-N8N_DATA_DIR="$(
-  docker inspect "$CONTAINER" \
-    --format '{{range .Mounts}}{{if eq .Destination "/home/node/.n8n"}}{{.Source}}{{end}}{{end}}'
-)"
-
-if [ -z "$N8N_DATA_DIR" ]; then
-  echo "Failed to locate n8n data directory for $CONTAINER" >&2
-  exit 1
-fi
-
-python3 - "$N8N_DATA_DIR/database.sqlite" <<'PY'
+docker run --rm --volumes-from "$CONTAINER" python:3.12-alpine \
+  python3 - /home/node/.n8n/database.sqlite <<'PY'
 import json
 import sqlite3
 import sys
