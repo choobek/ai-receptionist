@@ -4,14 +4,12 @@ set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-for env_file in "$ROOT_DIR/.env" "$ROOT_DIR/.env.local"; do
-  if [ -f "$env_file" ]; then
-    set -a
-    # shellcheck source=/dev/null
-    . "$env_file"
-    set +a
-  fi
-done
+if [ -f "$ROOT_DIR/.env" ]; then
+  set -a
+  # shellcheck source=/dev/null
+  . "$ROOT_DIR/.env"
+  set +a
+fi
 
 VPS_SSH_HOST="${VPS_SSH_HOST:-}"
 VPS_SSH_USER="${VPS_SSH_USER:-}"
@@ -51,5 +49,5 @@ docker exec "$CONTAINER" n8n list:workflow
 echo
 echo "Workflow backup saved to $BACKUP_DIR"
 echo "Warning: imported workflows may be inactive drafts without credentials."
-echo "Review credentials and publish state before unpublishing the currently active workflows."
+echo "Run ./scripts/reconcile-n8n-workflows-vps.sh before unpublishing the currently active workflows."
 EOF

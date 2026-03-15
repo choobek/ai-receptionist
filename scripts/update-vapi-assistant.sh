@@ -5,14 +5,12 @@ set -euo pipefail
 ROOT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEFAULT_CONFIG_PATH="$ROOT_DIR/configs/vapi/assistant.v1.json"
 
-for env_file in "$ROOT_DIR/.env" "$ROOT_DIR/.env.local"; do
-  if [ -f "$env_file" ]; then
-    set -a
-    # shellcheck source=/dev/null
-    . "$env_file"
-    set +a
-  fi
-done
+if [ -f "$ROOT_DIR/.env" ]; then
+  set -a
+  # shellcheck source=/dev/null
+  . "$ROOT_DIR/.env"
+  set +a
+fi
 
 CONFIG_PATH="${1:-${VAPI_ASSISTANT_CONFIG_PATH:-$DEFAULT_CONFIG_PATH}}"
 API_BASE_URL="${VAPI_API_BASE_URL:-https://api.vapi.ai}"

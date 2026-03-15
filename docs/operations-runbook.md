@@ -105,12 +105,28 @@ What it does:
 4. run `n8n import:workflow --separate --input=/tmp/n8n-workflows-import`
 5. print the workflow list after import
 
+Then reconcile the imported repo-ID workflows with the currently working credentials and publish state:
+
+```bash
+./scripts/reconcile-n8n-workflows-vps.sh
+```
+
+What it does:
+
+1. makes a fresh backup of workflows and credentials on the VPS
+2. exports the current n8n workflows
+3. copies credential references from the currently working duplicates into the repo-ID workflow JSON files, only in a temporary VPS import directory
+4. re-imports those repo workflows by ID so the stored definitions match the repo while keeping the credential attachments needed in production
+5. unpublishes the legacy active duplicates
+6. publishes the repo-ID workflows as the final active set
+7. updates `webhook_entity` to point the public webhook routes at those repo-ID workflows and restarts `n8n`
+
 Important:
 
 - The script assumes the repo on the VPS already contains the desired workflow JSON files. Run deploy first.
 - Because workflow import can create drift or duplicates if IDs do not line up, always inspect the post-import workflow list.
 - Credentials are not versioned in this repo. Imported workflows can arrive as inactive drafts without the credential attachments used by the currently active workflows.
-- Do not unpublish the active workflows until you confirm the imported copies have the right credentials and can be published safely.
+- Do not unpublish the active workflows manually before `./scripts/reconcile-n8n-workflows-vps.sh` finishes successfully.
 
 ## 6. Repo Health Checks
 

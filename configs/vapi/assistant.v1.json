@@ -125,7 +125,7 @@
       ]
     },
     "server": {
-      "url": "https://oval-district-pharmacies-mask.trycloudflare.com/webhook/ai-receptionist/vapi-call-ended",
+      "url": "https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/vapi-call-ended",
       "timeoutSeconds": 20
     },
     "compliancePlan": {
