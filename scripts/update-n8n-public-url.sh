@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-N8N_ENV_FILE="${N8N_ENV_FILE:-$ROOT_DIR/n8n/.env}"
+N8N_ENV_FILE="${N8N_ENV_FILE:-$ROOT_DIR/.env}"
 PUBLIC_BASE_URL="${1:-}"
 
 if [ -z "$PUBLIC_BASE_URL" ]; then
@@ -12,7 +12,7 @@ if [ -z "$PUBLIC_BASE_URL" ]; then
 fi
 
 if [ ! -f "$N8N_ENV_FILE" ]; then
-  echo "n8n env file not found: $N8N_ENV_FILE" >&2
+  echo "Root env file not found: $N8N_ENV_FILE" >&2
   exit 1
 fi
 
@@ -52,7 +52,7 @@ mv "$tmp_file" "$N8N_ENV_FILE"
 echo "Updated $N8N_ENV_FILE"
 echo
 echo "Restart n8n to apply the new public URL:"
-echo "  cd n8n && docker-compose up -d"
+echo "  docker compose --env-file .env -f n8n/docker-compose.yml up -d"
 echo
 echo "Public endpoints to use:"
 echo "  lookupPatient: ${normalized_base}/webhook/ai-receptionist/lookup-patient"

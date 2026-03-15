@@ -3,8 +3,11 @@ services:
     image: caddy:2
     container_name: ai-receptionist-caddy
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      - N8N_DOMAIN=${N8N_DOMAIN}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+      - CADDY_ADMIN_USER=${CADDY_ADMIN_USER}
+      - CADDY_ADMIN_PASSWORD_HASH=${CADDY_ADMIN_PASSWORD_HASH}
     depends_on:
       - n8n
     ports:
@@ -19,8 +22,6 @@ services:
     image: docker.n8n.io/n8nio/n8n:2.7.4
     container_name: ai-receptionist-n8n
     restart: unless-stopped
-    env_file:
-      - .env
     expose:
       - "5678"
     environment:

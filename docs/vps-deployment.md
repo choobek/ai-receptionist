@@ -21,9 +21,9 @@ If certificate issuance fails on the OVH-provided hostname, switch to a domain y
 
 ## Files used
 
+- [`../.env.example`](../.env.example)
 - [`deploy/vps/docker-compose.yml`](../deploy/vps/docker-compose.yml)
 - [`deploy/vps/Caddyfile`](../deploy/vps/Caddyfile)
-- [`deploy/vps/.env.example`](../deploy/vps/.env.example)
 
 ## 1. Prepare the VPS
 
@@ -62,10 +62,10 @@ If the repo is already on the server, just `git pull`.
 ## 3. Create the production env file
 
 ```bash
-cp deploy/vps/.env.example deploy/vps/.env
+cp .env.example .env
 ```
 
-Edit [`deploy/vps/.env`](../deploy/vps/.env) and set at minimum:
+Edit root [`.env`](../.env.example) and set at minimum:
 
 - `N8N_DOMAIN`
 - `LETSENCRYPT_EMAIL`
@@ -102,9 +102,8 @@ N8N_DOMAIN=vps-2c8bbf65.vps.ovh.net
 ## 4. Start the stack
 
 ```bash
-cd deploy/vps
-docker compose up -d
-docker compose logs -f caddy
+docker compose --env-file .env -f deploy/vps/docker-compose.yml up -d
+docker compose --env-file .env -f deploy/vps/docker-compose.yml logs -f caddy
 ```
 
 When Caddy has issued the certificate, open:
@@ -224,16 +223,14 @@ Expected:
 Restart after changes:
 
 ```bash
-cd deploy/vps
-docker compose up -d
+docker compose --env-file .env -f deploy/vps/docker-compose.yml up -d
 ```
 
 Inspect logs:
 
 ```bash
-cd deploy/vps
-docker compose logs -f n8n
-docker compose logs -f caddy
+docker compose --env-file .env -f deploy/vps/docker-compose.yml logs -f n8n
+docker compose --env-file .env -f deploy/vps/docker-compose.yml logs -f caddy
 ```
 
 Update the app:
@@ -241,6 +238,5 @@ Update the app:
 ```bash
 cd ~/ai-receptionist
 git pull
-cd deploy/vps
-docker compose up -d
+docker compose --env-file .env -f deploy/vps/docker-compose.yml up -d
 ```

@@ -1,2 +1,5 @@
+.env
+.env.local
+backups/
 n8n/.env
 deploy/vps/.env

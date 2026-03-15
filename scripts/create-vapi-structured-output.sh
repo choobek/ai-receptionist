@@ -3,6 +3,16 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+for env_file in "$ROOT_DIR/.env" "$ROOT_DIR/.env.local"; do
+  if [ -f "$env_file" ]; then
+    set -a
+    # shellcheck source=/dev/null
+    . "$env_file"
+    set +a
+  fi
+done
+
 SCHEMA_PATH="${VAPI_STRUCTURED_OUTPUT_SCHEMA_PATH:-$ROOT_DIR/docs/vapi-structured-output.json}"
 ASSISTANT_ID="${1:-${VAPI_ASSISTANT_ID:-}}"
 API_KEY="${VAPI_API_KEY:-}"

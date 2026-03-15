@@ -10,6 +10,9 @@ The repo keeps responsibilities separate:
 ## What is in this repo
 
 ```text
+configs/
+  vapi/
+    assistant.v1.json
 docs/
   architecture.md
   backlog.md
@@ -100,12 +103,18 @@ This first version is intentionally small:
 
 ## Quick start
 
-1. Copy `.env.example` into your deployment environment.
+1. Copy [`.env.example`](./.env.example) to root `.env`.
 2. Start n8n with Docker Compose from [`n8n/docker-compose.yml`](./n8n/docker-compose.yml).
 3. Open n8n, complete the owner account setup on first launch, and then import the workflow files from [`n8n/workflows/`](./n8n/workflows).
 4. Create Google Calendar credentials in n8n and attach them to the Google Calendar nodes.
 5. Set the Vapi custom tool server URLs to the five n8n webhook endpoints.
-6. Paste [`prompts/system-prompt.md`](./prompts/system-prompt.md) and [`prompts/first-message.md`](./prompts/first-message.md) into your Vapi assistant.
+6. Keep the Vapi assistant source of truth in [`configs/vapi/assistant.v1.json`](./configs/vapi/assistant.v1.json).
+7. Apply the config with [`scripts/update-vapi-assistant.sh`](./scripts/update-vapi-assistant.sh).
+
+Operational reference:
+
+- [`AGENTS.md`](./AGENTS.md) for future Codex sessions
+- [`docs/operations-runbook.md`](./docs/operations-runbook.md) for human step-by-step operations
 
 ## Deploy on a VPS
 
@@ -113,27 +122,27 @@ For a stable public HTTPS setup on a server, use the production bundle in [`depl
 
 - [`deploy/vps/docker-compose.yml`](./deploy/vps/docker-compose.yml) runs n8n behind Caddy
 - [`deploy/vps/Caddyfile`](./deploy/vps/Caddyfile) terminates HTTPS and proxies to n8n
-- [`deploy/vps/.env.example`](./deploy/vps/.env.example) is the production env template
 - [`docs/vps-deployment.md`](./docs/vps-deployment.md) is the step-by-step server guide
 
 This path avoids temporary tunnel URLs and gives Vapi stable webhook endpoints.
+Use one root [`.env.example`](./.env.example) template for local n8n, VPS deploy, and Vapi API scripts.
 
 ### Start n8n locally
 
 ```bash
-cd n8n
-docker-compose up -d
+cp .env.example .env
+docker compose --env-file .env -f n8n/docker-compose.yml up -d
 ```
 
 Local editor URL:
 
 - `http://localhost:5680`
 
-Local HTTP basic auth credentials are defined in `n8n/.env`.
+Local HTTP basic auth credentials are defined in root `.env`.
 After that, n8n still requires its own owner account in the web UI.
 If the browser lands on the login page instead of setup, open `/setup` directly.
 The local instance runs on port `5680` to avoid the existing n8n already using `5678` on this machine.
-The default Google Calendar ID for workflow execution is read from `n8n/.env` via `GOOGLE_CALENDAR_ID`.
+The default Google Calendar ID for workflow execution is read from root `.env` via `GOOGLE_CALENDAR_ID`.
 
 ## Suggested webhook paths
 
@@ -176,6 +185,7 @@ Then configure five Vapi custom tools:
 - Method: `POST`
 - URL: `https://YOUR-PUBLIC-URL/webhook/ai-receptionist/check-availability`
 - Parameters: use [`schemas/checkAvailability.request.json`](./schemas/checkAvailability.request.json)
+- If Vapi has trouble with the full schema, use the simpler variant [`schemas/checkAvailability.vapi.request.json`](./schemas/checkAvailability.vapi.request.json) and the description in [`docs/vapi-checkAvailability-tool.md`](./docs/vapi-checkAvailability-tool.md)
 
 ### Tool: `searchKnowledgeBase`
 
@@ -200,11 +210,23 @@ Then configure five Vapi custom tools:
 
 Recommended assistant wiring in Vapi:
 
+- assistant config source of truth: [`configs/vapi/assistant.v1.json`](./configs/vapi/assistant.v1.json)
 - assistant language: `pl-PL`
-- system prompt: [`prompts/system-prompt.md`](./prompts/system-prompt.md)
-- first message: [`prompts/first-message.md`](./prompts/first-message.md)
+- mirrored prompt copy: [`prompts/system-prompt.md`](./prompts/system-prompt.md)
+- mirrored first message copy: [`prompts/first-message.md`](./prompts/first-message.md)
 - enable all five tools on the assistant
 - let Vapi collect arguments and call the tools only when the prompt says to
+
+To apply the versioned config to the existing assistant:
+
+```bash
+cp .env.example .env
+$EDITOR .env
+./scripts/sync-vapi-prompt-mirrors.sh
+./scripts/update-vapi-assistant.sh
+```
+
+The script reads `VAPI_API_KEY` from `.env` or the current shell and patches the assistant referenced by `assistantId` in the config file.
 
 Optional post-call setup:
 

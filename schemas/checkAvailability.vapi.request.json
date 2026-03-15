@@ -1,0 +1,61 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "service": {
+      "type": "object",
+      "description": "Appointment type.",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Use consultation for a first visit or when unsure."
+        },
+        "name": {
+          "type": "string"
+        },
+        "durationMinutes": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "requestedDate": {
+      "type": "string",
+      "description": "Preferred date in YYYY-MM-DD. Optional for first_available."
+    },
+    "requestedTime": {
+      "type": "string",
+      "description": "Preferred local time in HH:MM, for example 09:30."
+    },
+    "timePreference": {
+      "type": "string",
+      "description": "Use one of: specific_time, morning, afternoon, evening, first_available.",
+      "enum": [
+        "specific_time",
+        "morning",
+        "afternoon",
+        "evening",
+        "first_available"
+      ]
+    },
+    "timezone": {
+      "type": "string",
+      "description": "Usually Europe/Warsaw."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "How many slots to return, usually 3."
+    },
+    "searchDays": {
+      "type": "integer",
+      "description": "For first_available, how many days ahead to search. Usually 5."
+    }
+  },
+  "required": [
+    "service",
+    "timezone"
+  ]
+}
