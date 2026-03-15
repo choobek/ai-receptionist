@@ -42,5 +42,5 @@ When new clinic materials arrive:
 
 1. Extract and review the source text.
 2. Add or revise curated entries in [`knowledge-base/clinic-knowledge.json`](../knowledge-base/clinic-knowledge.json).
-3. Mirror the dataset in the `Search KB` Code node inside [`n8n/workflows/tool_search-knowledge-base.json`](../n8n/workflows/tool_search-knowledge-base.json).
+3. Run `./scripts/sync-n8n-workflow-data.sh` from the repo root to update the embedded `Search KB` workflow data.
 4. Re-test the direct KB webhook and the assistant prompt behavior.

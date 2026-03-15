@@ -1,9 +1,11 @@
 # Operations Runbook
 
-This repo should be operated from one root `.env` and three source-of-truth areas:
+This repo should be operated from one root `.env` and five source-of-truth areas:
 
 - Vapi assistant config: [`configs/vapi/assistant.v1.json`](../configs/vapi/assistant.v1.json)
 - n8n workflows: [`n8n/workflows/`](../n8n/workflows/)
+- mock patient data: [`mock-data/mock-patients.json`](../mock-data/mock-patients.json)
+- knowledge-base data: [`knowledge-base/clinic-knowledge.json`](../knowledge-base/clinic-knowledge.json)
 - environment template: [`../.env.example`](../.env.example)
 
 ## 1. Root `.env`
@@ -58,7 +60,26 @@ Notes:
 - If the Vapi API rejects a field, treat the API response as source of truth and update the stored config accordingly.
 - Avoid editing the Vapi dashboard without syncing the repo immediately after.
 
-## 3. Run Local n8n
+## 3. Sync Embedded Workflow Data
+
+If you edit either proof-of-concept dataset:
+
+- [`mock-data/mock-patients.json`](../mock-data/mock-patients.json)
+- [`knowledge-base/clinic-knowledge.json`](../knowledge-base/clinic-knowledge.json)
+
+sync the embedded n8n workflow snapshots before import or deployment:
+
+```bash
+./scripts/sync-n8n-workflow-data.sh
+```
+
+To check for drift without modifying files:
+
+```bash
+./scripts/sync-n8n-workflow-data.sh --check
+```
+
+## 4. Run Local n8n
 
 Use root `.env`:
 
@@ -66,13 +87,15 @@ Use root `.env`:
 docker-compose -f n8n/docker-compose.yml up -d
 ```
 
+Run it from the repo root so `docker-compose` automatically reads the root `.env`.
+
 If your machine uses the Docker Compose plugin instead of `docker-compose`:
 
 ```bash
 docker compose --env-file .env -f n8n/docker-compose.yml up -d
 ```
 
-## 4. Deploy Repo On VPS
+## 5. Deploy Repo On VPS
 
 Use the SSH wrapper:
 
@@ -89,7 +112,7 @@ What it does:
 5. `git pull --ff-only`
 6. restart the VPS stack from `deploy/vps/docker-compose.yml`
 
-## 5. Update n8n Workflows On VPS
+## 6. Update n8n Workflows On VPS
 
 Use the workflow import wrapper:
 
@@ -128,12 +151,13 @@ Important:
 - Credentials are not versioned in this repo. Imported workflows can arrive as inactive drafts without the credential attachments used by the currently active workflows.
 - Do not unpublish the active workflows manually before `./scripts/reconcile-n8n-workflows-vps.sh` finishes successfully.
 
-## 6. Repo Health Checks
+## 7. Repo Health Checks
 
 Run these when the repo starts to feel improvised:
 
 ```bash
 git status --short
+./scripts/sync-n8n-workflow-data.sh --check
 docker exec ai-receptionist-n8n n8n list:workflow
 ./scripts/update-vapi-assistant.sh
 ```
@@ -141,10 +165,11 @@ docker exec ai-receptionist-n8n n8n list:workflow
 Interpretation:
 
 - `git status --short` should not show accidental secrets, throwaway scripts, or duplicate env templates.
+- `./scripts/sync-n8n-workflow-data.sh --check` should pass after proof-of-concept data edits.
 - `n8n list:workflow` should roughly match the workflow files under [`n8n/workflows/`](../n8n/workflows/).
 - a clean Vapi update path means assistant changes are reproducible outside the dashboard.
 
-## 7. Current Known Drift
+## 8. Current Known Drift
 
 At the time of writing, the local running `n8n` instance lists only:
 

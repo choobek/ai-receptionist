@@ -24,13 +24,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
-jq -r '
+jq -er '
   .assistant.model.messages
-  | map(select(.role == "system"))
+  | map(select(.role == "system" and (.content | type == "string")))
   | .[0].content
 ' "$CONFIG_PATH" > "$tmp_system"
 
-jq -r '.assistant.firstMessage' "$CONFIG_PATH" > "$tmp_first"
+jq -er '
+  .assistant.firstMessage
+  | select(type == "string" and length > 0)
+' "$CONFIG_PATH" > "$tmp_first"
 
 mv "$tmp_system" "$SYSTEM_PROMPT_PATH"
 mv "$tmp_first" "$FIRST_MESSAGE_PATH"

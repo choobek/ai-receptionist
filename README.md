@@ -271,6 +271,12 @@ Those can be added later without changing the basic contract.
 
 The current patient registry for `lookupPatient` is a static demo list in [`mock-data/mock-patients.json`](./mock-data/mock-patients.json).
 
-For now this stands in for the clinic CRM. The n8n lookup workflow contains the same snapshot so it can run without any extra infrastructure.
+For now this stands in for the clinic CRM. After changing it, run [`scripts/sync-n8n-workflow-data.sh`](./scripts/sync-n8n-workflow-data.sh) so the embedded n8n workflow snapshot stays in sync.
 
 The current local knowledge base for `searchKnowledgeBase` is curated in [`knowledge-base/clinic-knowledge.json`](./knowledge-base/clinic-knowledge.json) from the ODT source files documented in [`docs/knowledge-base.md`](./docs/knowledge-base.md).
+
+After changing either proof-of-concept dataset, run:
+
+```bash
+./scripts/sync-n8n-workflow-data.sh
+```

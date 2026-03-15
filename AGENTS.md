@@ -7,6 +7,8 @@
 - Vapi assistant config lives in `configs/vapi/assistant.v1.json`.
 - Prompt mirror files in `prompts/` are generated mirrors for readability. If they drift, the JSON config wins.
 - n8n workflow source files live in `n8n/workflows/`.
+- Mock patient source data lives in `mock-data/mock-patients.json`.
+- Knowledge-base source data lives in `knowledge-base/clinic-knowledge.json`.
 
 ## Non-Negotiable Rules
 
@@ -36,15 +38,17 @@
 ### Push n8n Workflows To VPS
 
 1. Commit or at least save the desired workflow JSON changes locally.
-2. Run `./scripts/import-n8n-workflows-vps.sh`.
-3. The script must export a backup on the VPS before importing.
-4. Verify the workflow list after import.
-5. Do not unpublish the currently active workflows until the imported copies have credentials attached and are ready to publish.
+2. If you changed `mock-data/mock-patients.json` or `knowledge-base/clinic-knowledge.json`, run `./scripts/sync-n8n-workflow-data.sh` first so the embedded workflow data stays in sync.
+3. Run `./scripts/import-n8n-workflows-vps.sh`.
+4. The script must export a backup on the VPS before importing.
+5. Verify the workflow list after import.
+6. Do not unpublish the currently active workflows until the imported copies have credentials attached and are ready to publish.
 
 ## Audit Checklist
 
 - Compare repo workflow files with `docker exec ai-receptionist-n8n n8n list:workflow`.
 - Check for config drift between Vapi and `configs/vapi/assistant.v1.json`.
+- Run `./scripts/sync-n8n-workflow-data.sh --check` after changing proof-of-concept data files.
 - Check for duplicate env templates or new ad-hoc scripts that bypass root `.env`.
 - Prefer additive scripts and docs over tribal knowledge in chat history.
 
