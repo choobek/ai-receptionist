@@ -29,7 +29,8 @@
 
 1. Ensure SSH placeholders in root `.env` are filled.
 2. Run `./scripts/deploy-vps.sh`.
-3. Verify the stack on the VPS after pull + restart.
+3. The deploy script should use SSH agent forwarding and a GitHub SSH remote on the VPS.
+4. Verify the stack on the VPS after pull + restart.
 
 ### Push n8n Workflows To VPS
 

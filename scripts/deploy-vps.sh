@@ -18,21 +18,32 @@ VPS_SSH_USER="${VPS_SSH_USER:-}"
 VPS_SSH_PORT="${VPS_SSH_PORT:-22}"
 VPS_SSH_IDENTITY_FILE="${VPS_SSH_IDENTITY_FILE:-}"
 VPS_APP_DIR="${VPS_APP_DIR:-}"
+VPS_GIT_REMOTE_SSH_URL="${VPS_GIT_REMOTE_SSH_URL:-}"
+
+if [ -z "$VPS_GIT_REMOTE_SSH_URL" ]; then
+  origin_url="$(git -C "$ROOT_DIR" remote get-url origin)"
+  if [[ "$origin_url" =~ ^https://github.com/(.+)/(.+)\.git$ ]]; then
+    VPS_GIT_REMOTE_SSH_URL="git@github.com:${BASH_REMATCH[1]}/${BASH_REMATCH[2]}.git"
+  else
+    VPS_GIT_REMOTE_SSH_URL="$origin_url"
+  fi
+fi
 
 if [ -z "$VPS_SSH_HOST" ] || [ -z "$VPS_SSH_USER" ] || [ -z "$VPS_APP_DIR" ]; then
   echo "VPS_SSH_HOST, VPS_SSH_USER, and VPS_APP_DIR are required" >&2
   exit 1
 fi
 
-ssh_args=(-p "$VPS_SSH_PORT")
+ssh_args=(-A -p "$VPS_SSH_PORT")
 if [ -n "$VPS_SSH_IDENTITY_FILE" ]; then
   ssh_args+=(-i "$VPS_SSH_IDENTITY_FILE")
 fi
 
-ssh "${ssh_args[@]}" "${VPS_SSH_USER}@${VPS_SSH_HOST}" "APP_DIR='$VPS_APP_DIR' bash -s" <<'EOF'
+ssh "${ssh_args[@]}" "${VPS_SSH_USER}@${VPS_SSH_HOST}" "APP_DIR='$VPS_APP_DIR' REMOTE_URL='$VPS_GIT_REMOTE_SSH_URL' bash -s" <<'EOF'
 set -euo pipefail
 
 cd "$APP_DIR"
+git remote set-url origin "$REMOTE_URL"
 git fetch --all --prune
 git pull --ff-only
 

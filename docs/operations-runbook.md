@@ -27,6 +27,7 @@ Optional for SSH:
 - `VPS_SSH_PORT`
 - `VPS_SSH_IDENTITY_FILE`
 - `VPS_N8N_CONTAINER_NAME`
+- `VPS_GIT_REMOTE_SSH_URL`
 
 If `VPS_SSH_IDENTITY_FILE` is empty, the SSH-based scripts will use normal
 password authentication and prompt for the password interactively.
@@ -82,9 +83,11 @@ Use the SSH wrapper:
 What it does:
 
 1. SSH to the configured VPS.
-2. `git fetch --all --prune`
-3. `git pull --ff-only`
-4. restart the VPS stack from `deploy/vps/docker-compose.yml`
+2. forwards the local SSH agent to the VPS
+3. ensures the VPS repo uses the configured GitHub SSH remote
+4. `git fetch --all --prune`
+5. `git pull --ff-only`
+6. restart the VPS stack from `deploy/vps/docker-compose.yml`
 
 ## 5. Update n8n Workflows On VPS
 
