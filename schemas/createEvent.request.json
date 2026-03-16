@@ -22,7 +22,15 @@
       ],
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "consultation",
+            "urgent_consultation",
+            "implant_consultation",
+            "orthodontic_consultation",
+            "aesthetic_consultation",
+            "hygiene"
+          ]
         },
         "name": {
           "type": "string"

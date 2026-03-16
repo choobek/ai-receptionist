@@ -3,6 +3,7 @@
 This repo should be operated from one root `.env` and five source-of-truth areas:
 
 - Vapi assistant config: [`configs/vapi/assistant.v1.json`](../configs/vapi/assistant.v1.json)
+- service catalog: [`configs/services/catalog.v1.json`](../configs/services/catalog.v1.json)
 - n8n workflows: [`n8n/workflows/`](../n8n/workflows/)
 - mock patient data: [`mock-data/mock-patients.json`](../mock-data/mock-patients.json)
 - knowledge-base data: [`knowledge-base/clinic-knowledge.json`](../knowledge-base/clinic-knowledge.json)
@@ -31,6 +32,10 @@ Optional for SSH:
 - `VPS_N8N_CONTAINER_NAME`
 - `VPS_GIT_REMOTE_SSH_URL`
 
+Optional but strongly recommended for public webhooks:
+
+- `AI_RECEPTIONIST_WEBHOOK_SECRET`
+
 If `VPS_SSH_IDENTITY_FILE` is empty, the SSH-based scripts will use normal
 password authentication and prompt for the password interactively.
 
@@ -55,6 +60,12 @@ This updates:
 ./scripts/update-vapi-assistant.sh
 ```
 
+4. If `AI_RECEPTIONIST_WEBHOOK_SECRET` is set, patch the live Vapi webhook URLs so they include the same secret without storing it in git:
+
+```bash
+./scripts/update-vapi-webhook-secret.sh
+```
+
 Notes:
 
 - If the Vapi API rejects a field, treat the API response as source of truth and update the stored config accordingly.
@@ -66,6 +77,7 @@ If you edit either proof-of-concept dataset:
 
 - [`mock-data/mock-patients.json`](../mock-data/mock-patients.json)
 - [`knowledge-base/clinic-knowledge.json`](../knowledge-base/clinic-knowledge.json)
+- [`configs/services/catalog.v1.json`](../configs/services/catalog.v1.json)
 
 sync the embedded n8n workflow snapshots before import or deployment:
 

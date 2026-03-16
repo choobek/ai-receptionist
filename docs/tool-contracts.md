@@ -14,6 +14,16 @@ The JSON schemas in [`schemas/`](../schemas) describe the tool arguments and res
 
 ## Transport model
 
+### Webhook authentication
+
+If `AI_RECEPTIONIST_WEBHOOK_SECRET` is set in the runtime environment, every public webhook in this repo requires the same secret on inbound requests.
+
+Supported transport options:
+
+- preferred: `X-AI-Receptionist-Secret` header
+- supported fallback: `Authorization: Bearer <secret>`
+- last-resort fallback when the caller UI cannot set headers: `?secret=<value>` query parameter
+
 ### What Vapi sends
 
 In production, Vapi sends a custom-tool webhook request that includes a `toolCallId` plus the function arguments for the tool call.
@@ -229,6 +239,11 @@ Important fields:
 ## Error contract
 
 All workflows return short, deterministic error objects.
+Tool and router webhooks also return matching HTTP statuses:
+
+- `400` for validation errors or unsupported webhook payloads
+- `401` for missing or invalid webhook secrets
+- `409` for booking conflicts when the requested slot is no longer available
 
 Example:
 

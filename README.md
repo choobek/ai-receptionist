@@ -11,6 +11,8 @@ The repo keeps responsibilities separate:
 
 ```text
 configs/
+  services/
+    catalog.v1.json
   vapi/
     assistant.v1.json
 docs/
@@ -108,8 +110,9 @@ This first version is intentionally small:
 3. Open n8n, complete the owner account setup on first launch, and then import the workflow files from [`n8n/workflows/`](./n8n/workflows).
 4. Create Google Calendar credentials in n8n and attach them to the Google Calendar nodes.
 5. Set the Vapi custom tool server URLs to the five n8n webhook endpoints.
-6. Keep the Vapi assistant source of truth in [`configs/vapi/assistant.v1.json`](./configs/vapi/assistant.v1.json).
-7. Apply the config with [`scripts/update-vapi-assistant.sh`](./scripts/update-vapi-assistant.sh).
+6. If you set `AI_RECEPTIONIST_WEBHOOK_SECRET`, configure the same secret in Vapi using the `X-AI-Receptionist-Secret` header or a `?secret=` query parameter fallback.
+7. Keep the Vapi assistant source of truth in [`configs/vapi/assistant.v1.json`](./configs/vapi/assistant.v1.json).
+8. Apply the config with [`scripts/update-vapi-assistant.sh`](./scripts/update-vapi-assistant.sh).
 
 Operational reference:
 
@@ -211,6 +214,7 @@ Then configure five Vapi custom tools:
 Recommended assistant wiring in Vapi:
 
 - assistant config source of truth: [`configs/vapi/assistant.v1.json`](./configs/vapi/assistant.v1.json)
+- service catalog source of truth: [`configs/services/catalog.v1.json`](./configs/services/catalog.v1.json)
 - assistant language: `pl-PL`
 - mirrored prompt copy: [`prompts/system-prompt.md`](./prompts/system-prompt.md)
 - mirrored first message copy: [`prompts/first-message.md`](./prompts/first-message.md)

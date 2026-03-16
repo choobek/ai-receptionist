@@ -21,7 +21,15 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Clinic-specific service identifier such as consultation or hygiene."
+          "enum": [
+            "consultation",
+            "urgent_consultation",
+            "implant_consultation",
+            "orthodontic_consultation",
+            "aesthetic_consultation",
+            "hygiene"
+          ],
+          "description": "Supported clinic service identifier. Use consultation for a first visit or whenever the exact treatment path is still unclear."
         },
         "name": {
           "type": "string"

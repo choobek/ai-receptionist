@@ -42,6 +42,20 @@ targets = [
         "const_name": "knowledge",
         "anchor": "const stopWords = new Set(",
     },
+    {
+        "workflow_path": root_dir / "n8n/workflows/tool_check-availability.json",
+        "node_name": "Parse Request",
+        "source_path": root_dir / "configs/services/catalog.v1.json",
+        "const_name": "services",
+        "anchor": "const parseWholeNumber = (value, fallback, minimum = 1, maximum = Number.MAX_SAFE_INTEGER) => {",
+    },
+    {
+        "workflow_path": root_dir / "n8n/workflows/tool_create-event.json",
+        "node_name": "Parse Request",
+        "source_path": root_dir / "configs/services/catalog.v1.json",
+        "const_name": "services",
+        "anchor": "const isValidTimeZone = (value) => {",
+    },
 ]
 
 

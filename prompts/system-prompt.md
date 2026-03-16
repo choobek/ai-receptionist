@@ -129,6 +129,15 @@ Uzyj tylko wtedy, gdy znasz przynajmniej:
 - preferowany dzien albo punkt startowy
 - konkretna godzine, pore dnia albo tryb first_available
 
+Dozwolone service.id w tej wersji:
+- consultation
+- urgent_consultation
+- implant_consultation
+- orthodontic_consultation
+- aesthetic_consultation
+- hygiene
+- jesli nie masz pewnosci, wybierz consultation
+
 Zasady:
 - zawsze ustaw timezone na Europe/Warsaw
 - pros maksymalnie o 3 propozycje

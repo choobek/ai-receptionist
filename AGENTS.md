@@ -5,6 +5,7 @@
 - Root `.env.example` is the only env template in the repo.
 - Root `.env` is the only local env file future automation should read by default.
 - Vapi assistant config lives in `configs/vapi/assistant.v1.json`.
+- Service catalog source data lives in `configs/services/catalog.v1.json`.
 - Prompt mirror files in `prompts/` are generated mirrors for readability. If they drift, the JSON config wins.
 - n8n workflow source files live in `n8n/workflows/`.
 - Mock patient source data lives in `mock-data/mock-patients.json`.
@@ -38,7 +39,7 @@
 ### Push n8n Workflows To VPS
 
 1. Commit or at least save the desired workflow JSON changes locally.
-2. If you changed `mock-data/mock-patients.json` or `knowledge-base/clinic-knowledge.json`, run `./scripts/sync-n8n-workflow-data.sh` first so the embedded workflow data stays in sync.
+2. If you changed `mock-data/mock-patients.json`, `knowledge-base/clinic-knowledge.json`, or `configs/services/catalog.v1.json`, run `./scripts/sync-n8n-workflow-data.sh` first so the embedded workflow data stays in sync.
 3. Run `./scripts/import-n8n-workflows-vps.sh`.
 4. The script must export a backup on the VPS before importing.
 5. Verify the workflow list after import.

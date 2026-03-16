@@ -1,0 +1,26 @@
+[
+  {
+    "id": "consultation",
+    "name": "Konsultacja"
+  },
+  {
+    "id": "urgent_consultation",
+    "name": "Pilna konsultacja"
+  },
+  {
+    "id": "implant_consultation",
+    "name": "Konsultacja implantologiczna"
+  },
+  {
+    "id": "orthodontic_consultation",
+    "name": "Konsultacja ortodontyczna"
+  },
+  {
+    "id": "aesthetic_consultation",
+    "name": "Konsultacja estetyczna"
+  },
+  {
+    "id": "hygiene",
+    "name": "Higienizacja"
+  }
+]

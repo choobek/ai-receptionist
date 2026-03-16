@@ -71,6 +71,7 @@ Edit root [`.env`](../.env.example) and set at minimum:
 - `LETSENCRYPT_EMAIL`
 - `CADDY_ADMIN_PASSWORD_HASH`
 - `N8N_ENCRYPTION_KEY`
+- `AI_RECEPTIONIST_WEBHOOK_SECRET`
 - `GOOGLE_CALENDAR_ID` if not `primary`
 
 Generate strong secrets like this:
@@ -88,6 +89,7 @@ LETSENCRYPT_EMAIL=ops@example.com
 CADDY_ADMIN_USER=admin
 CADDY_ADMIN_PASSWORD_HASH=replace-with-caddy-hash
 N8N_ENCRYPTION_KEY=replace-with-openssl-output
+AI_RECEPTIONIST_WEBHOOK_SECRET=replace-with-a-long-random-secret
 N8N_BASIC_AUTH_ACTIVE=false
 N8N_SECURE_COOKIE=true
 N8N_PROXY_HOPS=1
@@ -141,7 +143,12 @@ Update:
 - Vapi custom tool `createReceptionTask`
 - any Vapi webhook target for `call.ended`
 
-The Caddy config protects the n8n editor with HTTP basic auth while leaving `/webhook/*` public for Vapi.
+The Caddy config protects the n8n editor with HTTP basic auth while leaving `/webhook/*` publicly reachable for Vapi.
+
+When `AI_RECEPTIONIST_WEBHOOK_SECRET` is set, configure the same secret in Vapi:
+
+- preferred: send `X-AI-Receptionist-Secret: <secret>`
+- supported fallback: append `?secret=<secret>` to each webhook URL if the Vapi UI cannot add headers for that target
 
 ## 7. Verify from the server
 

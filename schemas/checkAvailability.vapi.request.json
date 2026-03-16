@@ -9,7 +9,15 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Use consultation for a first visit or when unsure."
+          "enum": [
+            "consultation",
+            "urgent_consultation",
+            "implant_consultation",
+            "orthodontic_consultation",
+            "aesthetic_consultation",
+            "hygiene"
+          ],
+          "description": "Use consultation for a first visit or when unsure. Use only the supported IDs from this schema."
         },
         "name": {
           "type": "string"

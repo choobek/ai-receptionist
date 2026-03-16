@@ -26,6 +26,11 @@ if ! command -v curl >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "python3 is required" >&2
+  exit 1
+fi
+
 if [ -z "$API_KEY" ]; then
   echo "VAPI_API_KEY is required" >&2
   exit 1
@@ -56,6 +61,33 @@ PAYLOAD="$(
 if [ -z "$PAYLOAD" ] || [ "$PAYLOAD" = "null" ]; then
   echo "Config file must contain an .assistant object" >&2
   exit 1
+fi
+
+if [ -n "${AI_RECEPTIONIST_WEBHOOK_SECRET:-}" ]; then
+  PAYLOAD="$(
+    PAYLOAD_JSON="$PAYLOAD" python3 - "$AI_RECEPTIONIST_WEBHOOK_SECRET" <<'PY'
+import json
+import os
+import sys
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+payload = json.loads(os.environ["PAYLOAD_JSON"])
+secret = sys.argv[1]
+
+server = payload.get("server")
+if isinstance(server, dict):
+    url = server.get("url")
+    if isinstance(url, str) and url:
+        split = urlsplit(url)
+        query = dict(parse_qsl(split.query, keep_blank_values=True))
+        query["secret"] = secret
+        server["url"] = urlunsplit(
+            (split.scheme, split.netloc, split.path, urlencode(query), split.fragment)
+        )
+
+print(json.dumps(payload, ensure_ascii=True, separators=(",", ":")))
+PY
+  )"
 fi
 
 RESPONSE_BODY_FILE="$(mktemp)"

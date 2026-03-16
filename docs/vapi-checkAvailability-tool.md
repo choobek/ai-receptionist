@@ -5,7 +5,7 @@ Use this when you want a paste-ready description and a simpler schema for the Va
 ## Recommended description
 
 ```text
-Check real appointment availability for the dental clinic and return up to a few valid slots. Use this only when the visit type is known and you already know either a preferred date, a preferred time window, or that the caller wants the first available appointment. For first-time patients or when unsure about the exact procedure, use service.id = consultation. Always use timezone = Europe/Warsaw. Use timePreference = specific_time when the caller gave an exact hour, morning/afternoon/evening for broad preferences, and first_available for the nearest available term. If the caller asks for the nearest available appointment and gives no date, requestedDate may be omitted.
+Check real appointment availability for the dental clinic and return up to a few valid slots. Use this only when the visit type is known and you already know either a preferred date, a preferred time window, or that the caller wants the first available appointment. Use only these service.id values: consultation, urgent_consultation, implant_consultation, orthodontic_consultation, aesthetic_consultation, hygiene. For first-time patients or when unsure about the exact procedure, use service.id = consultation. Always use timezone = Europe/Warsaw. Use timePreference = specific_time when the caller gave an exact hour, morning/afternoon/evening for broad preferences, and first_available for the nearest available term. If the caller asks for the nearest available appointment and gives no date, requestedDate may be omitted.
 ```
 
 ## Recommended simplified schema
@@ -22,6 +22,7 @@ This version is intentionally simpler than the full contract:
 
 - Keep the tool name exactly `checkAvailability`.
 - Point the server URL to your hosted n8n webhook.
+- If you enable `AI_RECEPTIONIST_WEBHOOK_SECRET`, send the same secret to the webhook with the `X-AI-Receptionist-Secret` header or a `?secret=` query parameter fallback.
 - If Vapi struggles with the full schema, use the simplified schema from this doc.
 - The backend still accepts the fuller request shape from [checkAvailability.request.json](/home/choobek/repos/ai-receptionist/schemas/checkAvailability.request.json).
 

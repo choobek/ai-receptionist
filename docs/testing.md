@@ -4,6 +4,11 @@ This checklist verifies the full flow against the permanent hosted n8n instance:
 
 - `https://vps-2c8bbf65.vps.ovh.net`
 
+If `AI_RECEPTIONIST_WEBHOOK_SECRET` is configured on the target instance, include one of these on every webhook request in this guide:
+
+- `-H "X-AI-Receptionist-Secret: $AI_RECEPTIONIST_WEBHOOK_SECRET"`
+- or the URL fallback `?secret=$AI_RECEPTIONIST_WEBHOOK_SECRET`
+
 ## 1. Verify the configured public URL
 
 Confirm that your deployed n8n instance is reachable at the permanent public hostname:
