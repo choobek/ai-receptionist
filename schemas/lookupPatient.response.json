@@ -41,39 +41,8 @@
         "phoneE164": {
           "type": "string"
         },
-        "email": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "isExistingPatient": {
           "type": "boolean"
-        },
-        "lastVisitAt": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "format": "date"
-        },
-        "preferredDoctor": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "notes": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "tags": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       }
     },
@@ -105,15 +74,7 @@
         "patientId": "poc_001",
         "fullName": "Anna Kowalska",
         "phoneE164": "+48500111001",
-        "email": "anna.kowalska@example.com",
-        "isExistingPatient": true,
-        "lastVisitAt": "2026-02-11",
-        "preferredDoctor": "dr Magdalena Szajnar",
-        "notes": "Pacjentka po konsultacji implantologicznej, oczekuje dalszego planu leczenia.",
-        "tags": [
-          "implanty",
-          "powracajacy"
-        ]
+        "isExistingPatient": true
       },
       "message": "Znalazlem pacjenta w proof-of-concept registry."
     }

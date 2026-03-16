@@ -115,6 +115,8 @@ if failures:
         print(stderr, file=sys.stderr)
     raise SystemExit(1)
 PY
+  echo "Running workflow regression checks..."
+  node "$ROOT_DIR/scripts/check-workflow-regressions.js"
 else
   echo "Skipping embedded workflow JS check because node is not installed."
 fi

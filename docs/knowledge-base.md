@@ -23,6 +23,7 @@ The current KB covers:
 - implant types and treatment paths
 - All-on-4 overview
 - veneers versus bonding
+- curated Polish and English answers for those same supported topics
 
 It does not replace medical judgment and should be used only for:
 
@@ -34,6 +35,7 @@ It does not replace medical judgment and should be used only for:
 
 - Retrieval is keyword-based, not embedding-based.
 - The search tool only knows the curated entries committed in this repo.
+- English support is curated entry by entry, not machine-translated at runtime.
 - If the question is outside the curated scope, the assistant should say it does not have a reliable KB answer and, when appropriate, create a receptionist follow-up task.
 
 ## Updating the KB

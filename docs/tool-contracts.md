@@ -88,8 +88,8 @@ Defined in [`schemas/checkAvailability.request.json`](../schemas/checkAvailabili
 Key fields:
 
 - `service.id`
-- `requestedDate` for date-specific searches, optional for `first_available`
-- `requestedTime` or `timePreference`
+- `requestedDate` in `YYYY-MM-DD` for date-specific searches, optional for `first_available`
+- `requestedTime` in `HH:MM` or `timePreference`
 - `timezone`
 - optional `searchDays` for multi-day `first_available` lookup
 - optional `limit`
@@ -98,12 +98,13 @@ Key fields:
 
 1. Parse Vapi wrapper or direct body.
 2. Validate required fields.
-3. Normalize service duration and search window.
-4. For `first_available`, start from the requested date or from today in the clinic timezone if the date was omitted.
-5. Search across one or more working days while skipping overnight hours and past slots on the current day.
-6. Read busy events from Google Calendar.
-7. Build up to `limit` valid slots.
-8. Return a short structured response.
+3. Reject malformed dates, times, and timezones with a validation error.
+4. Normalize service duration and search window.
+5. For `first_available`, start from the requested date or from today in the clinic timezone if the date was omitted.
+6. Search across one or more working days while skipping overnight hours and past slots on the current day.
+7. Read busy events from Google Calendar.
+8. Build up to `limit` valid slots.
+9. Return a short structured response.
 
 ### Success response
 
@@ -129,14 +130,16 @@ Defined in [`schemas/searchKnowledgeBase.request.json`](../schemas/searchKnowled
 Key fields:
 
 - `query`
+- optional `language`
 - optional `limit`
 
 ### Workflow behavior
 
 1. Parse Vapi wrapper or direct body.
 2. Validate that a question is present.
-3. Score the curated local KB entries against the query.
-4. Return the best supported answer and matching entries, or a no-match result.
+3. Validate the requested language.
+4. Score the curated local KB entries against the query.
+5. Return the best supported answer and matching entries in the requested language when available, or a no-match result.
 
 ### Success response
 
@@ -208,8 +211,9 @@ Key fields:
 
 1. Parse Vapi wrapper or direct body.
 2. Validate the patient and task payload.
-3. Create a queued proof-of-concept task in the n8n execution payload.
-4. Return task confirmation data.
+3. Reject unknown task types and malformed phone numbers.
+4. Create a queued proof-of-concept task in the n8n execution payload.
+5. Return task confirmation data.
 
 ### Success response
 

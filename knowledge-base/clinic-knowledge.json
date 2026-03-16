@@ -18,7 +18,23 @@
       "Co obejmuje pierwsza konsultacja?",
       "Czy na konsultacji robicie tomografie?"
     ],
-    "answerPl": "Konsultacja stomatologiczna obejmuje wywiad z pacjentem, badanie jamy ustnej, a w razie potrzeby takze diagnostyke obrazowa, na przyklad RTG lub CBCT. Na koncu lekarz omawia wyniki i proponuje plan leczenia, czasem w kilku wariantach pod wzgledem ceny, trwalosci i estetyki."
+    "answerPl": "Konsultacja stomatologiczna obejmuje wywiad z pacjentem, badanie jamy ustnej, a w razie potrzeby takze diagnostyke obrazowa, na przyklad RTG lub CBCT. Na koncu lekarz omawia wyniki i proponuje plan leczenia, czasem w kilku wariantach pod wzgledem ceny, trwalosci i estetyki.",
+    "titleEn": "Dental consultation",
+    "tagsEn": [
+      "consultation",
+      "first visit",
+      "treatment plan",
+      "medical history",
+      "exam",
+      "cbct",
+      "x-ray"
+    ],
+    "queryExamplesEn": [
+      "What happens during a dental consultation?",
+      "What is included in the first consultation?",
+      "Do you do a CT scan during the consultation?"
+    ],
+    "answerEn": "A dental consultation includes a medical history review, an oral examination, and, when needed, imaging diagnostics such as an X-ray or CBCT scan. At the end, the doctor discusses the findings and proposes a treatment plan, sometimes in a few options that differ in price, durability, and aesthetics."
   },
   {
     "id": "kb_consultation_interview",
@@ -37,7 +53,21 @@
       "O co lekarz pyta na konsultacji?",
       "Jakie informacje trzeba podac na konsultacji?"
     ],
-    "answerPl": "Podczas konsultacji lekarz pyta zwykle o powod wizyty, ogolny stan zdrowia, przyjmowane leki, alergie, oczekiwania oraz wczesniejsze leczenie stomatologiczne. Samo badanie obejmuje ocene zebow, dziasel, przyzebia, zgryzu oraz sluzowki jamy ustnej."
+    "answerPl": "Podczas konsultacji lekarz pyta zwykle o powod wizyty, ogolny stan zdrowia, przyjmowane leki, alergie, oczekiwania oraz wczesniejsze leczenie stomatologiczne. Samo badanie obejmuje ocene zebow, dziasel, przyzebia, zgryzu oraz sluzowki jamy ustnej.",
+    "titleEn": "Medical history and examination during consultation",
+    "tagsEn": [
+      "medical history",
+      "exam",
+      "allergies",
+      "medications",
+      "chronic conditions",
+      "reason for visit"
+    ],
+    "queryExamplesEn": [
+      "What does the doctor ask during the consultation?",
+      "What information should I provide at the consultation?"
+    ],
+    "answerEn": "During the consultation, the doctor usually asks about the reason for the visit, general health, medications, allergies, expectations, and previous dental treatment. The examination itself includes an assessment of the teeth, gums, supporting tissues, bite, and oral mucosa."
   },
   {
     "id": "kb_implants_single_and_bridge",
@@ -56,7 +86,21 @@
       "Co jesli brakuje jednego zeba?",
       "Czy kilka zebow mozna uzupelnic mostem na implantach?"
     ],
-    "answerPl": "Przy braku jednego zeba najczesciej stosuje sie pojedynczy implant z korona. Przy braku kilku zebow obok siebie mozna zastosowac implanty wielozebowe, czyli na przyklad most protetyczny oparty na dwoch lub trzech implantach zamiast wszczepiania implantu pod kazdy zab."
+    "answerPl": "Przy braku jednego zeba najczesciej stosuje sie pojedynczy implant z korona. Przy braku kilku zebow obok siebie mozna zastosowac implanty wielozebowe, czyli na przyklad most protetyczny oparty na dwoch lub trzech implantach zamiast wszczepiania implantu pod kazdy zab.",
+    "titleEn": "Implant options for one or several missing teeth",
+    "tagsEn": [
+      "implant",
+      "single implant",
+      "implant bridge",
+      "several missing teeth",
+      "missing tooth"
+    ],
+    "queryExamplesEn": [
+      "What kinds of implants are available?",
+      "What if I am missing one tooth?",
+      "Can several missing teeth be replaced with an implant bridge?"
+    ],
+    "answerEn": "When one tooth is missing, the most common option is a single implant with a crown. When several neighboring teeth are missing, multi-tooth implant solutions can be used, for example a prosthetic bridge supported by two or three implants instead of placing one implant for every tooth."
   },
   {
     "id": "kb_implants_timing",
@@ -75,7 +119,21 @@
       "Czym rozni sie zabieg klasyczny od natychmiastowego?",
       "Ile etapow ma leczenie implantologiczne?"
     ],
-    "answerPl": "Implantacja natychmiastowa polega na wszczepieniu implantu od razu po usunieciu zeba, podczas tej samej wizyty, co moze skrocic czas leczenia, ale wymaga odpowiednich warunkow kostnych. Zabieg dwuetapowy to klasyczny schemat: najpierw wszczepienie implantu, a po mniej wiecej trzech do szesciu miesiacach odsloniecie implantu i zalozenie korony."
+    "answerPl": "Implantacja natychmiastowa polega na wszczepieniu implantu od razu po usunieciu zeba, podczas tej samej wizyty, co moze skrocic czas leczenia, ale wymaga odpowiednich warunkow kostnych. Zabieg dwuetapowy to klasyczny schemat: najpierw wszczepienie implantu, a po mniej wiecej trzech do szesciu miesiacach odsloniecie implantu i zalozenie korony.",
+    "titleEn": "Immediate and two-stage implantation",
+    "tagsEn": [
+      "immediate implantation",
+      "two-stage procedure",
+      "after tooth extraction",
+      "treatment duration",
+      "osseointegration"
+    ],
+    "queryExamplesEn": [
+      "What is immediate implantation?",
+      "What is the difference between the classic and immediate procedure?",
+      "How many stages does implant treatment have?"
+    ],
+    "answerEn": "Immediate implantation means placing the implant right after the tooth is removed, during the same visit. That can shorten the treatment time, but it requires the right bone conditions. A two-stage procedure is the classic approach: first the implant is placed, and after roughly three to six months it is uncovered and fitted with a crown."
   },
   {
     "id": "kb_implants_supporting_procedures",
@@ -94,7 +152,21 @@
       "Co to jest sinus lift?",
       "Czy przed implantami trzeba odbudowac kosc?"
     ],
-    "answerPl": "Przed implantacja czasem potrzebne sa zabiegi przygotowujace, takie jak augmentacja kosci, czyli odbudowa zaniku kostnego, podniesienie dna zatoki szczekowej przy brakujacym miejscu w gornej szczekce, albo plastyka dziasel poprawiajaca warunki do osadzenia korony i efekt estetyczny."
+    "answerPl": "Przed implantacja czasem potrzebne sa zabiegi przygotowujace, takie jak augmentacja kosci, czyli odbudowa zaniku kostnego, podniesienie dna zatoki szczekowej przy brakujacym miejscu w gornej szczekce, albo plastyka dziasel poprawiajaca warunki do osadzenia korony i efekt estetyczny.",
+    "titleEn": "Preparatory procedures before implantation",
+    "tagsEn": [
+      "bone augmentation",
+      "bone regeneration",
+      "sinus lift",
+      "maxillary sinus lift",
+      "gum surgery"
+    ],
+    "queryExamplesEn": [
+      "What extra procedures might be needed before an implant?",
+      "What is a sinus lift?",
+      "Do I need bone rebuilding before implants?"
+    ],
+    "answerEn": "Before implantation, preparatory procedures are sometimes needed, such as bone augmentation to rebuild bone loss, a sinus lift when the missing tooth is in the upper jaw, or gum surgery to improve the conditions for placing the crown and achieving a better aesthetic result."
   },
   {
     "id": "kb_implants_advanced",
@@ -114,7 +186,21 @@
       "Czym sa implanty podokostnowe?",
       "Jakie sa opcje przy bardzo duzym zaniku kosci?"
     ],
-    "answerPl": "Implanty zygomatyczne to dlugie implanty kotwiczone w kosci jarzmowej, stosowane glownie przy bardzo duzym zaniku kosci szczeki gornej, kiedy klasyczne implanty nie sa mozliwe. Implanty podokostnowe to indywidualnie projektowana metalowa konstrukcja ukladana na powierzchni kosci pod okostna. Obie metody sa bardziej zaawansowane i wymagaja lekarza z duzym doswiadczeniem."
+    "answerPl": "Implanty zygomatyczne to dlugie implanty kotwiczone w kosci jarzmowej, stosowane glownie przy bardzo duzym zaniku kosci szczeki gornej, kiedy klasyczne implanty nie sa mozliwe. Implanty podokostnowe to indywidualnie projektowana metalowa konstrukcja ukladana na powierzchni kosci pod okostna. Obie metody sa bardziej zaawansowane i wymagaja lekarza z duzym doswiadczeniem.",
+    "titleEn": "Zygomatic and subperiosteal implants",
+    "tagsEn": [
+      "zygomatic implants",
+      "subperiosteal implants",
+      "bone loss",
+      "severe bone loss",
+      "edentulism"
+    ],
+    "queryExamplesEn": [
+      "What are zygomatic implants?",
+      "What are subperiosteal implants?",
+      "What are the options for very severe bone loss?"
+    ],
+    "answerEn": "Zygomatic implants are long implants anchored in the cheekbone and are mainly used in cases of very severe bone loss in the upper jaw, when standard implants are not possible. Subperiosteal implants are individually designed metal structures placed on the surface of the bone under the periosteum. Both methods are more advanced and require a very experienced doctor."
   },
   {
     "id": "kb_all_on_4",
@@ -133,7 +219,21 @@
       "Jakie sa zalety all-on-4?",
       "Czy zeby w jeden dzien to all on 4?"
     ],
-    "answerPl": "All-on-4 to metoda leczenia bezzebia, w ktorej staly most opiera sie na czterech strategicznie rozmieszczonych implantach. Jej glowne zalety to mniejsza inwazyjnosc niz przy wiekszej liczbie implantow, mozliwosc szybkiego efektu, czasem nawet tego samego dnia, czesto brak koniecznosci przeszczepu kosci oraz dobra stabilnosc i estetyka."
+    "answerPl": "All-on-4 to metoda leczenia bezzebia, w ktorej staly most opiera sie na czterech strategicznie rozmieszczonych implantach. Jej glowne zalety to mniejsza inwazyjnosc niz przy wiekszej liczbie implantow, mozliwosc szybkiego efektu, czasem nawet tego samego dnia, czesto brak koniecznosci przeszczepu kosci oraz dobra stabilnosc i estetyka.",
+    "titleEn": "All-on-4 system",
+    "tagsEn": [
+      "all-on-4",
+      "full arch",
+      "edentulism",
+      "teeth in one day",
+      "four implants"
+    ],
+    "queryExamplesEn": [
+      "How does All-on-4 work?",
+      "What are the benefits of All-on-4?",
+      "Is teeth in one day the same as All-on-4?"
+    ],
+    "answerEn": "All-on-4 is a treatment method for full tooth loss in which a fixed bridge is supported by four strategically placed implants. Its main advantages are lower invasiveness than solutions with more implants, the possibility of a fast result, sometimes even on the same day, often no need for bone grafting, and good stability and aesthetics."
   },
   {
     "id": "kb_veneers_vs_bonding",
@@ -153,7 +253,22 @@
       "Co jest trwalsze licowki czy bonding?",
       "Co lepsze do szybkiej poprawy estetyki?"
     ],
-    "answerPl": "Licowki to cienkie nakladki, najczesciej porcelanowe, przyklejane do przedniej powierzchni zeba. Daja bardzo estetyczny i trwaly efekt, zwykle nawet na dziesiec do pietnastu lat, ale sa drozsze i czesto wymagaja szlifowania zeba. Bonding polega na modelowaniu zeba kompozytem bezposrednio na zebie. Jest mniej inwazyjny, tanszy i daje szybki efekt, ale zwykle jest mniej trwaly, bardziej podatny na przebarwienia i scieranie."
+    "answerPl": "Licowki to cienkie nakladki, najczesciej porcelanowe, przyklejane do przedniej powierzchni zeba. Daja bardzo estetyczny i trwaly efekt, zwykle nawet na dziesiec do pietnastu lat, ale sa drozsze i czesto wymagaja szlifowania zeba. Bonding polega na modelowaniu zeba kompozytem bezposrednio na zebie. Jest mniej inwazyjny, tanszy i daje szybki efekt, ale zwykle jest mniej trwaly, bardziej podatny na przebarwienia i scieranie.",
+    "titleEn": "Veneers vs bonding",
+    "tagsEn": [
+      "veneers",
+      "bonding",
+      "aesthetics",
+      "porcelain",
+      "composite",
+      "discoloration"
+    ],
+    "queryExamplesEn": [
+      "What is the difference between veneers and bonding?",
+      "Which lasts longer, veneers or bonding?",
+      "Which is better for a quick aesthetic improvement?"
+    ],
+    "answerEn": "Veneers are thin shells, usually made of porcelain, bonded to the front surface of the tooth. They provide a very aesthetic and durable result, often lasting ten to fifteen years, but they are more expensive and often require the tooth to be prepared. Bonding means shaping the tooth directly with composite material. It is less invasive, less expensive, and gives a quick result, but it is usually less durable and more prone to discoloration and wear."
   },
   {
     "id": "kb_veneers_vs_bonding_use_cases",
@@ -172,6 +287,20 @@
       "Kiedy lepiej sprawdza sie licowka?",
       "Co na drobne pekniecia i przebarwienia?"
     ],
-    "answerPl": "Bonding bywa dobrym rozwiazaniem przy szybkiej poprawie estetyki nizszym kosztem oraz przy maskowaniu drobnych pekniec i przebarwien. Licowki czesciej rozwaza sie wtedy, gdy celem jest bardziej trwaly i naturalny efekt albo zmiana ksztaltu, koloru i ustawienia zebow."
+    "answerPl": "Bonding bywa dobrym rozwiazaniem przy szybkiej poprawie estetyki nizszym kosztem oraz przy maskowaniu drobnych pekniec i przebarwien. Licowki czesciej rozwaza sie wtedy, gdy celem jest bardziej trwaly i naturalny efekt albo zmiana ksztaltu, koloru i ustawienia zebow.",
+    "titleEn": "When to consider veneers vs bonding",
+    "tagsEn": [
+      "hollywood smile",
+      "cracks",
+      "discoloration",
+      "tooth shape",
+      "tooth color"
+    ],
+    "queryExamplesEn": [
+      "When should I choose bonding?",
+      "When are veneers a better option?",
+      "What works for small cracks and discoloration?"
+    ],
+    "answerEn": "Bonding can be a good option for a quick aesthetic improvement at a lower cost and for masking small cracks or discoloration. Veneers are more often considered when the goal is a more durable and natural-looking effect or a change in tooth shape, color, and alignment."
   }
 ]

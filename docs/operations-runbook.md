@@ -158,6 +158,7 @@ Run these when the repo starts to feel improvised:
 ```bash
 git status --short
 ./scripts/check-repo-health.sh
+./scripts/check-workflow-regressions.js
 ./scripts/sync-n8n-workflow-data.sh --check
 docker exec ai-receptionist-n8n n8n list:workflow
 ./scripts/update-vapi-assistant.sh
@@ -166,7 +167,8 @@ docker exec ai-receptionist-n8n n8n list:workflow
 Interpretation:
 
 - `git status --short` should not show accidental secrets, throwaway scripts, or duplicate env templates.
-- `./scripts/check-repo-health.sh` should pass before deploys and after repo cleanup.
+- `./scripts/check-repo-health.sh` should pass before deploys and after repo cleanup. It now includes workflow regression checks when `node` is installed.
+- `./scripts/check-workflow-regressions.js` exercises the embedded n8n logic directly and should stay green when tool contracts change.
 - `./scripts/sync-n8n-workflow-data.sh --check` should pass after proof-of-concept data edits.
 - `n8n list:workflow` should roughly match the workflow files under [`n8n/workflows/`](../n8n/workflows/).
 - a clean Vapi update path means assistant changes are reproducible outside the dashboard.
