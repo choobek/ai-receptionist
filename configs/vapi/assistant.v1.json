@@ -86,6 +86,11 @@
         "dd70a6ae-75a8-4a32-ab97-e8474ddb10ee"
       ]
     },
+    "chunkPlan": {
+      "enabled": true,
+      "minCharacters": 80,
+      "punctuationBoundaries": [".", "?", "!", "…"]
+    },
     "startSpeakingPlan": {
       "waitSeconds": 0.6,
       "smartEndpointingPlan": {
@@ -93,7 +98,7 @@
       },
       "transcriptionEndpointingPlan": {
         "onPunctuationSeconds": 0.5,
-        "onNoPunctuationSeconds": 2.2,
+        "onNoPunctuationSeconds": 3.0,
         "onNumberSeconds": 1.5
       }
     },

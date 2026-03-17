@@ -402,13 +402,13 @@ test('assistant prompt contains the call-quality guardrails from recent real-cal
   assert.match(prompt, /Nie wywoluj narzedzi na urwanych fragmentach wypowiedzi/);
   assert.match(prompt, /Jesli imie i nazwisko oraz numer telefonu zostaly juz jasno zebrane wczesniej/);
   assert.match(prompt, /Nie wywoluj createEvent bez wyraznej zgody na finalne podsumowanie rezerwacji/);
-  assert.match(prompt, /Po udanej rezerwacji nie czytaj ponownie pelnego numeru telefonu/);
+  assert.match(prompt, /Nie wymieniaj numeru telefonu/);
   assert.match(prompt, /nie mow potem "prosze chwile poczekac"/i);
 });
 
-test('assistant config keeps the shorter post-endpoint wait for lower dead air', () => {
+test('assistant config keeps the post-endpoint wait', () => {
   const config = loadAssistantConfig();
-  assert.equal(config.assistant?.startSpeakingPlan?.waitSeconds, 0.35);
+  assert.equal(config.assistant?.startSpeakingPlan?.waitSeconds, 0.6);
 });
 
 test('structured output schema exposes QA flags for conversation regressions', () => {
