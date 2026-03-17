@@ -227,6 +227,36 @@
         }
       }
     },
+    "qualityFlags": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "multipleQuestionsInSingleTurn": {
+          "type": "boolean",
+          "description": "True if the assistant stacked more than one real question into a single reply."
+        },
+        "repeatedIdentityRequest": {
+          "type": "boolean",
+          "description": "True if the assistant asked again for the caller's name or phone after they had already been provided clearly."
+        },
+        "toolCalledOnIncompleteAnswer": {
+          "type": "boolean",
+          "description": "True if the assistant appears to call availability or booking tools before the caller finished the relevant answer."
+        },
+        "explicitBookingConfirmationMissing": {
+          "type": "boolean",
+          "description": "True if a booking was created without a clear final yes or equivalent after the booking summary."
+        },
+        "phoneNumberRepeatedIncorrectly": {
+          "type": "boolean",
+          "description": "True if the assistant repeated the caller's phone number with missing, reordered, or hallucinated digits."
+        },
+        "postBookingFlowRestarted": {
+          "type": "boolean",
+          "description": "True if the assistant resumed scheduling or another stale flow after a successful booking confirmation."
+        }
+      }
+    },
     "followUp": {
       "type": "object",
       "additionalProperties": false,

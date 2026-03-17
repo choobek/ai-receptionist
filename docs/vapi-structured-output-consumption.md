@@ -20,7 +20,7 @@ Example:
     "id": "call_abc123",
     "artifact": {
       "structuredOutputs": {
-        "6e7726fb-32da-42c6-a7f4-731c4e2d6a0d": {
+        "dff8d16d-1f39-4d46-9f3d-370c8ecaeb40": {
           "name": "Dental Call Intake",
           "result": {
             "callOutcome": "appointment_booked",
@@ -125,7 +125,7 @@ Extract the dental structured output by ID:
 ```bash
 curl -sS "https://api.vapi.ai/call/YOUR_CALL_ID" \
   -H "Authorization: Bearer $VAPI_API_KEY" | \
-jq -r '.artifact.structuredOutputs["6e7726fb-32da-42c6-a7f4-731c4e2d6a0d"].result'
+jq -r '.artifact.structuredOutputs["dff8d16d-1f39-4d46-9f3d-370c8ecaeb40"].result'
 ```
 
 Extract by name when you do not want to hardcode the ID in logic:
@@ -148,7 +148,7 @@ If your Vapi webhook lands in n8n, a Code node can extract the result like this:
 ```js
 const event = $json;
 const outputs = event.call?.artifact?.structuredOutputs || {};
-const outputId = '6e7726fb-32da-42c6-a7f4-731c4e2d6a0d';
+const outputId = 'dff8d16d-1f39-4d46-9f3d-370c8ecaeb40';
 
 const result =
   outputs[outputId]?.result ||
@@ -188,7 +188,7 @@ What it does:
 Recommended environment variable:
 
 ```bash
-VAPI_STRUCTURED_OUTPUT_ID=6e7726fb-32da-42c6-a7f4-731c4e2d6a0d
+VAPI_STRUCTURED_OUTPUT_ID=dff8d16d-1f39-4d46-9f3d-370c8ecaeb40
 ```
 
 Example response for a booked call:

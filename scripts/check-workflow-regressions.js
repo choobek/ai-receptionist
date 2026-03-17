@@ -6,9 +6,33 @@ const path = require('node:path');
 
 const rootDir = path.resolve(__dirname, '..');
 const workflowsDir = path.join(rootDir, 'n8n', 'workflows');
+const assistantConfigPath = path.join(rootDir, 'configs', 'vapi', 'assistant.v1.json');
+const structuredOutputSchemaPath = path.join(rootDir, 'docs', 'vapi-structured-output.json');
+
+function loadJson(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
 
 function loadWorkflow(filename) {
-  return JSON.parse(fs.readFileSync(path.join(workflowsDir, filename), 'utf8'));
+  return loadJson(path.join(workflowsDir, filename));
+}
+
+function loadAssistantConfig() {
+  return loadJson(assistantConfigPath);
+}
+
+function loadStructuredOutputSchema() {
+  return loadJson(structuredOutputSchemaPath);
+}
+
+function getAssistantSystemPrompt(config = loadAssistantConfig()) {
+  const prompt = config.assistant?.model?.messages?.find(
+    (message) => message.role === 'system' && typeof message.content === 'string'
+  )?.content;
+  if (!prompt) {
+    throw new Error('Assistant system prompt not found in configs/vapi/assistant.v1.json');
+  }
+  return prompt;
 }
 
 function getNode(workflow, nodeName) {
@@ -369,6 +393,38 @@ test('call-ended router maps invalid events to HTTP 400 and unauthorized calls t
   assert.equal(
     getResponseCodeOption('webhook_vapi-call-ended-router.json', 'Respond Invalid'),
     "={{ $json.reason === 'unauthorized' ? 401 : 400 }}"
+  );
+});
+
+test('assistant prompt contains the call-quality guardrails from recent real-call regressions', () => {
+  const prompt = getAssistantSystemPrompt();
+  assert.match(prompt, /Nigdy nie lacz w jednej wypowiedzi dwoch pytan/);
+  assert.match(prompt, /Nie wywoluj narzedzi na urwanych fragmentach wypowiedzi/);
+  assert.match(prompt, /Jesli imie i nazwisko oraz numer telefonu zostaly juz jasno zebrane wczesniej/);
+  assert.match(prompt, /Nie wywoluj createEvent bez wyraznej zgody na finalne podsumowanie rezerwacji/);
+  assert.match(prompt, /Po udanej rezerwacji nie czytaj ponownie pelnego numeru telefonu/);
+  assert.match(prompt, /nie mow potem "prosze chwile poczekac"/i);
+});
+
+test('assistant config keeps the shorter post-endpoint wait for lower dead air', () => {
+  const config = loadAssistantConfig();
+  assert.equal(config.assistant?.startSpeakingPlan?.waitSeconds, 0.35);
+});
+
+test('structured output schema exposes QA flags for conversation regressions', () => {
+  const schema = loadStructuredOutputSchema();
+  const qualityFlags = schema.properties?.qualityFlags?.properties;
+  assert.ok(qualityFlags, 'qualityFlags schema is missing');
+  assert.deepEqual(
+    Object.keys(qualityFlags).sort(),
+    [
+      'explicitBookingConfirmationMissing',
+      'multipleQuestionsInSingleTurn',
+      'phoneNumberRepeatedIncorrectly',
+      'postBookingFlowRestarted',
+      'repeatedIdentityRequest',
+      'toolCalledOnIncompleteAnswer'
+    ]
   );
 });
 

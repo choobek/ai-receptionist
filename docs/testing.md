@@ -216,7 +216,7 @@ curl -sS -X POST https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/vapi-c
       "id": "call_test_001",
       "artifact": {
         "structuredOutputs": {
-          "6e7726fb-32da-42c6-a7f4-731c4e2d6a0d": {
+          "dff8d16d-1f39-4d46-9f3d-370c8ecaeb40": {
             "name": "Dental Call Intake",
             "result": {
               "callOutcome": "appointment_booked",

@@ -26,6 +26,7 @@ The schema extracts:
 - requested timing
 - booking result
 - risk and quality flags
+- conversation-quality QA flags for loops, stacked questions, premature tool use, missing booking confirmation, and phone-number playback mistakes
 - receptionist follow-up recommendation
 - short internal Polish summary
 
@@ -103,6 +104,7 @@ Use [`docs/vapi-structured-output-consumption.md`](./vapi-structured-output-cons
 - `successfulForAssistantScope` should still be `true` when the bot correctly refuses unsupported actions like cancellation or rescheduling.
 - `booking.bookingCreated` should be `true` only if the tool actually created the visit.
 - `riskFlags.medicalAdviceGiven` should almost always be `false`. If it turns `true`, treat that as a QA issue.
+- `qualityFlags.*` are for transcript QA. They should stay `false` on clean calls and flip to `true` when the assistant loops, stacks questions, books without explicit confirmation, or mangles the phone readback.
 - `followUp.receptionFollowUpNeeded` helps separate calls that need a human next step.
 
 ## Practical notes
