@@ -9,7 +9,12 @@
       "model": "eleven_turbo_v2_5",
       "voiceId": "jJYvw04W4nFnH9II4y4C",
       "stability": 0.65,
-      "similarityBoost": 0.8
+      "similarityBoost": 0.8,
+      "chunkPlan": {
+        "enabled": true,
+        "minCharacters": 80,
+        "punctuationBoundaries": [".", "?", "!"]
+      }
     },
     "model": {
       "provider": "openai",
@@ -85,11 +90,6 @@
       "scorecardIds": [
         "dd70a6ae-75a8-4a32-ab97-e8474ddb10ee"
       ]
-    },
-    "chunkPlan": {
-      "enabled": true,
-      "minCharacters": 80,
-      "punctuationBoundaries": [".", "?", "!", "…"]
     },
     "startSpeakingPlan": {
       "waitSeconds": 0.6,
