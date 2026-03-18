@@ -12,10 +12,10 @@
     "dd70a6ae-75a8-4a32-ab97-e8474ddb10ee"
   ],
   "toolIds": {
-    "lookupPatient": "c5e53de8-2695-4aee-817a-403b45b49478",
-    "checkAvailability": "c8064ed7-83ea-4987-badf-a280eb155768",
-    "searchKnowledgeBase": "5bf175ee-56a5-4609-a5e4-215344ebaea4",
+    "lookupPatient": "5bf175ee-56a5-4609-a5e4-215344ebaea4",
+    "checkAvailability": "677e05c6-8ed6-46f3-a5e0-599b51629c32",
+    "searchKnowledgeBase": "c8064ed7-83ea-4987-badf-a280eb155768",
     "createEvent": "c0b8f9b2-9758-48b8-8812-de398f135112",
-    "createReceptionTask": "677e05c6-8ed6-46f3-a5e0-599b51629c32"
+    "createReceptionTask": "c5e53de8-2695-4aee-817a-403b45b49478"
   }
 }

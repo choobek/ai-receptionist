@@ -131,6 +131,7 @@ The repo now supports one shared codebase with explicit staging and production b
 - shared assistant behavior: [`configs/vapi/assistant.v1.json`](./configs/vapi/assistant.v1.json)
 - environment-specific Vapi IDs: [`configs/vapi/environments/staging.json`](./configs/vapi/environments/staging.json) and [`configs/vapi/environments/production.json`](./configs/vapi/environments/production.json)
 - environment-specific automation values in root [`.env.example`](./.env.example) via `STAGING_*` and `PRODUCTION_*`
+- optional same-host staging: production keeps the shared Caddy edge, while staging can use [`deploy/vps/docker-compose.n8n-only.yml`](./deploy/vps/docker-compose.n8n-only.yml) behind that edge
 
 Primary commands:
 

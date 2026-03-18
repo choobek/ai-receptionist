@@ -17,6 +17,7 @@ legacy_vps_ssh_port=""
 legacy_vps_ssh_identity_file=""
 legacy_vps_app_dir=""
 legacy_vps_git_remote_ssh_url=""
+legacy_vps_compose_file=""
 
 if [ "$ENVIRONMENT" = "production" ]; then
   legacy_vps_ssh_host="VPS_SSH_HOST"
@@ -25,6 +26,7 @@ if [ "$ENVIRONMENT" = "production" ]; then
   legacy_vps_ssh_identity_file="VPS_SSH_IDENTITY_FILE"
   legacy_vps_app_dir="VPS_APP_DIR"
   legacy_vps_git_remote_ssh_url="VPS_GIT_REMOTE_SSH_URL"
+  legacy_vps_compose_file="VPS_COMPOSE_FILE"
 fi
 
 VPS_SSH_HOST="$(require_context_value "$ENVIRONMENT" "VPS_SSH_HOST" "$legacy_vps_ssh_host" "VPS_SSH_HOST")"
@@ -34,6 +36,8 @@ VPS_SSH_PORT="${VPS_SSH_PORT:-22}"
 VPS_SSH_IDENTITY_FILE="$(get_context_value "$ENVIRONMENT" "VPS_SSH_IDENTITY_FILE" "$legacy_vps_ssh_identity_file")"
 VPS_APP_DIR="$(require_context_value "$ENVIRONMENT" "VPS_APP_DIR" "$legacy_vps_app_dir" "VPS_APP_DIR")"
 VPS_GIT_REMOTE_SSH_URL="$(get_context_value "$ENVIRONMENT" "VPS_GIT_REMOTE_SSH_URL" "$legacy_vps_git_remote_ssh_url")"
+VPS_COMPOSE_FILE="$(get_context_value "$ENVIRONMENT" "VPS_COMPOSE_FILE" "$legacy_vps_compose_file")"
+VPS_COMPOSE_FILE="${VPS_COMPOSE_FILE:-deploy/vps/docker-compose.yml}"
 
 if [ -z "$VPS_GIT_REMOTE_SSH_URL" ]; then
   origin_url="$(git -C "$ROOT_DIR" remote get-url origin)"
@@ -50,7 +54,7 @@ if [ -n "$VPS_SSH_IDENTITY_FILE" ]; then
 fi
 
 ssh "${ssh_args[@]}" "${VPS_SSH_USER}@${VPS_SSH_HOST}" \
-  "APP_DIR='$VPS_APP_DIR' REMOTE_URL='$VPS_GIT_REMOTE_SSH_URL' TARGET_ENV='$ENVIRONMENT' GIT_REF='$GIT_REF' bash -s" <<'EOF'
+  "APP_DIR='$VPS_APP_DIR' REMOTE_URL='$VPS_GIT_REMOTE_SSH_URL' TARGET_ENV='$ENVIRONMENT' GIT_REF='$GIT_REF' COMPOSE_FILE='$VPS_COMPOSE_FILE' bash -s" <<'EOF'
 set -euo pipefail
 
 cd "$APP_DIR"
@@ -80,13 +84,12 @@ else
   git pull --ff-only origin "$current_branch"
 fi
 
-if command -v docker-compose >/dev/null 2>&1; then
-  set -a
-  . ./.env
-  set +a
-  docker-compose -f deploy/vps/docker-compose.yml up -d
-elif docker compose version >/dev/null 2>&1; then
-  docker compose --env-file .env -f deploy/vps/docker-compose.yml up -d
+./scripts/render-vps-caddy-fragments.sh .env
+
+if docker compose version >/dev/null 2>&1; then
+  docker compose --env-file .env -f "$COMPOSE_FILE" up -d
+elif command -v docker-compose >/dev/null 2>&1; then
+  docker-compose -f "$COMPOSE_FILE" up -d
 else
   echo "Neither docker-compose nor docker compose is available on the VPS" >&2
   exit 1

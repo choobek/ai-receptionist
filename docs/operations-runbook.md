@@ -26,10 +26,12 @@ Create root `.env` from [`../.env.example`](../.env.example) and fill at minimum
   - `STAGING_VPS_SSH_HOST`
   - `STAGING_VPS_SSH_USER`
   - `STAGING_VPS_APP_DIR`
+  - `STAGING_VPS_COMPOSE_FILE`
 - Production VPS automation:
   - `PRODUCTION_VPS_SSH_HOST`
   - `PRODUCTION_VPS_SSH_USER`
   - `PRODUCTION_VPS_APP_DIR`
+  - `PRODUCTION_VPS_COMPOSE_FILE`
 
 Optional but strongly recommended for public webhooks:
 
@@ -39,6 +41,15 @@ Optional but strongly recommended for public webhooks:
 Each deployed staging or production target still keeps its own unprefixed root `.env`
 on that host for runtime values such as `N8N_DOMAIN`, `N8N_ENCRYPTION_KEY`,
 `GOOGLE_CALENDAR_ID`, `AI_RECEPTIONIST_WEBHOOK_SECRET`, and container or volume names.
+
+If both environments share one host, keep production on the full compose file and set:
+
+- local root `.env`:
+  - `STAGING_VPS_COMPOSE_FILE=deploy/vps/docker-compose.n8n-only.yml`
+  - `PRODUCTION_VPS_COMPOSE_FILE=deploy/vps/docker-compose.yml`
+- production host root `.env`:
+  - `STAGING_N8N_DOMAIN=<public staging hostname>`
+  - `STAGING_N8N_UPSTREAM=host.docker.internal:<staging-host-port>`
 
 ## 2. Update Vapi
 
@@ -119,7 +130,7 @@ What it does:
 3. ensures the VPS repo uses the configured GitHub SSH remote
 4. `git fetch --all --prune`
 5. checks out the requested git branch or exact ref
-6. restart the VPS stack from `deploy/vps/docker-compose.yml`
+6. restarts the VPS stack from the configured compose file for that environment
 
 ## 6. Update n8n Workflows On VPS
 

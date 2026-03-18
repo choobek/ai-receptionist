@@ -25,3 +25,5 @@
 
 	reverse_proxy n8n:5678
 }
+
+import caddy.d/*.caddy

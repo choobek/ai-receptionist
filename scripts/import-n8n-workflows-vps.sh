@@ -46,11 +46,6 @@ ssh "${ssh_args[@]}" "${VPS_SSH_USER}@${VPS_SSH_HOST}" \
 set -euo pipefail
 
 cd "$APP_DIR"
-if [ -f .env ]; then
-  set -a
-  . ./.env
-  set +a
-fi
 CONTAINER="${REMOTE_CONTAINER:-${N8N_CONTAINER_NAME:-ai-receptionist-n8n}}"
 BACKUP_DIR="$APP_DIR/backups/n8n/$TIMESTAMP"
 mkdir -p "$BACKUP_DIR"
