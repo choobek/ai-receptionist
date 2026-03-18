@@ -3,25 +3,36 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=./lib/env-context.sh
+. "$ROOT_DIR/scripts/lib/env-context.sh"
 
-if [ -f "$ROOT_DIR/.env" ]; then
-  set -a
-  # shellcheck source=/dev/null
-  . "$ROOT_DIR/.env"
-  set +a
+ENVIRONMENT="$(normalize_deploy_environment "${1:-production}")"
+
+load_root_env
+
+legacy_vps_ssh_host=""
+legacy_vps_ssh_user=""
+legacy_vps_ssh_port=""
+legacy_vps_ssh_identity_file=""
+legacy_vps_app_dir=""
+legacy_vps_n8n_container_name=""
+
+if [ "$ENVIRONMENT" = "production" ]; then
+  legacy_vps_ssh_host="VPS_SSH_HOST"
+  legacy_vps_ssh_user="VPS_SSH_USER"
+  legacy_vps_ssh_port="VPS_SSH_PORT"
+  legacy_vps_ssh_identity_file="VPS_SSH_IDENTITY_FILE"
+  legacy_vps_app_dir="VPS_APP_DIR"
+  legacy_vps_n8n_container_name="VPS_N8N_CONTAINER_NAME"
 fi
 
-VPS_SSH_HOST="${VPS_SSH_HOST:-}"
-VPS_SSH_USER="${VPS_SSH_USER:-}"
+VPS_SSH_HOST="$(require_context_value "$ENVIRONMENT" "VPS_SSH_HOST" "$legacy_vps_ssh_host" "VPS_SSH_HOST")"
+VPS_SSH_USER="$(require_context_value "$ENVIRONMENT" "VPS_SSH_USER" "$legacy_vps_ssh_user" "VPS_SSH_USER")"
+VPS_SSH_PORT="$(get_context_value "$ENVIRONMENT" "VPS_SSH_PORT" "$legacy_vps_ssh_port")"
 VPS_SSH_PORT="${VPS_SSH_PORT:-22}"
-VPS_SSH_IDENTITY_FILE="${VPS_SSH_IDENTITY_FILE:-}"
-VPS_APP_DIR="${VPS_APP_DIR:-}"
-VPS_N8N_CONTAINER_NAME="${VPS_N8N_CONTAINER_NAME:-ai-receptionist-n8n}"
-
-if [ -z "$VPS_SSH_HOST" ] || [ -z "$VPS_SSH_USER" ] || [ -z "$VPS_APP_DIR" ]; then
-  echo "VPS_SSH_HOST, VPS_SSH_USER, and VPS_APP_DIR are required" >&2
-  exit 1
-fi
+VPS_SSH_IDENTITY_FILE="$(get_context_value "$ENVIRONMENT" "VPS_SSH_IDENTITY_FILE" "$legacy_vps_ssh_identity_file")"
+VPS_APP_DIR="$(require_context_value "$ENVIRONMENT" "VPS_APP_DIR" "$legacy_vps_app_dir" "VPS_APP_DIR")"
+VPS_N8N_CONTAINER_NAME="$(get_context_value "$ENVIRONMENT" "VPS_N8N_CONTAINER_NAME" "$legacy_vps_n8n_container_name")"
 
 ssh_args=(-p "$VPS_SSH_PORT")
 if [ -n "$VPS_SSH_IDENTITY_FILE" ]; then
@@ -31,10 +42,16 @@ fi
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 
 ssh "${ssh_args[@]}" "${VPS_SSH_USER}@${VPS_SSH_HOST}" \
-  "APP_DIR='$VPS_APP_DIR' CONTAINER='$VPS_N8N_CONTAINER_NAME' TIMESTAMP='$timestamp' bash -s" <<'EOF'
+  "APP_DIR='$VPS_APP_DIR' REMOTE_CONTAINER='$VPS_N8N_CONTAINER_NAME' TIMESTAMP='$timestamp' bash -s" <<'EOF'
 set -euo pipefail
 
 cd "$APP_DIR"
+if [ -f .env ]; then
+  set -a
+  . ./.env
+  set +a
+fi
+CONTAINER="${REMOTE_CONTAINER:-${N8N_CONTAINER_NAME:-ai-receptionist-n8n}}"
 BACKUP_DIR="$APP_DIR/backups/n8n/$TIMESTAMP"
 mkdir -p "$BACKUP_DIR"
 

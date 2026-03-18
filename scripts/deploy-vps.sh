@@ -3,20 +3,37 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=./lib/env-context.sh
+. "$ROOT_DIR/scripts/lib/env-context.sh"
 
-if [ -f "$ROOT_DIR/.env" ]; then
-  set -a
-  # shellcheck source=/dev/null
-  . "$ROOT_DIR/.env"
-  set +a
+ENVIRONMENT="$(normalize_deploy_environment "${1:-production}")"
+GIT_REF="${2:-}"
+
+load_root_env
+
+legacy_vps_ssh_host=""
+legacy_vps_ssh_user=""
+legacy_vps_ssh_port=""
+legacy_vps_ssh_identity_file=""
+legacy_vps_app_dir=""
+legacy_vps_git_remote_ssh_url=""
+
+if [ "$ENVIRONMENT" = "production" ]; then
+  legacy_vps_ssh_host="VPS_SSH_HOST"
+  legacy_vps_ssh_user="VPS_SSH_USER"
+  legacy_vps_ssh_port="VPS_SSH_PORT"
+  legacy_vps_ssh_identity_file="VPS_SSH_IDENTITY_FILE"
+  legacy_vps_app_dir="VPS_APP_DIR"
+  legacy_vps_git_remote_ssh_url="VPS_GIT_REMOTE_SSH_URL"
 fi
 
-VPS_SSH_HOST="${VPS_SSH_HOST:-}"
-VPS_SSH_USER="${VPS_SSH_USER:-}"
+VPS_SSH_HOST="$(require_context_value "$ENVIRONMENT" "VPS_SSH_HOST" "$legacy_vps_ssh_host" "VPS_SSH_HOST")"
+VPS_SSH_USER="$(require_context_value "$ENVIRONMENT" "VPS_SSH_USER" "$legacy_vps_ssh_user" "VPS_SSH_USER")"
+VPS_SSH_PORT="$(get_context_value "$ENVIRONMENT" "VPS_SSH_PORT" "$legacy_vps_ssh_port")"
 VPS_SSH_PORT="${VPS_SSH_PORT:-22}"
-VPS_SSH_IDENTITY_FILE="${VPS_SSH_IDENTITY_FILE:-}"
-VPS_APP_DIR="${VPS_APP_DIR:-}"
-VPS_GIT_REMOTE_SSH_URL="${VPS_GIT_REMOTE_SSH_URL:-}"
+VPS_SSH_IDENTITY_FILE="$(get_context_value "$ENVIRONMENT" "VPS_SSH_IDENTITY_FILE" "$legacy_vps_ssh_identity_file")"
+VPS_APP_DIR="$(require_context_value "$ENVIRONMENT" "VPS_APP_DIR" "$legacy_vps_app_dir" "VPS_APP_DIR")"
+VPS_GIT_REMOTE_SSH_URL="$(get_context_value "$ENVIRONMENT" "VPS_GIT_REMOTE_SSH_URL" "$legacy_vps_git_remote_ssh_url")"
 
 if [ -z "$VPS_GIT_REMOTE_SSH_URL" ]; then
   origin_url="$(git -C "$ROOT_DIR" remote get-url origin)"
@@ -27,17 +44,13 @@ if [ -z "$VPS_GIT_REMOTE_SSH_URL" ]; then
   fi
 fi
 
-if [ -z "$VPS_SSH_HOST" ] || [ -z "$VPS_SSH_USER" ] || [ -z "$VPS_APP_DIR" ]; then
-  echo "VPS_SSH_HOST, VPS_SSH_USER, and VPS_APP_DIR are required" >&2
-  exit 1
-fi
-
 ssh_args=(-A -p "$VPS_SSH_PORT")
 if [ -n "$VPS_SSH_IDENTITY_FILE" ]; then
   ssh_args+=(-i "$VPS_SSH_IDENTITY_FILE")
 fi
 
-ssh "${ssh_args[@]}" "${VPS_SSH_USER}@${VPS_SSH_HOST}" "APP_DIR='$VPS_APP_DIR' REMOTE_URL='$VPS_GIT_REMOTE_SSH_URL' bash -s" <<'EOF'
+ssh "${ssh_args[@]}" "${VPS_SSH_USER}@${VPS_SSH_HOST}" \
+  "APP_DIR='$VPS_APP_DIR' REMOTE_URL='$VPS_GIT_REMOTE_SSH_URL' TARGET_ENV='$ENVIRONMENT' GIT_REF='$GIT_REF' bash -s" <<'EOF'
 set -euo pipefail
 
 cd "$APP_DIR"
@@ -55,7 +68,17 @@ if [ ! -f .env ]; then
 fi
 
 git fetch --all --prune
-git pull --ff-only
+
+if [ -n "$GIT_REF" ]; then
+  git checkout --detach "$GIT_REF"
+else
+  current_branch="$(git symbolic-ref --quiet --short HEAD || true)"
+  if [ -z "$current_branch" ]; then
+    current_branch="main"
+    git checkout "$current_branch"
+  fi
+  git pull --ff-only origin "$current_branch"
+fi
 
 if command -v docker-compose >/dev/null 2>&1; then
   set -a
