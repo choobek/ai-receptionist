@@ -3,8 +3,6 @@ services:
     image: caddy:2
     container_name: ${CADDY_CONTAINER_NAME:-ai-receptionist-caddy}
     restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     environment:
       - N8N_DOMAIN=${N8N_DOMAIN}
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
@@ -20,6 +18,9 @@ services:
       - ./caddy.d:/etc/caddy/caddy.d:ro
       - caddy_data:/data
       - caddy_config:/config
+    networks:
+      - default
+      - shared_edge
 
   n8n:
     image: docker.n8n.io/n8nio/n8n:2.7.4
@@ -65,3 +66,8 @@ volumes:
     name: ${CADDY_CONFIG_VOLUME_NAME:-ai-receptionist-caddy-config}
   n8n_data:
     name: ${N8N_DATA_VOLUME_NAME:-ai-receptionist-n8n-data}
+
+networks:
+  shared_edge:
+    external: true
+    name: ${SHARED_EDGE_NETWORK_NAME:-ai-receptionist-shared-edge}

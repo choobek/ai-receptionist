@@ -95,6 +95,11 @@ fi
 
 ./scripts/render-vps-caddy-fragments.sh .env
 
+SHARED_EDGE_NETWORK_NAME="${SHARED_EDGE_NETWORK_NAME:-ai-receptionist-shared-edge}"
+if ! docker network inspect "$SHARED_EDGE_NETWORK_NAME" >/dev/null 2>&1; then
+  docker network create "$SHARED_EDGE_NETWORK_NAME" >/dev/null
+fi
+
 if docker compose version >/dev/null 2>&1; then
   docker compose --env-file .env -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up -d
 elif command -v docker-compose >/dev/null 2>&1; then

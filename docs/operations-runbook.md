@@ -53,7 +53,7 @@ If both environments share one host, keep production on the full compose file an
   - `PRODUCTION_VPS_COMPOSE_PROJECT_NAME=<current production compose project name>`
 - production host root `.env`:
   - `STAGING_N8N_DOMAIN=<public staging hostname>`
-  - `STAGING_N8N_UPSTREAM=host.docker.internal:<staging-host-port>`
+  - `STAGING_N8N_UPSTREAM=staging-n8n:5678`
 
 ## 2. Update Vapi
 

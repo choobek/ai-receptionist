@@ -3,8 +3,8 @@ services:
     image: docker.n8n.io/n8nio/n8n:2.7.4
     container_name: ${N8N_CONTAINER_NAME:-ai-receptionist-n8n}
     restart: unless-stopped
-    ports:
-      - "${N8N_HOST_BIND_ADDRESS:-127.0.0.1}:${N8N_HOST_BIND_PORT:-5679}:5678"
+    expose:
+      - "5678"
     environment:
       - AI_RECEPTIONIST_DEPLOY_ENV=${AI_RECEPTIONIST_DEPLOY_ENV}
       - N8N_HOST=${N8N_DOMAIN}
@@ -35,7 +35,17 @@ services:
       - VAPI_STRUCTURED_OUTPUT_ID=${VAPI_STRUCTURED_OUTPUT_ID}
     volumes:
       - n8n_data:/home/node/.n8n
+    networks:
+      default:
+      shared_edge:
+        aliases:
+          - ${STAGING_N8N_UPSTREAM_HOSTNAME:-staging-n8n}
 
 volumes:
   n8n_data:
     name: ${N8N_DATA_VOLUME_NAME:-ai-receptionist-n8n-data}
+
+networks:
+  shared_edge:
+    external: true
+    name: ${SHARED_EDGE_NETWORK_NAME:-ai-receptionist-shared-edge}
