@@ -1,0 +1,97 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "ambiguous-day-correction",
+  "title": "Ambiguous day preference is recoverable with a second availability lookup",
+  "description": "The caller starts with a fuzzy Tuesday-or-Wednesday afternoon preference, then corrects the day to Wednesday. The assistant should recover cleanly by issuing a fresh availability lookup instead of freezing the first interpretation.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "edge-case",
+    "ambiguous-input",
+    "availability",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "repo_audit",
+    "references": [
+      "configs/vapi/assistant.v1.json"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 2
+  },
+  "turns": [
+    {
+      "turn_id": "give-ambiguous-preference",
+      "user": "Chcialbym umowic pierwsza konsultacje, najlepiej we wtorek albo srode tak mniej wiecej po lunchu."
+    },
+    {
+      "turn_id": "correct-to-wednesday",
+      "user": "To srode po poludniu."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "two-availability-lookups",
+      "description": "The assistant should perform a second availability lookup after the caller corrects the day.",
+      "severity": "critical",
+      "root_cause_hint": "assistant is not refreshing availability after the caller changes the day preference",
+      "rule": {
+        "type": "tool_call_count_at_least",
+        "tool_name": "checkAvailability",
+        "min": 2
+      }
+    },
+    {
+      "criterion_id": "first-lookup-uses-afternoon-window",
+      "description": "The first ambiguous preference should still normalize to the afternoon window.",
+      "severity": "medium",
+      "root_cause_hint": "time preference normalization drifted for phrases such as po lunchu",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 1,
+        "tool_name": "checkAvailability",
+        "path": "timePreference",
+        "equals": "afternoon"
+      }
+    },
+    {
+      "criterion_id": "second-lookup-uses-afternoon-window",
+      "description": "The corrected Wednesday preference should still normalize to the afternoon window.",
+      "severity": "medium",
+      "root_cause_hint": "assistant lost the time window when the caller corrected the day",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 2,
+        "tool_name": "checkAvailability",
+        "path": "timePreference",
+        "equals": "afternoon"
+      }
+    },
+    {
+      "criterion_id": "requested-date-updated-after-correction",
+      "description": "The second availability request should change the requested date after the Wednesday correction.",
+      "severity": "critical",
+      "root_cause_hint": "assistant ignored the caller correction and kept the stale day selection",
+      "rule": {
+        "type": "tool_arg_changed_between_turns",
+        "tool_name": "checkAvailability",
+        "path": "requestedDate",
+        "turn_a": 1,
+        "turn_b": 2
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "This ambiguity-recovery scenario must not create a booking.",
+      "severity": "high",
+      "root_cause_hint": "assistant advanced into createEvent before the caller selected a concrete slot",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    }
+  ]
+}

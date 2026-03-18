@@ -8,7 +8,12 @@ Real-call outputs can contain patient data and should be written under git-ignor
 - `autonomy/runs/generated/`
 - `autonomy/runs/real/`
 
+The staging regression suite writes synthetic run artifacts under:
+
+- `autonomy/runs/generated/staging/`
+
 The normalized format is defined in:
 
 - [`../schemas/run.v1.json`](../schemas/run.v1.json)
-
+- [`../schemas/staging-chat-run.v1.json`](../schemas/staging-chat-run.v1.json)
+- [`../schemas/staging-chat-suite.v1.json`](../schemas/staging-chat-suite.v1.json)

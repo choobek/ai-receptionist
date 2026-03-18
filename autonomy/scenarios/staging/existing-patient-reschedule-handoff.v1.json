@@ -1,0 +1,84 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "existing-patient-reschedule-handoff-vapi-chat",
+  "title": "Existing-patient reschedule request becomes a reception task",
+  "description": "The caller already has a visit, provides synthetic identity details in the first turn, confirms the repeated phone number, and should end in the reception-task branch only.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "handoff",
+    "existing-patient",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "manual_regression",
+    "references": [
+      "docs/real-call-evaluation-2026-03-13-scenario-b.md",
+      "docs/tool-contracts.md"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 2
+  },
+  "turns": [
+    {
+      "turn_id": "request-reschedule",
+      "user": "Dzien dobry, chce przelozyc istniejaca wizyte. Mam na imie Jan Test Handoff, moj numer to siedem zero dwa, zero zero trzy, zero zero piec.",
+      "assertions": [
+        {
+          "criterion_id": "no-handoff-before-number-confirmation",
+          "description": "The assistant should not create a reception task before the caller confirms the repeated phone number.",
+          "severity": "high",
+          "root_cause_hint": "assistant is skipping phone confirmation before the handoff write",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 1,
+            "tool_name": "createReceptionTask"
+          }
+        }
+      ]
+    },
+    {
+      "turn_id": "confirm-phone",
+      "user": "Tak, zgadza sie."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "reception-task-created",
+      "description": "The assistant should create a reception task for the reschedule request.",
+      "severity": "critical",
+      "root_cause_hint": "assistant prompt or createReceptionTask workflow no longer supports the reschedule branch",
+      "rule": {
+        "type": "tool_result_path_equals",
+        "tool_name": "createReceptionTask",
+        "path": "accepted",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "reschedule-task-type-used",
+      "description": "The handoff must use the reschedule_or_cancel task type.",
+      "severity": "critical",
+      "root_cause_hint": "assistant is creating the wrong follow-up task type for reschedule requests",
+      "rule": {
+        "type": "tool_arg_equals",
+        "tool_name": "createReceptionTask",
+        "path": "taskType",
+        "equals": "reschedule_or_cancel"
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "A reschedule request must not create a new calendar event.",
+      "severity": "critical",
+      "root_cause_hint": "assistant attempted to book instead of handing the case to reception",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    }
+  ]
+}

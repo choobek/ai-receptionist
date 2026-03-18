@@ -1,6 +1,6 @@
 # Autonomy Workspace
 
-This directory holds the first repo-local scaffold for an offline-first auto-improvement loop.
+This directory holds the repo-local assets for the receptionist auto-improvement loop.
 
 ## Layout
 
@@ -9,7 +9,7 @@ This directory holds the first repo-local scaffold for an offline-first auto-imp
 - `prompts/`
   Prompt stubs for future evaluator and fix-planning agents.
 - `reports/`
-  Audit notes and future generated autonomy reports.
+  Audit notes and generated regression reports.
 - `runs/`
   Normalized run artifacts.
 - `scenarios/`
@@ -20,6 +20,18 @@ This directory holds the first repo-local scaffold for an offline-first auto-imp
   Markdown templates for future reports and scenario writeups.
 
 ## Primary command
+
+Run the staging synthetic regression suite:
+
+```bash
+./scripts/run-staging-regression-suite.sh
+```
+
+Focused reference:
+
+- [`../docs/staging-regression-suite.md`](../docs/staging-regression-suite.md)
+
+## Historical ingestion command
 
 Normalize a raw Vapi call payload:
 
@@ -44,6 +56,5 @@ node scripts/autonomy/ingest-vapi-call-log.js \
 ## Safety defaults
 
 - Commit only synthetic samples unless you have explicitly redacted the artifact.
-- Keep real-call outputs under git-ignored paths inside `runs/`.
+- Keep generated staging and real-call outputs under git-ignored paths inside `runs/` and `reports/`.
 - Keep operational changes routed through the existing repo scripts, not through this workspace.
-

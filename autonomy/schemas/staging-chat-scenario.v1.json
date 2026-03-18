@@ -1,0 +1,280 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Staging chat scenario v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "title",
+    "status",
+    "environment",
+    "language",
+    "runner",
+    "turns",
+    "rubric"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "staging-chat-scenario.v1"
+    },
+    "scenario_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "archived"
+      ]
+    },
+    "environment": {
+      "const": "staging"
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "pl",
+        "en",
+        "mixed"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "type": "string",
+          "enum": [
+            "project_scope",
+            "manual_regression",
+            "real_call",
+            "repo_audit"
+          ]
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "runner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider"
+      ],
+      "properties": {
+        "provider": {
+          "const": "vapi_chat"
+        },
+        "max_turns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        }
+      }
+    },
+    "turns": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "turn_id",
+          "user"
+        ],
+        "properties": {
+          "turn_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "user": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "assertions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/criterion"
+            }
+          }
+        }
+      }
+    },
+    "rubric": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/criterion"
+      }
+    }
+  },
+  "$defs": {
+    "criterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "criterion_id",
+        "description",
+        "severity",
+        "rule"
+      ],
+      "properties": {
+        "criterion_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "required": {
+          "type": "boolean",
+          "default": true
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        },
+        "root_cause_hint": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "rule": {
+          "$ref": "#/$defs/rule"
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "turn_tool_called",
+            "turn_tool_not_called",
+            "turn_tool_arg_equals",
+            "turn_tool_result_path_equals",
+            "turn_tool_result_array_min_length",
+            "turn_assistant_text_contains_any",
+            "turn_assistant_text_contains_all",
+            "tool_called",
+            "tool_not_called",
+            "tool_arg_equals",
+            "tool_result_path_equals",
+            "tool_call_count_at_least",
+            "tool_arg_changed_between_turns",
+            "create_event_matches_selected_slot"
+          ]
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "turn_a": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "turn_b": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "tool_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "equals": {
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "contains_any": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "contains_all": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "occurrence": {
+          "type": "string",
+          "enum": [
+            "first",
+            "last",
+            "any"
+          ],
+          "default": "last"
+        },
+        "availability_turn": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "selected_slot_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9
+        }
+      }
+    }
+  }
+}

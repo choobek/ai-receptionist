@@ -1,0 +1,139 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "all-on-four-inquiry-to-booking",
+  "title": "All-on-four inquiry converts into a staged implant consultation booking",
+  "description": "The caller asks about All-on-four, accepts a consultation, selects the first returned slot, confirms a synthetic phone number, and asks the assistant to finalize the booking in staging.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "booking",
+    "implantology",
+    "knowledge-base",
+    "staging-write"
+  ],
+  "source": {
+    "origin": "project_scope",
+    "references": [
+      "configs/vapi/assistant.v1.json",
+      "docs/tool-contracts.md",
+      "docs/test-scenario-2026-03-17-implant-inquiry-to-booking.md"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 7
+  },
+  "turns": [
+    {
+      "turn_id": "ask-about-all-on-four",
+      "user": "Czy wykonujecie All on four?"
+    },
+    {
+      "turn_id": "ask-to-book-implant-consultation",
+      "user": "To prosze umowic mnie na konsultacje implantologiczna, najlepiej jutro rano."
+    },
+    {
+      "turn_id": "select-first-slot",
+      "user": "Pierwszy termin pasuje."
+    },
+    {
+      "turn_id": "confirm-first-visit",
+      "user": "Tak, to pierwsza wizyta."
+    },
+    {
+      "turn_id": "provide-synthetic-identity",
+      "user": "Test Regresji Booking, numer siedem zero dwa, zero zero trzy, zero zero cztery."
+    },
+    {
+      "turn_id": "confirm-phone",
+      "user": "Tak, zgadza sie."
+    },
+    {
+      "turn_id": "confirm-booking",
+      "user": "Tak, prosze potwierdzic."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "kb-tool-used-for-all-on-four",
+      "description": "The assistant should query the clinic knowledge base for the All-on-four question before trying to book.",
+      "severity": "high",
+      "root_cause_hint": "assistant prompt or searchKnowledgeBase binding drifted away from the implant inquiry branch",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 1,
+        "tool_name": "searchKnowledgeBase"
+      }
+    },
+    {
+      "criterion_id": "implant-availability-checked",
+      "description": "The assistant should check implant consultation availability when the caller asks to book.",
+      "severity": "critical",
+      "root_cause_hint": "assistant prompt stopped mapping implant booking requests to checkAvailability",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 2,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "implant-service-id-used",
+      "description": "The implant booking branch must use the implant consultation service ID.",
+      "severity": "critical",
+      "root_cause_hint": "service mapping regression between implant intent and checkAvailability arguments",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 2,
+        "tool_name": "checkAvailability",
+        "path": "service.id",
+        "equals": "implant_consultation"
+      }
+    },
+    {
+      "criterion_id": "booking-created",
+      "description": "The scenario should create a real staging booking after explicit confirmation.",
+      "severity": "critical",
+      "root_cause_hint": "createEvent workflow, assistant confirmation flow, or staging calendar binding failed",
+      "rule": {
+        "type": "tool_result_path_equals",
+        "tool_name": "createEvent",
+        "path": "created",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "booking-kept-implant-service-id",
+      "description": "The final createEvent call must keep the implant consultation service ID.",
+      "severity": "critical",
+      "root_cause_hint": "assistant prompt lost the selected service between availability lookup and booking",
+      "rule": {
+        "type": "tool_arg_equals",
+        "tool_name": "createEvent",
+        "path": "service.id",
+        "equals": "implant_consultation"
+      }
+    },
+    {
+      "criterion_id": "booked-slot-matches-selected-option",
+      "description": "The booked slot must reuse the exact start and end timestamps from the selected availability option.",
+      "severity": "critical",
+      "root_cause_hint": "assistant prompt or createEvent handoff is recomputing slot boundaries instead of reusing the selected slot",
+      "rule": {
+        "type": "create_event_matches_selected_slot",
+        "availability_turn": 2,
+        "selected_slot_index": 0
+      }
+    },
+    {
+      "criterion_id": "no-reception-task-on-booking-flow",
+      "description": "The booking path should not create a reception task.",
+      "severity": "high",
+      "root_cause_hint": "assistant routed the implant booking flow into the handoff branch unexpectedly",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createReceptionTask"
+      }
+    }
+  ]
+}

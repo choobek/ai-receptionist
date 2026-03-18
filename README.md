@@ -131,6 +131,17 @@ Operational reference:
 - [`AGENTS.md`](./AGENTS.md) for future Codex sessions
 - [`docs/environment-separation.md`](./docs/environment-separation.md) for staging vs production
 - [`docs/operations-runbook.md`](./docs/operations-runbook.md) for human step-by-step operations
+- [`docs/staging-regression-suite.md`](./docs/staging-regression-suite.md) for the staging synthetic suite
+
+## Staging Regression Suite
+
+Run the staging-only synthetic regression suite with:
+
+```bash
+./scripts/run-staging-regression-suite.sh
+```
+
+It executes scripted multi-turn chat scenarios against the staging Vapi assistant, captures tool activity, scores the runs locally, writes JSON artifacts under `autonomy/runs/generated/staging/`, renders a Markdown report under `autonomy/reports/generated/staging/`, and exits non-zero when a regression is detected.
 
 ## Staging And Production
 

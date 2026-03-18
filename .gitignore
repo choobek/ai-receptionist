@@ -3,3 +3,5 @@
 backups/
 n8n/.env
 deploy/vps/.env
+autonomy/runs/generated/
+autonomy/reports/generated/

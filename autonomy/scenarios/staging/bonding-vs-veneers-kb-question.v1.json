@@ -1,0 +1,101 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "bonding-vs-veneers-kb-question",
+  "title": "Bonding versus veneers question stays in the knowledge-base branch",
+  "description": "The caller asks a general non-booking aesthetic dentistry question that should be answered from the clinic knowledge base without escalating into booking or reception-task flows.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "knowledge-base",
+    "non-booking",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "project_scope",
+    "references": [
+      "knowledge-base/clinic-knowledge.json",
+      "docs/tool-contracts.md"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 1
+  },
+  "turns": [
+    {
+      "turn_id": "ask-bonding-vs-veneers",
+      "user": "Czym roznia sie licowki od bondingu?"
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "kb-tool-called",
+      "description": "The assistant should consult the clinic knowledge base for this question.",
+      "severity": "critical",
+      "root_cause_hint": "general question branch stopped using searchKnowledgeBase",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 1,
+        "tool_name": "searchKnowledgeBase"
+      }
+    },
+    {
+      "criterion_id": "kb-found-supported-answer",
+      "description": "The knowledge-base workflow should find a supported answer for the veneers versus bonding question.",
+      "severity": "high",
+      "root_cause_hint": "knowledge-base content or search scoring drifted for a core clinic FAQ",
+      "rule": {
+        "type": "turn_tool_result_path_equals",
+        "turn": 1,
+        "tool_name": "searchKnowledgeBase",
+        "path": "found",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "assistant-answer-mentioned-key-terms",
+      "description": "The assistant reply should mention both veneers and bonding in the final answer.",
+      "severity": "medium",
+      "root_cause_hint": "assistant failed to surface the knowledge-base result clearly",
+      "rule": {
+        "type": "turn_assistant_text_contains_all",
+        "turn": 1,
+        "contains_all": [
+          "licow",
+          "bonding"
+        ]
+      }
+    },
+    {
+      "criterion_id": "no-availability-check",
+      "description": "A pure general question should not immediately trigger an availability lookup.",
+      "severity": "high",
+      "root_cause_hint": "assistant is prematurely pushing general questions into the scheduling branch",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "no-booking-write",
+      "description": "A pure general question must not create a booking.",
+      "severity": "critical",
+      "root_cause_hint": "assistant attempted to book during a knowledge-base-only flow",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    },
+    {
+      "criterion_id": "no-reception-task-write",
+      "description": "A pure general question must not create a reception task.",
+      "severity": "high",
+      "root_cause_hint": "assistant routed a knowledge-base-only question into the follow-up flow",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createReceptionTask"
+      }
+    }
+  ]
+}

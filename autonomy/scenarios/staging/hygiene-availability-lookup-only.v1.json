@@ -1,0 +1,103 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "hygiene-availability-lookup-only",
+  "title": "Availability-only hygiene lookup returns options without booking",
+  "description": "The caller only wants to inspect staging hygiene slots for next week and explicitly says they are not booking yet.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "availability",
+    "non-booking",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "project_scope",
+    "references": [
+      "configs/services/catalog.v1.json",
+      "docs/tool-contracts.md"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 1
+  },
+  "turns": [
+    {
+      "turn_id": "ask-for-hygiene-options-only",
+      "user": "Chcialabym tylko sprawdzic wolne terminy na higienizacje w przyszlym tygodniu po poludniu, bez rezerwacji na razie."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "availability-lookup-used",
+      "description": "The assistant should use checkAvailability for the hygiene lookup.",
+      "severity": "critical",
+      "root_cause_hint": "availability lookup branch no longer calls checkAvailability",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 1,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "hygiene-service-id-used",
+      "description": "The hygiene lookup must use the hygiene service ID.",
+      "severity": "high",
+      "root_cause_hint": "service mapping for hygiene lookups regressed",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 1,
+        "tool_name": "checkAvailability",
+        "path": "service.id",
+        "equals": "hygiene"
+      }
+    },
+    {
+      "criterion_id": "availability-result-returned",
+      "description": "The availability workflow should report that slots are available.",
+      "severity": "critical",
+      "root_cause_hint": "staging calendar lookup or checkAvailability workflow failed",
+      "rule": {
+        "type": "turn_tool_result_path_equals",
+        "turn": 1,
+        "tool_name": "checkAvailability",
+        "path": "available",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "multiple-slot-options-returned",
+      "description": "The lookup should return at least two slot options for the assistant to present.",
+      "severity": "medium",
+      "root_cause_hint": "availability workflow returned too few candidate slots or the staging calendar is unexpectedly full",
+      "rule": {
+        "type": "turn_tool_result_array_min_length",
+        "turn": 1,
+        "tool_name": "checkAvailability",
+        "path": "slots",
+        "min": 2
+      }
+    },
+    {
+      "criterion_id": "no-booking-write",
+      "description": "An availability-only question must not create a calendar event.",
+      "severity": "critical",
+      "root_cause_hint": "assistant advanced to createEvent even though the caller only asked to inspect options",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    },
+    {
+      "criterion_id": "no-reception-task-write",
+      "description": "An availability-only question must not create a reception follow-up task.",
+      "severity": "high",
+      "root_cause_hint": "assistant routed a simple availability lookup into the handoff flow",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createReceptionTask"
+      }
+    }
+  ]
+}

@@ -6,3 +6,6 @@ Generated reports that include real-call details should go under a git-ignored d
 
 - `autonomy/reports/generated/`
 
+The staging regression suite writes Markdown summaries under:
+
+- `autonomy/reports/generated/staging/`

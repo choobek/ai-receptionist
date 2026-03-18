@@ -1,0 +1,94 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "urgent-first-available-lookup",
+  "title": "Urgent pain triggers a first-available urgent lookup",
+  "description": "The caller mentions urgent pain and swelling but only asks to inspect the earliest options. The assistant should immediately use urgent_consultation with first_available and stop short of booking.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "urgent",
+    "safety-critical",
+    "availability",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "project_scope",
+    "references": [
+      "configs/vapi/assistant.v1.json",
+      "docs/tool-contracts.md"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 1
+  },
+  "turns": [
+    {
+      "turn_id": "ask-for-urgent-first-available",
+      "user": "Bardzo boli mnie zab i mam opuchlizne. Jaki jest najszybszy mozliwy termin? Musze tylko sprawdzic opcje."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "urgent-availability-lookup-used",
+      "description": "Urgent symptoms should trigger an immediate availability lookup.",
+      "severity": "critical",
+      "root_cause_hint": "urgent branch stopped calling checkAvailability immediately",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 1,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "urgent-service-id-used",
+      "description": "The urgent branch must use urgent_consultation.",
+      "severity": "critical",
+      "root_cause_hint": "urgent symptoms are no longer mapped to urgent_consultation",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 1,
+        "tool_name": "checkAvailability",
+        "path": "service.id",
+        "equals": "urgent_consultation"
+      }
+    },
+    {
+      "criterion_id": "first-available-time-preference-used",
+      "description": "The urgent branch must search the first available slot rather than asking more questions first.",
+      "severity": "critical",
+      "root_cause_hint": "assistant stopped defaulting urgent cases to first_available",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 1,
+        "tool_name": "checkAvailability",
+        "path": "timePreference",
+        "equals": "first_available"
+      }
+    },
+    {
+      "criterion_id": "urgent-lookup-returned-availability",
+      "description": "The urgent lookup should return available slots from staging.",
+      "severity": "critical",
+      "root_cause_hint": "staging calendar lookup or urgent scheduling window failed",
+      "rule": {
+        "type": "turn_tool_result_path_equals",
+        "turn": 1,
+        "tool_name": "checkAvailability",
+        "path": "available",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "An urgent availability-only check must not create a booking yet.",
+      "severity": "high",
+      "root_cause_hint": "assistant advanced into booking without explicit slot selection and confirmation",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    }
+  ]
+}
