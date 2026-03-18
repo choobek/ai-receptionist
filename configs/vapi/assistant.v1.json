@@ -1,7 +1,6 @@
 {
   "version": 1,
-  "assistantId": "6db99c99-3f93-41e3-ae4e-fefe3974e2d6",
-  "notes": "Stable Polish dental receptionist profile focused on shorter tool-call dead air, explicit booking confirmation, and safer phone handling.",
+  "notes": "Shared Vapi assistant behavior. Environment-specific assistant IDs, tool IDs, structured outputs, scorecards, and webhook URLs live in configs/vapi/environments/.",
   "assistant": {
     "name": "Jarek",
     "voice": {
@@ -23,13 +22,6 @@
       "provider": "openai",
       "model": "gpt-5.2-chat-latest",
       "temperature": 0.2,
-      "toolIds": [
-        "c5e53de8-2695-4aee-817a-403b45b49478",
-        "c8064ed7-83ea-4987-badf-a280eb155768",
-        "5bf175ee-56a5-4609-a5e4-215344ebaea4",
-        "c0b8f9b2-9758-48b8-8812-de398f135112",
-        "677e05c6-8ed6-46f3-a5e0-599b51629c32"
-      ],
       "messages": [
         {
           "role": "system",
@@ -86,14 +78,7 @@
         "enabled": false
       }
     },
-    "artifactPlan": {
-      "structuredOutputIds": [
-        "dff8d16d-1f39-4d46-9f3d-370c8ecaeb40"
-      ],
-      "scorecardIds": [
-        "dd70a6ae-75a8-4a32-ab97-e8474ddb10ee"
-      ]
-    },
+    "artifactPlan": {},
     "startSpeakingPlan": {
       "waitSeconds": 0.6,
       "smartEndpointingPlan": {
@@ -133,7 +118,6 @@
       ]
     },
     "server": {
-      "url": "https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/vapi-call-ended",
       "timeoutSeconds": 20
     },
     "compliancePlan": {

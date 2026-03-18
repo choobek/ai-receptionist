@@ -3,6 +3,12 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PRESET_SCHEMA_PATH="${VAPI_STRUCTURED_OUTPUT_SCHEMA_PATH:-}"
+PRESET_ASSISTANT_ID="${VAPI_ASSISTANT_ID:-}"
+PRESET_API_KEY="${VAPI_API_KEY:-}"
+PRESET_OUTPUT_NAME="${VAPI_STRUCTURED_OUTPUT_NAME:-}"
+PRESET_OUTPUT_DESCRIPTION="${VAPI_STRUCTURED_OUTPUT_DESCRIPTION:-}"
+PRESET_API_BASE_URL="${VAPI_API_BASE_URL:-}"
 
 if [ -f "$ROOT_DIR/.env" ]; then
   set -a
@@ -11,12 +17,12 @@ if [ -f "$ROOT_DIR/.env" ]; then
   set +a
 fi
 
-SCHEMA_PATH="${VAPI_STRUCTURED_OUTPUT_SCHEMA_PATH:-$ROOT_DIR/docs/vapi-structured-output.json}"
-ASSISTANT_ID="${1:-${VAPI_ASSISTANT_ID:-}}"
-API_KEY="${VAPI_API_KEY:-}"
-OUTPUT_NAME="${VAPI_STRUCTURED_OUTPUT_NAME:-Dental Call Intake}"
-OUTPUT_DESCRIPTION="${VAPI_STRUCTURED_OUTPUT_DESCRIPTION:-Post-call extraction for the Ipokrzyku.pl dental receptionist assistant}"
-API_BASE_URL="${VAPI_API_BASE_URL:-https://api.vapi.ai}"
+SCHEMA_PATH="${PRESET_SCHEMA_PATH:-${VAPI_STRUCTURED_OUTPUT_SCHEMA_PATH:-$ROOT_DIR/docs/vapi-structured-output.json}}"
+ASSISTANT_ID="${1:-${PRESET_ASSISTANT_ID:-${VAPI_ASSISTANT_ID:-}}}"
+API_KEY="${PRESET_API_KEY:-${VAPI_API_KEY:-}}"
+OUTPUT_NAME="${PRESET_OUTPUT_NAME:-${VAPI_STRUCTURED_OUTPUT_NAME:-Dental Call Intake}}"
+OUTPUT_DESCRIPTION="${PRESET_OUTPUT_DESCRIPTION:-${VAPI_STRUCTURED_OUTPUT_DESCRIPTION:-Post-call extraction for the Ipokrzyku.pl dental receptionist assistant}}"
+API_BASE_URL="${PRESET_API_BASE_URL:-${VAPI_API_BASE_URL:-https://api.vapi.ai}}"
 
 if ! command -v jq >/dev/null 2>&1; then
   echo "jq is required" >&2

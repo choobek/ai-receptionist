@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "environment": "staging",
+  "assistantId": "",
+  "assistantName": "Jarek [staging]",
+  "publicBaseUrlEnv": "STAGING_N8N_PUBLIC_BASE_URL",
+  "webhookSecretEnv": "STAGING_AI_RECEPTIONIST_WEBHOOK_SECRET",
+  "structuredOutputIds": [],
+  "scorecardIds": [],
+  "toolIds": {
+    "lookupPatient": "",
+    "checkAvailability": "",
+    "searchKnowledgeBase": "",
+    "createEvent": "",
+    "createReceptionTask": ""
+  }
+}

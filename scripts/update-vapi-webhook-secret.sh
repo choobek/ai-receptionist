@@ -4,18 +4,35 @@ set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEFAULT_CONFIG_PATH="$ROOT_DIR/configs/vapi/assistant.v1.json"
+# shellcheck source=./lib/env-context.sh
+. "$ROOT_DIR/scripts/lib/env-context.sh"
+PRESET_CONFIG_PATH="${VAPI_ASSISTANT_CONFIG_PATH:-}"
+PRESET_API_BASE_URL="${VAPI_API_BASE_URL:-}"
+PRESET_API_KEY="${VAPI_API_KEY:-}"
+PRESET_WEBHOOK_SECRET="${AI_RECEPTIONIST_WEBHOOK_SECRET:-}"
+PRESET_ASSISTANT_ID="${VAPI_ASSISTANT_ID:-}"
+TARGET_ARG="${1:-}"
+TEMP_CONFIG_PATH=""
 
-if [ -f "$ROOT_DIR/.env" ]; then
-  set -a
-  # shellcheck source=/dev/null
-  . "$ROOT_DIR/.env"
-  set +a
+load_root_env
+
+API_BASE_URL="${PRESET_API_BASE_URL:-${VAPI_API_BASE_URL:-https://api.vapi.ai}}"
+
+if [ -z "$TARGET_ARG" ] || [ "$TARGET_ARG" = "staging" ] || [ "$TARGET_ARG" = "production" ]; then
+  ENVIRONMENT="$(normalize_deploy_environment "${TARGET_ARG:-production}")"
+  TEMP_CONFIG_PATH="$(mktemp)"
+  CONFIG_PATH="$TEMP_CONFIG_PATH"
+  API_KEY="${PRESET_API_KEY:-$(get_context_value "$ENVIRONMENT" "VAPI_API_KEY" "VAPI_API_KEY")}"
+  WEBHOOK_SECRET="$(get_context_value "$ENVIRONMENT" "AI_RECEPTIONIST_WEBHOOK_SECRET")"
+  if [ "$ENVIRONMENT" = "production" ] && [ -z "$WEBHOOK_SECRET" ]; then
+    WEBHOOK_SECRET="${PRESET_WEBHOOK_SECRET:-${AI_RECEPTIONIST_WEBHOOK_SECRET:-}}"
+  fi
+  "$ROOT_DIR/scripts/render-vapi-assistant-config.sh" "$ENVIRONMENT" "$CONFIG_PATH"
+else
+  CONFIG_PATH="${TARGET_ARG:-${PRESET_CONFIG_PATH:-${VAPI_ASSISTANT_CONFIG_PATH:-$DEFAULT_CONFIG_PATH}}}"
+  API_KEY="${PRESET_API_KEY:-${VAPI_API_KEY:-}}"
+  WEBHOOK_SECRET="${PRESET_WEBHOOK_SECRET:-${AI_RECEPTIONIST_WEBHOOK_SECRET:-}}"
 fi
-
-CONFIG_PATH="${1:-${VAPI_ASSISTANT_CONFIG_PATH:-$DEFAULT_CONFIG_PATH}}"
-API_BASE_URL="${VAPI_API_BASE_URL:-https://api.vapi.ai}"
-API_KEY="${VAPI_API_KEY:-}"
-WEBHOOK_SECRET="${AI_RECEPTIONIST_WEBHOOK_SECRET:-}"
 
 if ! command -v jq >/dev/null 2>&1; then
   echo "jq is required" >&2
@@ -52,7 +69,7 @@ ASSISTANT_ID="$(
 )"
 
 if [ -z "$ASSISTANT_ID" ]; then
-  ASSISTANT_ID="${VAPI_ASSISTANT_ID:-}"
+  ASSISTANT_ID="${PRESET_ASSISTANT_ID:-${VAPI_ASSISTANT_ID:-}}"
 fi
 
 if [ -z "$ASSISTANT_ID" ]; then
@@ -69,7 +86,7 @@ fi
 
 tmp_response="$(mktemp)"
 cleanup() {
-  rm -f "$tmp_response"
+  rm -f "$tmp_response" "$TEMP_CONFIG_PATH"
 }
 trap cleanup EXIT
 
