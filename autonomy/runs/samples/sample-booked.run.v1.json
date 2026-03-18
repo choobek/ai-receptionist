@@ -1,0 +1,487 @@
+{
+  "schema_version": "run.v1",
+  "run_id": "staging-call_sample_booking_001",
+  "run_kind": "synthetic_test",
+  "environment": "staging",
+  "scenario_id": "implant-inquiry-to-booking",
+  "created_at": "2026-03-18T18:31:51.665Z",
+  "source": {
+    "provider": "vapi",
+    "source_kind": "call_ended_webhook",
+    "input_path": "/home/choobek/repos/ai-receptionist/autonomy/examples/vapi-call-ended-sample-booking.json",
+    "ingested_at": "2026-03-18T18:31:51.665Z",
+    "call_index": 0
+  },
+  "call": {
+    "call_id": "call_sample_booking_001",
+    "assistant_id": "assistant_sample_staging",
+    "phone_number_id": "phone_sample_staging",
+    "started_at": "2026-03-18T09:00:00.000Z",
+    "ended_at": "2026-03-18T09:04:18.000Z",
+    "ended_reason": "customer-ended-call",
+    "duration_seconds": 258,
+    "status": "ended",
+    "cost": 0.1182,
+    "cost_breakdown": {
+      "total": 0.1182,
+      "analysisCostBreakdown": {
+        "structuredOutput": 0.0031
+      }
+    },
+    "transcript": "User: Dzien dobry, chcialbym zapytac o implanty w jeden dzien. AI: Moge wyjasnic ogolnie i od razu sprawdzic konsultacje implantologiczna. User: Tak, prosze. User: Anna Kowalska, numer szesc zero cztery, jeden dwa trzy, cztery piec szesc. AI: Potwierdzam konsultacje implantologiczna jutro o dziesiatej trzydziesci.",
+    "recording_url": null,
+    "web_call_url": null
+  },
+  "conversation": {
+    "message_count": 15,
+    "messages_omitted": [
+      "system_prompt"
+    ],
+    "messages": [
+      {
+        "message_index": 0,
+        "role": "assistant",
+        "kind": "utterance",
+        "text": "Dzien dobry, z tej strony Jarek, gabinet stomatologiczny ipokrzyku.pl. W czym moge pomoc?",
+        "time_ms": 1773824405000,
+        "seconds_from_start": 5,
+        "tool_name": null,
+        "tool_call_id": null,
+        "arguments": null,
+        "result": null
+      },
+      {
+        "message_index": 1,
+        "role": "caller",
+        "kind": "utterance",
+        "text": "Dzien dobry, chcialabym zapytac o implanty w jeden dzien.",
+        "time_ms": 1773824414000,
+        "seconds_from_start": 14,
+        "tool_name": null,
+        "tool_call_id": null,
+        "arguments": null,
+        "result": null
+      },
+      {
+        "message_index": 2,
+        "role": "tool_call",
+        "kind": "tool_call",
+        "text": null,
+        "time_ms": 1773824421000,
+        "seconds_from_start": 21,
+        "tool_name": "searchKnowledgeBase",
+        "tool_call_id": "tool_call_sample_001",
+        "arguments": {
+          "query": "Czy wykonujecie implanty w jeden dzien?",
+          "language": "pl",
+          "limit": 2
+        },
+        "result": null
+      },
+      {
+        "message_index": 3,
+        "role": "tool_result",
+        "kind": "tool_result",
+        "text": null,
+        "time_ms": 1773824421800,
+        "seconds_from_start": 21.8,
+        "tool_name": "searchKnowledgeBase",
+        "tool_call_id": "tool_call_sample_001",
+        "arguments": null,
+        "result": {
+          "found": true,
+          "answer": "Leczenie implantologiczne zawsze zaczyna sie od konsultacji i kwalifikacji, a szybki efekt zalezy od warunkow klinicznych.",
+          "matches": [
+            {
+              "id": "kb_all_on_4",
+              "title": "System All-on-4",
+              "sourceDocument": "all-on-4.odt"
+            }
+          ],
+          "message": "Znalazlem odpowiedz w lokalnej bazie wiedzy."
+        }
+      },
+      {
+        "message_index": 4,
+        "role": "assistant",
+        "kind": "utterance",
+        "text": "Moge wyjasnic ogolnie, ze leczenie implantologiczne zaczyna sie od konsultacji i kwalifikacji. Jesli chce pani, moge od razu sprawdzic wolne terminy konsultacji implantologicznej.",
+        "time_ms": 1773824431000,
+        "seconds_from_start": 31,
+        "tool_name": null,
+        "tool_call_id": null,
+        "arguments": null,
+        "result": null
+      },
+      {
+        "message_index": 5,
+        "role": "caller",
+        "kind": "utterance",
+        "text": "Tak, poprosze jutro rano albo pierwszy wolny termin.",
+        "time_ms": 1773824444000,
+        "seconds_from_start": 44,
+        "tool_name": null,
+        "tool_call_id": null,
+        "arguments": null,
+        "result": null
+      },
+      {
+        "message_index": 6,
+        "role": "tool_call",
+        "kind": "tool_call",
+        "text": null,
+        "time_ms": 1773824451000,
+        "seconds_from_start": 51,
+        "tool_name": "checkAvailability",
+        "tool_call_id": "tool_call_sample_002",
+        "arguments": {
+          "service": {
+            "id": "implant_consultation"
+          },
+          "timezone": "Europe/Warsaw",
+          "requestedDate": "2026-03-19",
+          "timePreference": "first_available",
+          "limit": 3
+        },
+        "result": null
+      },
+      {
+        "message_index": 7,
+        "role": "tool_result",
+        "kind": "tool_result",
+        "text": null,
+        "time_ms": 1773824452300,
+        "seconds_from_start": 52.3,
+        "tool_name": "checkAvailability",
+        "tool_call_id": "tool_call_sample_002",
+        "arguments": null,
+        "result": {
+          "available": true,
+          "timezone": "Europe/Warsaw",
+          "normalizedRequest": {
+            "serviceId": "implant_consultation",
+            "requestedDate": "2026-03-19",
+            "timePreference": "first_available"
+          },
+          "slots": [
+            {
+              "start": "2026-03-19T10:30:00+01:00",
+              "end": "2026-03-19T11:15:00+01:00",
+              "label": "czwartek, 19 marca 10:30"
+            }
+          ],
+          "message": "Znalazlam najblizszy dostepny termin."
+        }
+      },
+      {
+        "message_index": 8,
+        "role": "assistant",
+        "kind": "utterance",
+        "text": "Mam wolny termin u doktor Magdaleny Szajnar w czwartek, dziewietnastego marca o dziesiatej trzydziesci. Czy ten termin pani odpowiada?",
+        "time_ms": 1773824462000,
+        "seconds_from_start": 62,
+        "tool_name": null,
+        "tool_call_id": null,
+        "arguments": null,
+        "result": null
+      },
+      {
+        "message_index": 9,
+        "role": "caller",
+        "kind": "utterance",
+        "text": "Tak. Anna Kowalska, numer szesc zero cztery, jeden dwa trzy, cztery piec szesc.",
+        "time_ms": 1773824476000,
+        "seconds_from_start": 76,
+        "tool_name": null,
+        "tool_call_id": null,
+        "arguments": null,
+        "result": null
+      },
+      {
+        "message_index": 10,
+        "role": "assistant",
+        "kind": "utterance",
+        "text": "Powtorze numer: szesc zero cztery, jeden dwa trzy, cztery piec szesc. Czy zgadza sie?",
+        "time_ms": 1773824489000,
+        "seconds_from_start": 89,
+        "tool_name": null,
+        "tool_call_id": null,
+        "arguments": null,
+        "result": null
+      },
+      {
+        "message_index": 11,
+        "role": "caller",
+        "kind": "utterance",
+        "text": "Tak, prosze potwierdzic.",
+        "time_ms": 1773824499000,
+        "seconds_from_start": 99,
+        "tool_name": null,
+        "tool_call_id": null,
+        "arguments": null,
+        "result": null
+      },
+      {
+        "message_index": 12,
+        "role": "tool_call",
+        "kind": "tool_call",
+        "text": null,
+        "time_ms": 1773824506000,
+        "seconds_from_start": 106,
+        "tool_name": "createEvent",
+        "tool_call_id": "tool_call_sample_003",
+        "arguments": {
+          "source": "phone",
+          "patient": {
+            "fullName": "Anna Kowalska",
+            "phoneE164": "+48604123456",
+            "isExistingPatient": false
+          },
+          "service": {
+            "id": "implant_consultation",
+            "name": "Konsultacja implantologiczna",
+            "durationMinutes": 45
+          },
+          "slotStart": "2026-03-19T10:30:00+01:00",
+          "slotEnd": "2026-03-19T11:15:00+01:00",
+          "timezone": "Europe/Warsaw"
+        },
+        "result": null
+      },
+      {
+        "message_index": 13,
+        "role": "tool_result",
+        "kind": "tool_result",
+        "text": null,
+        "time_ms": 1773824507400,
+        "seconds_from_start": 107.4,
+        "tool_name": "createEvent",
+        "tool_call_id": "tool_call_sample_003",
+        "arguments": null,
+        "result": {
+          "created": true,
+          "calendarEventId": "calendar_sample_001",
+          "appointment": {
+            "start": "2026-03-19T10:30:00+01:00",
+            "end": "2026-03-19T11:15:00+01:00",
+            "timezone": "Europe/Warsaw",
+            "service": {
+              "id": "implant_consultation",
+              "name": "Konsultacja implantologiczna"
+            },
+            "patient": {
+              "fullName": "Anna Kowalska",
+              "phoneE164": "+48604123456"
+            }
+          },
+          "message": "Wizyta zostala potwierdzona."
+        }
+      },
+      {
+        "message_index": 14,
+        "role": "assistant",
+        "kind": "utterance",
+        "text": "Potwierdzam konsultacje implantologiczna w czwartek, dziewietnastego marca o dziesiatej trzydziesci, na nazwisko Anna Kowalska. Czy moge pomoc jeszcze w czyms?",
+        "time_ms": 1773824519000,
+        "seconds_from_start": 119,
+        "tool_name": null,
+        "tool_call_id": null,
+        "arguments": null,
+        "result": null
+      }
+    ]
+  },
+  "tool_trace": [
+    {
+      "index": 0,
+      "tool_name": "searchKnowledgeBase",
+      "tool_call_id": "tool_call_sample_001",
+      "status": "completed",
+      "arguments": {
+        "query": "Czy wykonujecie implanty w jeden dzien?",
+        "language": "pl",
+        "limit": 2
+      },
+      "result": {
+        "found": true,
+        "answer": "Leczenie implantologiczne zawsze zaczyna sie od konsultacji i kwalifikacji, a szybki efekt zalezy od warunkow klinicznych.",
+        "matches": [
+          {
+            "id": "kb_all_on_4",
+            "title": "System All-on-4",
+            "sourceDocument": "all-on-4.odt"
+          }
+        ],
+        "message": "Znalazlem odpowiedz w lokalnej bazie wiedzy."
+      },
+      "requested_at_ms": 1773824421000,
+      "completed_at_ms": 1773824421800
+    },
+    {
+      "index": 1,
+      "tool_name": "checkAvailability",
+      "tool_call_id": "tool_call_sample_002",
+      "status": "completed",
+      "arguments": {
+        "service": {
+          "id": "implant_consultation"
+        },
+        "timezone": "Europe/Warsaw",
+        "requestedDate": "2026-03-19",
+        "timePreference": "first_available",
+        "limit": 3
+      },
+      "result": {
+        "available": true,
+        "timezone": "Europe/Warsaw",
+        "normalizedRequest": {
+          "serviceId": "implant_consultation",
+          "requestedDate": "2026-03-19",
+          "timePreference": "first_available"
+        },
+        "slots": [
+          {
+            "start": "2026-03-19T10:30:00+01:00",
+            "end": "2026-03-19T11:15:00+01:00",
+            "label": "czwartek, 19 marca 10:30"
+          }
+        ],
+        "message": "Znalazlam najblizszy dostepny termin."
+      },
+      "requested_at_ms": 1773824451000,
+      "completed_at_ms": 1773824452300
+    },
+    {
+      "index": 2,
+      "tool_name": "createEvent",
+      "tool_call_id": "tool_call_sample_003",
+      "status": "completed",
+      "arguments": {
+        "source": "phone",
+        "patient": {
+          "fullName": "Anna Kowalska",
+          "phoneE164": "+48604123456",
+          "isExistingPatient": false
+        },
+        "service": {
+          "id": "implant_consultation",
+          "name": "Konsultacja implantologiczna",
+          "durationMinutes": 45
+        },
+        "slotStart": "2026-03-19T10:30:00+01:00",
+        "slotEnd": "2026-03-19T11:15:00+01:00",
+        "timezone": "Europe/Warsaw"
+      },
+      "result": {
+        "created": true,
+        "calendarEventId": "calendar_sample_001",
+        "appointment": {
+          "start": "2026-03-19T10:30:00+01:00",
+          "end": "2026-03-19T11:15:00+01:00",
+          "timezone": "Europe/Warsaw",
+          "service": {
+            "id": "implant_consultation",
+            "name": "Konsultacja implantologiczna"
+          },
+          "patient": {
+            "fullName": "Anna Kowalska",
+            "phoneE164": "+48604123456"
+          }
+        },
+        "message": "Wizyta zostala potwierdzona."
+      },
+      "requested_at_ms": 1773824506000,
+      "completed_at_ms": 1773824507400
+    }
+  ],
+  "structured_output": {
+    "found": true,
+    "output_id": "so_sample_booking_001",
+    "output_name": "Dental Call Intake [staging]",
+    "result": {
+      "callOutcome": "appointment_booked",
+      "successfulForAssistantScope": true,
+      "language": "pl",
+      "booking": {
+        "availabilityChecked": true,
+        "slotSelected": true,
+        "slotOptionsOffered": 1,
+        "bookingCreated": true,
+        "serviceId": "implant_consultation",
+        "serviceName": "Konsultacja implantologiczna",
+        "firstVisit": true,
+        "doctorName": "Magdalena Szajnar",
+        "doctorAssignmentConfirmedBySystem": false,
+        "firstVisitPriceMentioned": false
+      },
+      "caller": {
+        "fullName": "Anna Kowalska",
+        "phoneRaw": "604 123 456",
+        "phoneE164": "+48604123456",
+        "isExistingPatient": false,
+        "consentToSms": false
+      },
+      "intent": {
+        "primaryReason": "implants",
+        "visitType": "first_consultation",
+        "shortReasonNote": "Pytanie o implanty w jeden dzien zakonczone umowieniem konsultacji implantologicznej."
+      },
+      "timing": {
+        "requestedDateText": "jutro",
+        "requestedDateIso": "2026-03-19",
+        "requestedTimeText": "pierwszy wolny termin rano",
+        "timePreference": "first_available",
+        "selectedSlotStart": "2026-03-19T10:30:00+01:00",
+        "selectedSlotEnd": "2026-03-19T11:15:00+01:00",
+        "timezone": "Europe/Warsaw"
+      },
+      "riskFlags": {
+        "urgentSymptomsMentioned": false,
+        "medicalAdviceRequested": false,
+        "medicalAdviceGiven": false,
+        "cancellationOrRescheduleRequested": false,
+        "toolFailureOccurred": false,
+        "ambiguousDateClarified": false,
+        "callerHungUpBeforeCompletion": false
+      },
+      "qualityFlags": {
+        "multipleQuestionsInSingleTurn": false,
+        "repeatedIdentityRequest": false,
+        "toolCalledOnIncompleteAnswer": false,
+        "explicitBookingConfirmationMissing": false,
+        "phoneNumberRepeatedIncorrectly": false,
+        "postBookingFlowRestarted": false
+      },
+      "followUp": {
+        "receptionFollowUpNeeded": false,
+        "reason": "none",
+        "recommendedNextAction": ""
+      },
+      "summary": {
+        "shortSummaryPl": "Pacjentka zapytala o implanty w jeden dzien i umowila konsultacje implantologiczna na czwartek, 19 marca o 10:30.",
+        "receptionistNotePl": "Konsultacja implantologiczna umowiona: Anna Kowalska, +48604123456, czwartek 19 marca 10:30."
+      }
+    }
+  },
+  "evaluation": {
+    "schema_version": "evaluator-result.v1",
+    "source": "heuristic_vapi_ingest",
+    "result": {
+      "task_completed": true,
+      "booking_succeeded": true,
+      "wrong_tool_usage": false,
+      "missing_required_data": false,
+      "repeated_question": false,
+      "unsupported_claim": false,
+      "needs_human_handoff": false,
+      "failure_category": "none",
+      "summary": "Pacjentka zapytala o implanty w jeden dzien i umowila konsultacje implantologiczna na czwartek, 19 marca o 10:30.",
+      "confidence": "high",
+      "evidence": [
+        "structured_output.callOutcome=appointment_booked",
+        "tool_trace[2] createEvent created=true"
+      ],
+      "recommended_next_action": "Archive as a passing regression baseline."
+    }
+  }
+}

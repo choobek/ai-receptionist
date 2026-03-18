@@ -18,6 +18,14 @@ configs/
     environments/
       production.json
       staging.json
+autonomy/
+  examples/
+  prompts/
+  reports/
+  runs/
+  scenarios/
+  schemas/
+  templates/
 docs/
   architecture.md
   backlog.md
@@ -285,6 +293,14 @@ When the Cloudflare tunnel URL changes:
 - System boundaries and defaults are documented in [`docs/architecture.md`](./docs/architecture.md).
 - Knowledge-base source and curation notes live in [`docs/knowledge-base.md`](./docs/knowledge-base.md).
 - Implementation backlog lives in [`docs/backlog.md`](./docs/backlog.md).
+
+## Autonomy Scaffold
+
+The repo now also includes an offline-first autonomy workspace for ingesting raw Vapi call artifacts, storing normalized runs, and defining reusable eval scenarios:
+
+- design doc: [`docs/autonomy-loop.md`](./docs/autonomy-loop.md)
+- workspace overview: [`autonomy/README.md`](./autonomy/README.md)
+- ingestion CLI: [`scripts/autonomy/ingest-vapi-call-log.js`](./scripts/autonomy/ingest-vapi-call-log.js)
 
 ## Assumptions baked into this starter
 
