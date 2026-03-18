@@ -635,21 +635,30 @@ function evaluateCriterion(context, criterion) {
       const availability = pickOccurrence(findToolCalls(context, 'checkAvailability', rule.availability_turn), 'last');
       const selectedSlot = availability?.result?.slots?.[rule.selected_slot_index];
       const createEvent = pickOccurrence(findToolCalls(context, 'createEvent'), 'last');
-      const actualStart = createEvent?.result?.appointment?.start ?? createEvent?.arguments?.slotStart;
-      const actualEnd = createEvent?.result?.appointment?.end ?? createEvent?.arguments?.slotEnd;
+      const requestedStart = createEvent?.arguments?.slotStart;
+      const requestedEnd = createEvent?.arguments?.slotEnd;
+      const actualStart = createEvent?.result?.appointment?.start ?? requestedStart;
+      const actualEnd = createEvent?.result?.appointment?.end ?? requestedEnd;
 
       evidence.push(`selected slot start=${formatValue(selectedSlot?.start)} end=${formatValue(selectedSlot?.end)}`);
-      evidence.push(`createEvent slotStart=${formatValue(actualStart)} slotEnd=${formatValue(actualEnd)}`);
+      evidence.push(`createEvent args slotStart=${formatValue(requestedStart)} slotEnd=${formatValue(requestedEnd)}`);
+      evidence.push(`createEvent result slotStart=${formatValue(actualStart)} slotEnd=${formatValue(actualEnd)}`);
 
       if (!availability || !selectedSlot || !createEvent) {
         return fail('Could not compare the selected availability slot with the createEvent payload');
+      }
+
+      const requestedStartMatches = dateTimesEqual(requestedStart, selectedSlot.start);
+      const requestedEndMatches = dateTimesEqual(requestedEnd, selectedSlot.end);
+      if (!requestedStartMatches || !requestedEndMatches) {
+        return fail('createEvent did not send the exact selected slot boundaries');
       }
 
       const slotStartMatches = dateTimesEqual(actualStart, selectedSlot.start);
       const slotEndMatches = dateTimesEqual(actualEnd, selectedSlot.end);
       return slotStartMatches && slotEndMatches
         ? pass()
-        : fail('createEvent did not reuse the exact selected slot boundaries');
+        : fail('createEvent result did not preserve the selected slot boundaries');
     }
 
     default:

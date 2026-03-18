@@ -36,6 +36,7 @@
           "type": "string"
         },
         "durationMinutes": {
+          "description": "Optional metadata only. When booking a slot selected from checkAvailability, preserve the selected slotEnd instead of recomputing it from duration.",
           "type": "integer",
           "minimum": 15,
           "maximum": 240,
@@ -44,10 +45,12 @@
       }
     },
     "slotStart": {
+      "description": "Exact start timestamp copied from the selected availability slot.",
       "type": "string",
       "format": "date-time"
     },
     "slotEnd": {
+      "description": "Exact end timestamp copied from the selected availability slot.",
       "type": "string",
       "format": "date-time"
     },
@@ -105,11 +108,10 @@
       "requestId": "req_002",
       "service": {
         "id": "consultation",
-        "name": "Konsultacja",
-        "durationMinutes": 30
+        "name": "Konsultacja"
       },
       "slotStart": "2026-03-12T09:00:00+01:00",
-      "slotEnd": "2026-03-12T09:30:00+01:00",
+      "slotEnd": "2026-03-12T09:45:00+01:00",
       "timezone": "Europe/Warsaw",
       "patient": {
         "fullName": "Jan Kowalski",

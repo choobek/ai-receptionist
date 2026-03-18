@@ -1,0 +1,84 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "service",
+    "slotStart",
+    "slotEnd",
+    "timezone",
+    "patient"
+  ],
+  "properties": {
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "enum": [
+            "consultation",
+            "urgent_consultation",
+            "implant_consultation",
+            "orthodontic_consultation",
+            "aesthetic_consultation",
+            "hygiene"
+          ],
+          "description": "Service ID."
+        },
+        "name": {
+          "type": "string",
+          "description": "Optional human-readable service name."
+        }
+      }
+    },
+    "slotStart": {
+      "type": "string",
+      "description": "Exact start timestamp copied verbatim from checkAvailability slot.start."
+    },
+    "slotEnd": {
+      "type": "string",
+      "description": "Exact end timestamp copied verbatim from checkAvailability slot.end. Never infer it from duration or the spoken label."
+    },
+    "timezone": {
+      "type": "string",
+      "description": "Always use Europe/Warsaw."
+    },
+    "patient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fullName",
+        "phoneE164"
+      ],
+      "properties": {
+        "fullName": {
+          "type": "string",
+          "description": "Patient full name."
+        },
+        "phoneE164": {
+          "type": "string",
+          "description": "Patient phone number in E.164 format."
+        },
+        "isExistingPatient": {
+          "type": "boolean",
+          "description": "Whether the caller is already a patient."
+        }
+      }
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "phone",
+        "manual"
+      ],
+      "description": "Booking source."
+    },
+    "consentToSms": {
+      "type": "boolean",
+      "description": "True only if the caller explicitly agreed to SMS."
+    }
+  }
+}

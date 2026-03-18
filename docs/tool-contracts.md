@@ -180,14 +180,16 @@ Key fields:
 - `timezone`
 - `patient.fullName`
 - `patient.phoneE164`
+- optional `service.durationMinutes` metadata, but the selected slot boundary must win over any inferred duration
 
 ### Workflow behavior
 
 1. Parse Vapi wrapper or direct body.
 2. Validate required fields and patient details.
-3. Re-check availability for the requested slot.
-4. Create the Google Calendar event only if the slot is still free.
-5. Return confirmation data.
+3. Keep the exact `slotStart` and `slotEnd` from the selected availability option.
+4. Re-check availability for the requested slot.
+5. Create the Google Calendar event only if the slot is still free.
+6. Return confirmation data.
 
 ### Success response
 

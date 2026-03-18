@@ -406,6 +406,19 @@ test('assistant prompt contains the call-quality guardrails from recent real-cal
   assert.match(prompt, /nie mow potem "prosze chwile poczekac"/i);
 });
 
+test('assistant prompt anchors createEvent to the exact selected slot boundary', () => {
+  const config = loadAssistantConfig();
+  const systemPrompts = (config.assistant?.model?.messages || [])
+    .filter((message) => message.role === 'system' && typeof message.content === 'string')
+    .map((message) => message.content)
+    .join('\n');
+  assert.match(systemPrompts, /slotStart i slotEnd z wybranego slotu/);
+  assert.match(systemPrompts, /Patrz na pola start i end w wybranym slocie/);
+  assert.match(systemPrompts, /2026-03-19T09:30:00\+01:00/);
+  assert.match(systemPrompts, /2026-03-19T10:15:00\+01:00/);
+  assert.match(systemPrompts, /Nigdy nie zamieniaj tego na 10:00/);
+});
+
 test('assistant config keeps the post-endpoint wait', () => {
   const config = loadAssistantConfig();
   assert.equal(config.assistant?.startSpeakingPlan?.waitSeconds, 0.6);

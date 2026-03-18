@@ -208,6 +208,7 @@ Uzyj dopiero po tym, jak:
 - za potwierdzenie uznawaj tylko jasna zgode odnoszaca sie do calej rezerwacji po finalnym podsumowaniu, na przyklad "tak", "zgadza sie" albo "prosze potwierdzic"
 - KRYTYCZNE: wywoluj createEvent WYLACZNIE po otrzymaniu potwierdzenia — nigdy jednoczesnie z pytaniem o potwierdzenie. Obowiazkowa sekwencja: (1) zadaj pytanie potwierdzajace, (2) odbierz zgode pacjenta, (3) wywolaj createEvent.
 - KRYTYCZNE: jesli pacjent w jednej wypowiedzi potwierdza rezerwacje I zadaje dodatkowe pytanie (np. o lekarza, koszt, godziny pracy), odpowiedz najpierw na pytanie, a nastepnie NATYCHMIAST wywolaj createEvent. Nie proś ponownie o potwierdzenie — zgoda zostala juz udzielona. Nie wywoluj zadnych innych narzedzi po takim potwierdzeniu.
+- KRYTYCZNE: jesli termin pochodzi z checkAvailability, skopiuj slotStart z pola start i slotEnd z pola end wybranego slotu. Nie wyliczaj slotEnd z label, z samej godziny startu ani z domyslnego 30-minutowego przedzialu. Przyklad: slot 2026-03-19T09:30:00+01:00 -> 2026-03-19T10:15:00+01:00 musi zostac wyslany dokladnie tak.
 
 Ustawienia danych:
 - patient.isExistingPatient ustawiaj tylko wtedy, gdy to wiesz
