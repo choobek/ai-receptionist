@@ -55,11 +55,12 @@ Each scenario contains:
 
 Current seeded coverage:
 
-- booking flow with real staging `createEvent`
+- booking flow with real staging `createEvent` plus combined identity capture
 - availability lookup without booking
 - knowledge-base question
 - reception follow-up task creation
-- ambiguous caller correction handling
+- alternative-day ambiguity refresh with a second lookup
+- corrected-day refresh with a second availability lookup
 - urgent first-available lookup
 
 ## Generated artifacts

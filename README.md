@@ -143,6 +143,16 @@ Run the staging-only synthetic regression suite with:
 
 It executes scripted multi-turn chat scenarios against the staging Vapi assistant, captures tool activity, scores the runs locally, writes JSON artifacts under `autonomy/runs/generated/staging/`, renders a Markdown report under `autonomy/reports/generated/staging/`, and exits non-zero when a regression is detected.
 
+Run the guarded staging-only autonomous improvement loop with:
+
+```bash
+./scripts/run-staging-autonomy-loop.sh
+```
+
+The controller reuses the existing staging regression runner plus the existing deploy/sync scripts, clusters failures into bounded categories, derives draft regression scenarios from failures, applies only repo-backed targeted fixes that have an explicit safe fixer, optionally syncs staging if runtime files changed, reruns the suite, and writes a release-style report plus index under the git-ignored `autonomy/*/generated/staging-loop/` paths.
+
+Today the safe auto-fixer catalog is intentionally narrow: it can split the ambiguous-day false failure coverage and tighten the staging booking prompt around exact selected-slot reuse for `createEvent`. Workflow or VPS-affecting fixes are still reported, but they are blocked from pretending they deployed unless the repo state has been promoted through the existing git-backed staging path.
+
 ## Staging And Production
 
 The repo now supports one shared codebase with explicit staging and production bindings:

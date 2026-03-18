@@ -5,3 +5,4 @@ n8n/.env
 deploy/vps/.env
 autonomy/runs/generated/
 autonomy/reports/generated/
+autonomy/scenarios/generated/

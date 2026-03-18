@@ -27,9 +27,28 @@ Run the staging synthetic regression suite:
 ./scripts/run-staging-regression-suite.sh
 ```
 
+Run the guarded staging-only improvement loop:
+
+```bash
+./scripts/run-staging-autonomy-loop.sh
+```
+
+Nightly-friendly staging iteration:
+
+```bash
+./scripts/run-staging-autonomy-loop.sh --nightly
+```
+
+Pull recent staging calls into the same loop run before triage:
+
+```bash
+./scripts/run-staging-autonomy-loop.sh --fetch-recent-calls 10
+```
+
 Focused reference:
 
 - [`../docs/staging-regression-suite.md`](../docs/staging-regression-suite.md)
+- [`../docs/autonomy-loop.md`](../docs/autonomy-loop.md)
 
 ## Historical ingestion command
 
@@ -57,4 +76,8 @@ node scripts/autonomy/ingest-vapi-call-log.js \
 
 - Commit only synthetic samples unless you have explicitly redacted the artifact.
 - Keep generated staging and real-call outputs under git-ignored paths inside `runs/` and `reports/`.
+- Keep generated scenario drafts under git-ignored paths inside `scenarios/generated/`.
 - Keep operational changes routed through the existing repo scripts, not through this workspace.
+- The autonomous loop is staging-only and refuses `production`.
+- The loop records its fix attempts, changed files, derived scenarios, and before/after suite results under git-ignored generated artifacts.
+- The loop may sync Vapi-backed fixes directly from local repo state, but it will block workflow or VPS-affecting fixes until they are ready for the existing git-backed staging deploy path.

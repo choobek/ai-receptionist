@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Staging improvement loop v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "loop_run_id",
+    "environment",
+    "started_at",
+    "completed_at",
+    "status",
+    "recommendation",
+    "git",
+    "options",
+    "baseline",
+    "triage_clusters",
+    "derived_scenarios",
+    "iterations",
+    "comparison",
+    "remaining_failures",
+    "final_suite",
+    "report_path"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "staging-improvement-loop.v1"
+    },
+    "loop_run_id": {
+      "type": "string"
+    },
+    "environment": {
+      "const": "staging"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "completed_with_findings"
+      ]
+    },
+    "recommendation": {
+      "type": "string",
+      "enum": [
+        "keep iterating in staging",
+        "ready for human review"
+      ]
+    },
+    "git": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "branch",
+        "head",
+        "initial_status"
+      ],
+      "properties": {
+        "branch": {
+          "type": "string"
+        },
+        "head": {
+          "type": "string"
+        },
+        "initial_status": {
+          "type": "string"
+        }
+      }
+    },
+    "options": {
+      "type": "object"
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suite",
+        "call_runs",
+        "failures"
+      ],
+      "properties": {
+        "suite": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "scenario_count",
+            "passed_count",
+            "failed_count",
+            "report_path",
+            "result_path"
+          ],
+          "properties": {
+            "scenario_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "passed_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "failed_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "report_path": {
+              "type": "string"
+            },
+            "result_path": {
+              "type": "string"
+            }
+          }
+        },
+        "call_runs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ingested_count",
+            "issue_count"
+          ],
+          "properties": {
+            "ingested_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "issue_count": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "failures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "scenario_id",
+              "failure_reason"
+            ],
+            "properties": {
+              "scenario_id": {
+                "type": "string"
+              },
+              "failure_reason": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "triage_clusters": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "derived_scenarios": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "iterations": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "comparison": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "remaining_failures": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "final_suite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario_count",
+        "passed_count",
+        "failed_count",
+        "report_path",
+        "result_path"
+      ],
+      "properties": {
+        "scenario_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "passed_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "report_path": {
+          "type": "string"
+        },
+        "result_path": {
+          "type": "string"
+        }
+      }
+    },
+    "report_path": {
+      "type": "string"
+    }
+  }
+}

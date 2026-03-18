@@ -1,22 +1,22 @@
 {
   "schema_version": "staging-chat-scenario.v1",
-  "scenario_id": "ambiguous-day-correction",
-  "title": "Corrected day preference triggers a refreshed second availability lookup",
-  "description": "The caller first asks for the nearest Tuesday afternoon, then corrects the day to the nearest Wednesday afternoon. The assistant should issue a fresh checkAvailability call instead of reusing the earlier Tuesday result.",
+  "scenario_id": "alternative-day-refresh-availability",
+  "title": "Alternative-day ambiguity refreshes availability after correction",
+  "description": "The caller starts with a Tuesday-or-Wednesday afternoon preference. The assistant may pick one candidate day first, but after the caller corrects to Wednesday it must issue a fresh checkAvailability call instead of reusing stale Tuesday availability.",
   "status": "active",
   "environment": "staging",
   "language": "pl",
   "tags": [
     "edge-case",
-    "correction",
-    "availability",
+    "ambiguous-input",
+    "clarification",
     "staging-safe"
   ],
   "source": {
     "origin": "repo_audit",
     "references": [
       "configs/vapi/assistant.v1.json",
-      "autonomy/scenarios/staging/alternative-day-refresh-availability.v1.json"
+      "autonomy/scenarios/staging/ambiguous-day-correction.v1.json"
     ]
   },
   "runner": {
@@ -25,20 +25,20 @@
   },
   "turns": [
     {
-      "turn_id": "give-tuesday-preference",
-      "user": "Chcialbym umowic pierwsza konsultacje, najlepiej w najblizszy wtorek po lunchu."
+      "turn_id": "give-alternative-days",
+      "user": "Chcialbym umowic pierwsza konsultacje, najlepiej we wtorek albo srode tak mniej wiecej po lunchu."
     },
     {
       "turn_id": "correct-to-wednesday",
-      "user": "Jednak nie, prosze sprawdzic najblizsza srode po poludniu."
+      "user": "To srode po poludniu."
     }
   ],
   "rubric": [
     {
       "criterion_id": "two-availability-lookups",
-      "description": "The assistant should perform a second availability lookup after the caller corrects the day.",
+      "description": "The assistant should issue a second availability lookup after the caller picks Wednesday.",
       "severity": "critical",
-      "root_cause_hint": "assistant is not refreshing availability after the caller changes the day preference",
+      "root_cause_hint": "assistant is not refreshing availability after the caller changes the preferred day",
       "rule": {
         "type": "tool_call_count_at_least",
         "tool_name": "checkAvailability",
@@ -47,7 +47,7 @@
     },
     {
       "criterion_id": "first-lookup-uses-afternoon-window",
-      "description": "The first Tuesday request should normalize to the afternoon window.",
+      "description": "The first lookup should preserve the afternoon window.",
       "severity": "medium",
       "root_cause_hint": "time preference normalization drifted for phrases such as po lunchu",
       "rule": {
@@ -60,9 +60,9 @@
     },
     {
       "criterion_id": "second-lookup-uses-afternoon-window",
-      "description": "The corrected Wednesday preference should keep the afternoon window.",
-      "severity": "medium",
-      "root_cause_hint": "assistant lost the time window when the caller corrected the day",
+      "description": "The refreshed Wednesday lookup should preserve the afternoon window.",
+      "severity": "critical",
+      "root_cause_hint": "assistant lost the time window after the caller corrected the day",
       "rule": {
         "type": "turn_tool_arg_equals",
         "turn": 2,
@@ -73,9 +73,9 @@
     },
     {
       "criterion_id": "requested-date-updated-after-correction",
-      "description": "The second availability request should change the requested date after the Wednesday correction.",
-      "severity": "critical",
-      "root_cause_hint": "assistant ignored the caller correction and kept the stale day selection",
+      "description": "The second availability request should change the requested date after the caller picks Wednesday.",
+      "severity": "medium",
+      "root_cause_hint": "assistant kept the stale day even after the caller corrected it",
       "rule": {
         "type": "tool_arg_changed_between_turns",
         "tool_name": "checkAvailability",
@@ -86,9 +86,9 @@
     },
     {
       "criterion_id": "no-booking-created",
-      "description": "This correction-only scenario must not create a booking.",
+      "description": "This ambiguity-resolution scenario must not create a booking.",
       "severity": "high",
-      "root_cause_hint": "assistant advanced into createEvent before the caller selected a concrete slot",
+      "root_cause_hint": "assistant advanced into createEvent before the caller selected a slot",
       "rule": {
         "type": "tool_not_called",
         "tool_name": "createEvent"

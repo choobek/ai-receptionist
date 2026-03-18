@@ -4,14 +4,84 @@
 
 Add the first safe slice of an auto-improvement loop for the AI receptionist without introducing new infrastructure or bypassing the repo's existing source-of-truth rules.
 
-This take focuses on four things:
+The first slice focused on four things:
 
 - normalize real-call and synthetic-test artifacts into one offline format
 - define stable evaluator outputs for future agentic review
 - create a versioned place for scenarios, prompts, templates, runs, and reports
 - keep the path compatible with existing staging deploy and sync scripts
 
-This take does **not** automate repo writes, staging deploys, or Vapi/n8n mutations on its own.
+That first slice did **not** automate repo writes, staging deploys, or Vapi/n8n mutations on its own.
+
+## Guarded Staging Loop
+
+The repo now contains a guarded staging-only controller:
+
+- [`../scripts/run-staging-autonomy-loop.sh`](../scripts/run-staging-autonomy-loop.sh)
+- [`../scripts/autonomy/run-staging-improvement-loop.js`](../scripts/autonomy/run-staging-improvement-loop.js)
+
+It is intentionally narrow:
+
+1. Run the existing staging synthetic suite.
+2. Optionally ingest recent or exported Vapi call logs.
+3. Normalize failures into clustered triage categories:
+   - prompt issue
+   - tool contract mismatch
+   - schema gap
+   - workflow logic bug
+   - environment/config issue
+   - bad scenario / false failure
+4. Generate draft regression scenarios under git-ignored generated paths.
+5. Apply only repo-backed targeted fixes that have an explicit safe fixer.
+6. Run repo checks.
+7. Deploy/sync staging only if runtime-affecting files changed.
+8. Rerun the staging suite.
+9. Write a release-style report plus a compact index.
+
+## Guardrails
+
+- The controller refuses `production`.
+- The controller never calls the production deploy or sync scripts.
+- The controller never binds any live production number to staging.
+- The controller records changed files and patch reasons under generated artifacts.
+- Runtime sync is skipped unless the applied fix actually touched runtime-owned files.
+- Runtime fixes that depend on the VPS git checkout, such as n8n workflow imports, are reported as blocked until the repo state is committed and pushed. The loop does not pretend local-only workflow edits were deployed.
+- Iteration count is capped.
+- The loop stops if the staging regression count increases.
+- Generated real-call artifacts and generated scenario drafts stay under git-ignored paths by default.
+
+## Current Auto-Fixer Coverage
+
+The safe fixer catalog is intentionally small.
+
+Currently supported automatic repo mutation:
+
+- split a false-failing ambiguous-day scenario into:
+  - an alternative-day refresh regression
+  - a nearest-day correction refresh regression
+- tighten the Vapi booking prompt for exact selected-slot reuse in `createEvent`, with matching contract docs, schema example, and regression checks
+
+Unsupported findings are still triaged and reported, but they remain review-only unless a future fixer is added.
+
+## Main Command
+
+Run one guarded staging loop:
+
+```bash
+./scripts/run-staging-autonomy-loop.sh
+```
+
+Nightly-friendly single-iteration mode:
+
+```bash
+./scripts/run-staging-autonomy-loop.sh --nightly
+```
+
+Include recent staging Vapi call logs:
+
+```bash
+./scripts/run-staging-autonomy-loop.sh --fetch-recent-calls 10
+```
 
 ## Audit Summary
 
@@ -182,4 +252,3 @@ Normalization choices:
    - run evaluator prompts
    - propose repo changes
    - stop before deploy unless the repo checks are green
-
