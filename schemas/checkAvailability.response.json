@@ -113,9 +113,9 @@
       "timezone": "Europe/Warsaw",
       "normalizedRequest": {
         "serviceId": "consultation",
-        "durationMinutes": 30,
-        "windowStart": "2026-03-12T08:00:00+01:00",
-        "windowEnd": "2026-03-12T12:00:00+01:00",
+        "durationMinutes": 45,
+        "windowStart": "2026-03-12T09:00:00+01:00",
+        "windowEnd": "2026-03-12T13:00:00+01:00",
         "requestedDate": "2026-03-12",
         "requestedTime": null,
         "timePreference": "morning",
@@ -124,7 +124,7 @@
       "slots": [
         {
           "start": "2026-03-12T09:00:00+01:00",
-          "end": "2026-03-12T09:30:00+01:00",
+          "end": "2026-03-12T09:45:00+01:00",
           "label": "Czwartek 12 marca o 09:00",
           "calendarId": "primary"
         }
@@ -137,9 +137,9 @@
       "timezone": "Europe/Warsaw",
       "normalizedRequest": {
         "serviceId": "consultation",
-        "durationMinutes": 30,
+        "durationMinutes": 45,
         "windowStart": "2026-03-12T14:30:00+01:00",
-        "windowEnd": "2026-03-16T18:00:00+01:00",
+        "windowEnd": "2026-03-18T21:00:00+01:00",
         "requestedDate": "2026-03-12",
         "requestedTime": null,
         "timePreference": "first_available",
@@ -147,9 +147,9 @@
       },
       "slots": [
         {
-          "start": "2026-03-13T08:00:00+01:00",
-          "end": "2026-03-13T08:30:00+01:00",
-          "label": "Piatek 13 marca o 08:00",
+          "start": "2026-03-13T09:00:00+01:00",
+          "end": "2026-03-13T09:45:00+01:00",
+          "label": "Piatek 13 marca o 09:00",
           "calendarId": "primary"
         }
       ],

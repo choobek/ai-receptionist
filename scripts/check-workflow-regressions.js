@@ -96,6 +96,16 @@ function runParse(workflowFilename, nodeName, payload, env = {}) {
   return executeCode(code, { $json: payload, $env: env })[0].json;
 }
 
+function runCodeNode(workflowFilename, nodeName, selectorNodes, inputItems = [], env = {}) {
+  const workflow = loadWorkflow(workflowFilename);
+  const code = getNodeCode(workflow, nodeName);
+  return executeCode(code, {
+    $: makeSelector(selectorNodes),
+    $input: makeInput(inputItems),
+    $env: env
+  })[0].json;
+}
+
 function getResponseCodeOption(workflowFilename, nodeName) {
   const workflow = loadWorkflow(workflowFilename);
   const node = getNode(workflow, nodeName);
@@ -118,11 +128,12 @@ function test(name, fn) {
 
 const defaultEnv = {
   CLINIC_TIMEZONE: 'Europe/Warsaw',
-  DEFAULT_APPOINTMENT_DURATION_MINUTES: '30',
-  DEFAULT_SLOT_INCREMENT_MINUTES: '30',
+  DEFAULT_APPOINTMENT_DURATION_MINUTES: '45',
+  DEFAULT_SLOT_INCREMENT_MINUTES: '15',
   DEFAULT_SLOT_SEARCH_LIMIT: '3',
-  CLINIC_WORKING_HOURS_START: '08:00',
-  CLINIC_WORKING_HOURS_END: '18:00',
+  CLINIC_WORKING_HOURS_START: '09:00',
+  CLINIC_WORKING_HOURS_END: '21:00',
+  CLINIC_OPEN_WEEKDAYS: '1,2,3,4,5',
   GOOGLE_CALENDAR_ID: 'primary'
 };
 
@@ -205,6 +216,99 @@ test('checkAvailability rejects malformed timezone', () => {
   expectValidationError(result, 'timezone is invalid');
 });
 
+test('checkAvailability first_available search window skips closed weekend days', () => {
+  const result = runParse(
+    'tool_check-availability.json',
+    'Parse Request',
+    {
+      service: { id: 'consultation' },
+      requestedDate: '2026-03-20',
+      timePreference: 'first_available',
+      searchDays: 2,
+      timezone: 'Europe/Warsaw'
+    },
+    defaultEnv
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.windowStart, '2026-03-20T08:00:00.000Z');
+  assert.equal(result.windowEnd, '2026-03-23T20:00:00.000Z');
+});
+
+test('checkAvailability returns only weekday slots inside clinic hours', () => {
+  const parseResult = {
+    requestId: 'req_weekday_only',
+    toolCallId: null,
+    calendarId: 'primary',
+    timezone: 'Europe/Warsaw',
+    service: { id: 'consultation' },
+    requestedDate: '2026-03-21',
+    requestedTime: null,
+    timePreference: 'first_available',
+    durationMinutes: 45,
+    limit: 5,
+    incrementMinutes: 15,
+    slotSearchIncrementMinutes: 15,
+    searchDays: 1,
+    workingStart: '09:00',
+    workingEnd: '21:00',
+    openWeekdays: [1, 2, 3, 4, 5],
+    windowStart: '2026-03-21T08:00:00.000Z',
+    windowEnd: '2026-03-23T20:00:00.000Z'
+  };
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    [],
+    defaultEnv
+  );
+  assert.equal(result.available, true);
+  assert.ok(result.slots.length > 0);
+  assert.ok(result.slots.every((slot) => slot.start.startsWith('2026-03-23T')));
+  assert.ok(result.slots.every((slot) => slot.start.slice(11, 16) >= '09:00'));
+  assert.ok(result.slots.every((slot) => slot.end.slice(11, 16) <= '21:00'));
+});
+
+test('checkAvailability prefers slots adjacent to existing appointments and splits earlier/later offers', () => {
+  const parseResult = {
+    requestId: 'req_gapless',
+    toolCallId: null,
+    calendarId: 'primary',
+    timezone: 'Europe/Warsaw',
+    service: { id: 'consultation' },
+    requestedDate: '2026-03-16',
+    requestedTime: null,
+    timePreference: 'first_available',
+    durationMinutes: 45,
+    limit: 3,
+    incrementMinutes: 15,
+    slotSearchIncrementMinutes: 15,
+    searchDays: 1,
+    workingStart: '09:00',
+    workingEnd: '21:00',
+    openWeekdays: [1, 2, 3, 4, 5],
+    windowStart: '2026-03-16T08:00:00.000Z',
+    windowEnd: '2026-03-16T20:00:00.000Z'
+  };
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    [
+      {
+        start: { dateTime: '2026-03-16T13:00:00.000Z' },
+        end: { dateTime: '2026-03-16T13:45:00.000Z' }
+      }
+    ],
+    defaultEnv
+  );
+  assert.equal(result.available, true);
+  assert.deepEqual(
+    result.slots.slice(0, 2).map((slot) => slot.start),
+    ['2026-03-16T13:15:00+01:00', '2026-03-16T14:45:00+01:00']
+  );
+});
+
 test('createEvent rejects reversed slots', () => {
   const result = runParse(
     'tool_create-event.json',
@@ -252,6 +356,55 @@ test('createEvent rejects garbage slot strings', () => {
   );
   expectValidationError(result, 'slotStart is invalid');
   expectValidationError(result, 'slotEnd is invalid');
+});
+
+test('createEvent preserves explicit slotEnd when provided', () => {
+  const result = runParse(
+    'tool_create-event.json',
+    'Parse Request',
+    {
+      service: { id: 'consultation', durationMinutes: 30 },
+      slotStart: '2026-03-16T08:30:00.000Z',
+      slotEnd: '2026-03-16T09:15:00.000Z',
+      timezone: 'Europe/Warsaw',
+      patient: { fullName: 'Jan Testowy', phoneE164: '+48500100200' }
+    },
+    defaultEnv
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.slotEnd, '2026-03-16T09:15:00.000Z');
+});
+
+test('createEvent rejects weekend slots', () => {
+  const result = runParse(
+    'tool_create-event.json',
+    'Parse Request',
+    {
+      service: { id: 'consultation' },
+      slotStart: '2026-03-21T09:00:00.000Z',
+      slotEnd: '2026-03-21T09:45:00.000Z',
+      timezone: 'Europe/Warsaw',
+      patient: { fullName: 'Jan Testowy', phoneE164: '+48500100200' }
+    },
+    defaultEnv
+  );
+  expectValidationError(result, 'slot must fall on an open clinic day');
+});
+
+test('createEvent rejects slots outside clinic working hours', () => {
+  const result = runParse(
+    'tool_create-event.json',
+    'Parse Request',
+    {
+      service: { id: 'consultation' },
+      slotStart: '2026-03-16T19:30:00.000Z',
+      slotEnd: '2026-03-16T20:15:00.000Z',
+      timezone: 'Europe/Warsaw',
+      patient: { fullName: 'Jan Testowy', phoneE164: '+48500100200' }
+    },
+    defaultEnv
+  );
+  expectValidationError(result, 'slot must be within clinic working hours');
 });
 
 test('createReceptionTask rejects unknown taskType', () => {
@@ -404,6 +557,9 @@ test('assistant prompt contains the call-quality guardrails from recent real-cal
   assert.match(prompt, /Nie wywoluj createEvent bez wyraznej zgody na finalne podsumowanie rezerwacji/);
   assert.match(prompt, /Nie wymieniaj numeru telefonu/);
   assert.match(prompt, /nie mow potem "prosze chwile poczekac"/i);
+  assert.match(prompt, /od poniedzialku do piatku w godzinach 09:00-21:00/i);
+  assert.match(prompt, /dwie opcje: jedna rano lub w okolicy poludnia, a druga po poludniu/i);
+  assert.match(prompt, /bez luk miedzy wizytami/i);
 });
 
 test('assistant prompt anchors createEvent to the exact selected slot boundary', () => {

@@ -54,7 +54,7 @@ targets = [
         "node_name": "Parse Request",
         "source_path": root_dir / "configs/services/catalog.v1.json",
         "const_name": "services",
-        "anchor": "const isValidTimeZone = (value) => {",
+        "anchor": "const parseWeekdayList = (value, fallback) => {",
     },
 ]
 

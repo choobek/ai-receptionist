@@ -23,4 +23,5 @@ export VAPI_API_KEY="$api_key"
 
 "$ROOT_DIR/scripts/update-vapi-assistant.sh" "$ENVIRONMENT"
 "$ROOT_DIR/scripts/update-vapi-tool-bindings.sh" "$ENVIRONMENT"
+"$ROOT_DIR/scripts/update-vapi-tool-definition.sh" "$ENVIRONMENT" checkAvailability
 "$ROOT_DIR/scripts/update-vapi-tool-definition.sh" "$ENVIRONMENT" createEvent

@@ -40,7 +40,7 @@
           "type": "integer",
           "minimum": 15,
           "maximum": 240,
-          "default": 30
+          "default": 45
         }
       }
     },
