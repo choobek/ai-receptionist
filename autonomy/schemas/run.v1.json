@@ -1,0 +1,390 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Autonomy normalized run v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "run_kind",
+    "created_at",
+    "source",
+    "call",
+    "conversation",
+    "tool_trace",
+    "structured_output",
+    "evaluation"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "run.v1"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_kind": {
+      "type": "string",
+      "enum": [
+        "real_call",
+        "synthetic_test",
+        "manual_review"
+      ]
+    },
+    "environment": {
+      "type": "string"
+    },
+    "scenario_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "source_kind",
+        "ingested_at"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "source_kind": {
+          "type": "string"
+        },
+        "input_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ingested_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "call_index": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      }
+    },
+    "call": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "call_id"
+      ],
+      "properties": {
+        "call_id": {
+          "type": "string"
+        },
+        "assistant_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "phone_number_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "started_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "ended_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "ended_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "duration_seconds": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cost": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "cost_breakdown": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "transcript": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "recording_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "web_call_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "conversation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "message_count",
+        "messages_omitted",
+        "messages"
+      ],
+      "properties": {
+        "message_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "messages_omitted": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "message_index",
+              "role",
+              "kind"
+            ],
+            "properties": {
+              "message_index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "caller",
+                  "assistant",
+                  "tool_call",
+                  "tool_result",
+                  "system",
+                  "other"
+                ]
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "utterance",
+                  "tool_call",
+                  "tool_result",
+                  "prompt",
+                  "metadata"
+                ]
+              },
+              "text": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "time_ms": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "seconds_from_start": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "tool_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "tool_call_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "arguments": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "result": {
+                "type": [
+                  "object",
+                  "array",
+                  "string",
+                  "number",
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "tool_trace": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "index",
+          "tool_name",
+          "status"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tool_name": {
+            "type": "string"
+          },
+          "tool_call_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "completed",
+              "missing_result"
+            ]
+          },
+          "arguments": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "result": {
+            "type": [
+              "object",
+              "array",
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          },
+          "requested_at_ms": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "completed_at_ms": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "structured_output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "found",
+        "output_id",
+        "output_name",
+        "result"
+      ],
+      "properties": {
+        "found": {
+          "type": "boolean"
+        },
+        "output_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "output_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "result": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "source",
+        "result"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "evaluator-result.v1"
+        },
+        "source": {
+          "type": "string"
+        },
+        "result": {
+          "$ref": "./evaluator-result.v1.json"
+        }
+      }
+    }
+  }
+}
+

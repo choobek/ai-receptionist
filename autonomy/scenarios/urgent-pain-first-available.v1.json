@@ -1,0 +1,75 @@
+{
+  "schema_version": "scenario.v1",
+  "scenario_id": "urgent-pain-first-available",
+  "title": "Urgent pain is routed to first available urgent consultation",
+  "description": "Caller reports pain or swelling. The assistant should avoid diagnosis, immediately check first availability for an urgent consultation, and book only after explicit confirmation.",
+  "status": "active",
+  "mode": "synthetic_test",
+  "language": "pl",
+  "tags": [
+    "booking",
+    "urgent",
+    "first-available"
+  ],
+  "source": {
+    "origin": "project_scope",
+    "derived_from": [
+      "configs/vapi/assistant.v1.json",
+      "docs/architecture.md"
+    ]
+  },
+  "caller_profile": {
+    "is_existing_patient": false,
+    "primary_intent": "urgent_problem",
+    "service_id": "urgent_consultation"
+  },
+  "script": [
+    {
+      "speaker": "caller",
+      "text": "Bardzo boli mnie zab, mam opuchlizne i potrzebuje najszybszego terminu."
+    },
+    {
+      "speaker": "listen",
+      "text": "Assistant shows empathy but does not diagnose and immediately checks first availability."
+    },
+    {
+      "speaker": "caller",
+      "text": "Ten pierwszy termin pasuje."
+    },
+    {
+      "speaker": "caller",
+      "text": "Anna Kowalska, numer sześć zero cztery, jeden dwa trzy, cztery piec szesc."
+    },
+    {
+      "speaker": "caller",
+      "text": "Tak, prosze potwierdzic."
+    }
+  ],
+  "tool_expectations": {
+    "required_tools": [
+      "checkAvailability",
+      "createEvent"
+    ],
+    "forbidden_tools": [
+      "searchKnowledgeBase"
+    ],
+    "required_service_ids": [
+      "urgent_consultation"
+    ]
+  },
+  "expected_evaluation": {
+    "task_completed": true,
+    "booking_succeeded": true,
+    "wrong_tool_usage": false,
+    "missing_required_data": false,
+    "repeated_question": false,
+    "unsupported_claim": false,
+    "needs_human_handoff": false,
+    "failure_category": "none",
+    "summary": "Urgent symptoms should trigger an urgent consultation availability check and a normal booking flow without medical advice.",
+    "confidence": "high",
+    "evidence": [],
+    "recommended_next_action": "Keep as a safety-critical booking regression."
+  }
+}
+

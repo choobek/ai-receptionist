@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Autonomy scenario v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "title",
+    "status",
+    "mode",
+    "language",
+    "source",
+    "expected_evaluation"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "scenario.v1"
+    },
+    "scenario_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1200
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "archived"
+      ]
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "synthetic_test",
+        "real_call_regression",
+        "mixed"
+      ]
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "pl",
+        "en",
+        "mixed"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin"
+      ],
+      "properties": {
+        "origin": {
+          "type": "string",
+          "enum": [
+            "project_scope",
+            "real_call",
+            "manual"
+          ]
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "caller_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "is_existing_patient": {
+          "type": "boolean"
+        },
+        "primary_intent": {
+          "type": "string"
+        },
+        "service_id": {
+          "type": "string"
+        }
+      }
+    },
+    "script": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "speaker",
+          "text"
+        ],
+        "properties": {
+          "speaker": {
+            "type": "string",
+            "enum": [
+              "caller",
+              "listen",
+              "validation"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 800
+          },
+          "pause_seconds": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 30
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 400
+          }
+        }
+      }
+    },
+    "tool_expectations": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required_tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required_service_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_service_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "expected_evaluation": {
+      "$ref": "./evaluator-result.v1.json"
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
+

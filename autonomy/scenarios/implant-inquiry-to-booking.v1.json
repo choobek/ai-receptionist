@@ -1,0 +1,91 @@
+{
+  "schema_version": "scenario.v1",
+  "scenario_id": "implant-inquiry-to-booking",
+  "title": "Implant inquiry converts to implant consultation booking",
+  "description": "Caller asks about implants or All-on-4, gets a supported answer or safe fallback, then books an implant consultation in the same call.",
+  "status": "active",
+  "mode": "synthetic_test",
+  "language": "pl",
+  "tags": [
+    "booking",
+    "implantology",
+    "knowledge-base"
+  ],
+  "source": {
+    "origin": "project_scope",
+    "derived_from": [
+      "docs/test-scenario-2026-03-17-implant-inquiry-to-booking.md",
+      "docs/real-call-evaluation-2026-03-17-implant-booking.md"
+    ]
+  },
+  "caller_profile": {
+    "is_existing_patient": false,
+    "primary_intent": "implant_consultation",
+    "service_id": "implant_consultation"
+  },
+  "script": [
+    {
+      "speaker": "caller",
+      "text": "Dzien dobry, chcialbym zapytac o implanty w jeden dzien."
+    },
+    {
+      "speaker": "listen",
+      "text": "Assistant explains the supported clinic information without giving medical advice."
+    },
+    {
+      "speaker": "caller",
+      "text": "To prosze umowic mnie na taka konsultacje, najlepiej jutro rano."
+    },
+    {
+      "speaker": "listen",
+      "text": "Assistant offers real slots returned by checkAvailability and names the doctor in the same utterance."
+    },
+    {
+      "speaker": "caller",
+      "text": "Ten trzeci termin pasuje."
+    },
+    {
+      "speaker": "caller",
+      "text": "Wojciech Czub, numer siedem dziewiec trzy, trzy osiem piec, piec trzy jeden."
+    },
+    {
+      "speaker": "listen",
+      "text": "Assistant reads back the number and asks for yes or no confirmation only."
+    },
+    {
+      "speaker": "caller",
+      "text": "Tak, zgadza sie. Prosze potwierdzic."
+    }
+  ],
+  "tool_expectations": {
+    "required_tools": [
+      "searchKnowledgeBase",
+      "checkAvailability",
+      "createEvent"
+    ],
+    "forbidden_tools": [
+      "createReceptionTask"
+    ],
+    "required_service_ids": [
+      "implant_consultation"
+    ],
+    "forbidden_service_ids": [
+      "consultation"
+    ]
+  },
+  "expected_evaluation": {
+    "task_completed": true,
+    "booking_succeeded": true,
+    "wrong_tool_usage": false,
+    "missing_required_data": false,
+    "repeated_question": false,
+    "unsupported_claim": false,
+    "needs_human_handoff": false,
+    "failure_category": "none",
+    "summary": "Caller asks about implant treatment and the assistant safely converts the inquiry into a booked implant consultation.",
+    "confidence": "high",
+    "evidence": [],
+    "recommended_next_action": "Archive as a passing booking regression."
+  }
+}
+

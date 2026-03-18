@@ -1,0 +1,61 @@
+{
+  "schema_version": "scenario.v1",
+  "scenario_id": "existing-patient-reschedule-handoff",
+  "title": "Existing patient asks to reschedule and is handed off to reception",
+  "description": "Caller already has a visit and wants to move it. The assistant should collect identity details, create a reception task, and avoid claiming success before tool confirmation.",
+  "status": "active",
+  "mode": "synthetic_test",
+  "language": "pl",
+  "tags": [
+    "handoff",
+    "existing-patient",
+    "reschedule"
+  ],
+  "source": {
+    "origin": "project_scope",
+    "derived_from": [
+      "docs/real-call-evaluation-2026-03-13-scenario-b.md"
+    ]
+  },
+  "caller_profile": {
+    "is_existing_patient": true,
+    "primary_intent": "reschedule"
+  },
+  "script": [
+    {
+      "speaker": "caller",
+      "text": "Dzien dobry, chcialbym przelozyc istniejaca wizyte. Wojciech Czub, numer siedem dziewiec trzy, trzy osiem piec, piec trzy jeden."
+    },
+    {
+      "speaker": "listen",
+      "text": "Assistant reuses the provided identity data instead of asking for it again."
+    },
+    {
+      "speaker": "listen",
+      "text": "Assistant confirms that the request was saved only after createReceptionTask returns success."
+    }
+  ],
+  "tool_expectations": {
+    "required_tools": [
+      "createReceptionTask"
+    ],
+    "forbidden_tools": [
+      "createEvent"
+    ]
+  },
+  "expected_evaluation": {
+    "task_completed": true,
+    "booking_succeeded": false,
+    "wrong_tool_usage": false,
+    "missing_required_data": false,
+    "repeated_question": false,
+    "unsupported_claim": false,
+    "needs_human_handoff": true,
+    "failure_category": "needs_human_handoff",
+    "summary": "Existing-patient reschedule requests should be routed to reception after identity capture and confirmed task creation.",
+    "confidence": "high",
+    "evidence": [],
+    "recommended_next_action": "Treat as a valid handoff path, not a booking failure."
+  }
+}
+

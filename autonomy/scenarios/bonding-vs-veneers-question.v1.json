@@ -1,0 +1,59 @@
+{
+  "schema_version": "scenario.v1",
+  "scenario_id": "bonding-vs-veneers-question",
+  "title": "General esthetic dentistry question is answered without booking",
+  "description": "Caller asks about the difference between bonding and veneers. The assistant should use the knowledge base, avoid unsupported clinical recommendations, and end cleanly without pushing a booking.",
+  "status": "active",
+  "mode": "synthetic_test",
+  "language": "pl",
+  "tags": [
+    "knowledge-base",
+    "aesthetic-dentistry",
+    "non-booking"
+  ],
+  "source": {
+    "origin": "project_scope",
+    "derived_from": [
+      "knowledge-base/clinic-knowledge.json",
+      "docs/tool-contracts.md"
+    ]
+  },
+  "caller_profile": {
+    "is_existing_patient": false,
+    "primary_intent": "general_question"
+  },
+  "script": [
+    {
+      "speaker": "caller",
+      "text": "Czym roznia sie licowki od bondingu?"
+    },
+    {
+      "speaker": "listen",
+      "text": "Assistant answers from the knowledge base and does not present a diagnosis or unsupported treatment recommendation."
+    }
+  ],
+  "tool_expectations": {
+    "required_tools": [
+      "searchKnowledgeBase"
+    ],
+    "forbidden_tools": [
+      "createEvent",
+      "createReceptionTask"
+    ]
+  },
+  "expected_evaluation": {
+    "task_completed": true,
+    "booking_succeeded": false,
+    "wrong_tool_usage": false,
+    "missing_required_data": false,
+    "repeated_question": false,
+    "unsupported_claim": false,
+    "needs_human_handoff": false,
+    "failure_category": "none",
+    "summary": "General knowledge-base questions should be answered safely without forcing a booking flow.",
+    "confidence": "high",
+    "evidence": [],
+    "recommended_next_action": "Use as a non-booking scope regression."
+  }
+}
+

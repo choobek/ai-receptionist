@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Autonomy evaluator result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_completed",
+    "booking_succeeded",
+    "wrong_tool_usage",
+    "missing_required_data",
+    "repeated_question",
+    "unsupported_claim",
+    "needs_human_handoff",
+    "failure_category",
+    "summary"
+  ],
+  "properties": {
+    "task_completed": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "True when the assistant completed the task correctly within its intended scope, even if that scope ends in human handoff."
+    },
+    "booking_succeeded": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "True only when a booking was actually created."
+    },
+    "wrong_tool_usage": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "True when the wrong tool was used, used too early, or used in the wrong branch."
+    },
+    "missing_required_data": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "True when the assistant failed because required booking or handoff data was missing."
+    },
+    "repeated_question": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "True when the assistant re-asked for information that had already been provided clearly."
+    },
+    "unsupported_claim": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "True when the assistant made a claim it could not support, for example promising a booking or handoff before tool success."
+    },
+    "needs_human_handoff": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "True when the appropriate outcome is or was receptionist follow-up rather than full automation."
+    },
+    "failure_category": {
+      "type": "string",
+      "enum": [
+        "none",
+        "wrong_tool_usage",
+        "missing_required_data",
+        "repeated_question",
+        "unsupported_claim",
+        "needs_human_handoff",
+        "tool_failure",
+        "booking_conflict",
+        "structured_output_missing",
+        "caller_abandoned",
+        "other"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1200
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "default": "medium"
+    },
+    "evidence": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "maxLength": 240
+      }
+    },
+    "recommended_next_action": {
+      "type": "string",
+      "maxLength": 400
+    }
+  }
+}
+
