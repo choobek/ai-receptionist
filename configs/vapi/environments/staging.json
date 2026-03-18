@@ -1,17 +1,19 @@
 {
   "version": 1,
   "environment": "staging",
-  "assistantId": "",
+  "assistantId": "8f0b2287-26b0-42ad-8859-34a4f386ce64",
   "assistantName": "Jarek [staging]",
   "publicBaseUrlEnv": "STAGING_N8N_PUBLIC_BASE_URL",
   "webhookSecretEnv": "STAGING_AI_RECEPTIONIST_WEBHOOK_SECRET",
-  "structuredOutputIds": [],
+  "structuredOutputIds": [
+    "7ee177c4-69ab-4589-ab30-864506585553"
+  ],
   "scorecardIds": [],
   "toolIds": {
-    "lookupPatient": "",
-    "checkAvailability": "",
-    "searchKnowledgeBase": "",
-    "createEvent": "",
-    "createReceptionTask": ""
+    "lookupPatient": "e8c4fa60-9cf3-41fe-a9cd-3c2372ed1018",
+    "checkAvailability": "0110b399-9815-46af-a9a5-e3626f25f9f7",
+    "searchKnowledgeBase": "173bb284-d6a9-4f7b-9bb4-ec85e4da0e8b",
+    "createEvent": "2ed8f43d-a086-4e4c-94e1-f50970fafdee",
+    "createReceptionTask": "00fa7a52-6163-439e-9812-f6aa51192754"
   }
 }
