@@ -57,6 +57,11 @@ ssh "${ssh_args[@]}" "${VPS_SSH_USER}@${VPS_SSH_HOST}" \
   "APP_DIR='$VPS_APP_DIR' REMOTE_URL='$VPS_GIT_REMOTE_SSH_URL' TARGET_ENV='$ENVIRONMENT' GIT_REF='$GIT_REF' COMPOSE_FILE='$VPS_COMPOSE_FILE' bash -s" <<'EOF'
 set -euo pipefail
 
+if [ ! -d "$APP_DIR/.git" ]; then
+  mkdir -p "$(dirname "$APP_DIR")"
+  git clone "$REMOTE_URL" "$APP_DIR"
+fi
+
 cd "$APP_DIR"
 git remote set-url origin "$REMOTE_URL"
 

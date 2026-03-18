@@ -127,10 +127,11 @@ What it does:
 
 1. SSH to the configured staging or production VPS.
 2. forwards the local SSH agent to the VPS
-3. ensures the VPS repo uses the configured GitHub SSH remote
-4. `git fetch --all --prune`
-5. checks out the requested git branch or exact ref
-6. restarts the VPS stack from the configured compose file for that environment
+3. clones the repo first if the target app dir does not exist yet
+4. ensures the VPS repo uses the configured GitHub SSH remote
+5. `git fetch --all --prune`
+6. checks out the requested git branch or exact ref
+7. restarts the VPS stack from the configured compose file for that environment
 
 ## 6. Update n8n Workflows On VPS
 
