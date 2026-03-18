@@ -15,9 +15,13 @@ configs/
     catalog.v1.json
   vapi/
     assistant.v1.json
+    environments/
+      production.json
+      staging.json
 docs/
   architecture.md
   backlog.md
+  environment-separation.md
   knowledge-base.md
   tool-contracts.md
   vapi-structured-output.json
@@ -112,12 +116,33 @@ This first version is intentionally small:
 5. Set the Vapi custom tool server URLs to the five n8n webhook endpoints.
 6. If you set `AI_RECEPTIONIST_WEBHOOK_SECRET`, configure the same secret in Vapi using the `X-AI-Receptionist-Secret` header or a `?secret=` query parameter fallback.
 7. Keep the Vapi assistant source of truth in [`configs/vapi/assistant.v1.json`](./configs/vapi/assistant.v1.json).
-8. Apply the config with [`scripts/update-vapi-assistant.sh`](./scripts/update-vapi-assistant.sh).
+8. Apply the config with [`scripts/sync-vapi-environment.sh`](./scripts/sync-vapi-environment.sh) for the target environment.
 
 Operational reference:
 
 - [`AGENTS.md`](./AGENTS.md) for future Codex sessions
+- [`docs/environment-separation.md`](./docs/environment-separation.md) for staging vs production
 - [`docs/operations-runbook.md`](./docs/operations-runbook.md) for human step-by-step operations
+
+## Staging And Production
+
+The repo now supports one shared codebase with explicit staging and production bindings:
+
+- shared assistant behavior: [`configs/vapi/assistant.v1.json`](./configs/vapi/assistant.v1.json)
+- environment-specific Vapi IDs: [`configs/vapi/environments/staging.json`](./configs/vapi/environments/staging.json) and [`configs/vapi/environments/production.json`](./configs/vapi/environments/production.json)
+- environment-specific automation values in root [`.env.example`](./.env.example) via `STAGING_*` and `PRODUCTION_*`
+
+Primary commands:
+
+```bash
+./scripts/deploy-vps.sh staging
+./scripts/sync-environment.sh staging
+./scripts/deploy-vps.sh production
+./scripts/sync-environment.sh production
+./scripts/promote-to-production.sh HEAD
+```
+
+Keep the live production phone number bound to the production assistant only. Do not reuse that assistant or number for staging.
 
 ## Deploy on a VPS
 
@@ -227,10 +252,10 @@ To apply the versioned config to the existing assistant:
 cp .env.example .env
 $EDITOR .env
 ./scripts/sync-vapi-prompt-mirrors.sh
-./scripts/update-vapi-assistant.sh
+./scripts/sync-vapi-environment.sh production
 ```
 
-The script reads `VAPI_API_KEY` from `.env` or the current shell and patches the assistant referenced by `assistantId` in the config file.
+The sync path reads shared behavior from [`configs/vapi/assistant.v1.json`](./configs/vapi/assistant.v1.json), environment IDs from [`configs/vapi/environments/`](./configs/vapi/environments/), and the target public base URL plus webhook secret from root `.env`.
 
 Optional post-call setup:
 

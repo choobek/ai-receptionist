@@ -1,8 +1,9 @@
 # Operations Runbook
 
-This repo should be operated from one root `.env` and five source-of-truth areas:
+This repo should be operated from one root `.env` and six source-of-truth areas:
 
-- Vapi assistant config: [`configs/vapi/assistant.v1.json`](../configs/vapi/assistant.v1.json)
+- shared Vapi assistant config: [`configs/vapi/assistant.v1.json`](../configs/vapi/assistant.v1.json)
+- environment-specific Vapi bindings: [`configs/vapi/environments/`](../configs/vapi/environments/)
 - service catalog: [`configs/services/catalog.v1.json`](../configs/services/catalog.v1.json)
 - n8n workflows: [`n8n/workflows/`](../n8n/workflows/)
 - mock patient data: [`mock-data/mock-patients.json`](../mock-data/mock-patients.json)
@@ -15,35 +16,35 @@ Create root `.env` from [`../.env.example`](../.env.example) and fill at minimum
 
 - Vapi:
   - `VAPI_API_KEY`
-  - `VAPI_ASSISTANT_ID`
+  - `STAGING_N8N_PUBLIC_BASE_URL`
+  - `PRODUCTION_N8N_PUBLIC_BASE_URL`
 - Local n8n:
   - `N8N_ENCRYPTION_KEY`
   - `N8N_BASIC_AUTH_USER`
   - `N8N_BASIC_AUTH_PASSWORD`
-- VPS automation:
-  - `VPS_SSH_HOST`
-  - `VPS_SSH_USER`
-  - `VPS_APP_DIR`
-
-Optional for SSH:
-
-- `VPS_SSH_PORT`
-- `VPS_SSH_IDENTITY_FILE`
-- `VPS_N8N_CONTAINER_NAME`
-- `VPS_GIT_REMOTE_SSH_URL`
+- Staging VPS automation:
+  - `STAGING_VPS_SSH_HOST`
+  - `STAGING_VPS_SSH_USER`
+  - `STAGING_VPS_APP_DIR`
+- Production VPS automation:
+  - `PRODUCTION_VPS_SSH_HOST`
+  - `PRODUCTION_VPS_SSH_USER`
+  - `PRODUCTION_VPS_APP_DIR`
 
 Optional but strongly recommended for public webhooks:
 
-- `AI_RECEPTIONIST_WEBHOOK_SECRET`
+- `STAGING_AI_RECEPTIONIST_WEBHOOK_SECRET`
+- `PRODUCTION_AI_RECEPTIONIST_WEBHOOK_SECRET`
 
-If `VPS_SSH_IDENTITY_FILE` is empty, the SSH-based scripts will use normal
-password authentication and prompt for the password interactively.
+Each deployed staging or production target still keeps its own unprefixed root `.env`
+on that host for runtime values such as `N8N_DOMAIN`, `N8N_ENCRYPTION_KEY`,
+`GOOGLE_CALENDAR_ID`, `AI_RECEPTIONIST_WEBHOOK_SECRET`, and container or volume names.
 
 ## 2. Update Vapi
 
 Canonical path:
 
-1. Edit [`configs/vapi/assistant.v1.json`](../configs/vapi/assistant.v1.json).
+1. Edit the shared assistant behavior in [`configs/vapi/assistant.v1.json`](../configs/vapi/assistant.v1.json) and, when needed, the target binding in [`configs/vapi/environments/`](../configs/vapi/environments/).
 2. Sync the readable prompt mirrors:
 
 ```bash
@@ -54,16 +55,11 @@ This updates:
 - [`prompts/system-prompt.md`](../prompts/system-prompt.md)
 - [`prompts/first-message.md`](../prompts/first-message.md)
 
-3. Apply the config:
+3. Apply the config to a named environment:
 
 ```bash
-./scripts/update-vapi-assistant.sh
-```
-
-4. If `AI_RECEPTIONIST_WEBHOOK_SECRET` is set, patch the live Vapi webhook URLs so they include the same secret without storing it in git:
-
-```bash
-./scripts/update-vapi-webhook-secret.sh
+./scripts/sync-vapi-environment.sh staging
+./scripts/sync-vapi-environment.sh production
 ```
 
 Notes:
@@ -109,61 +105,58 @@ docker compose --env-file .env -f n8n/docker-compose.yml up -d
 
 ## 5. Deploy Repo On VPS
 
-Use the SSH wrapper:
+Use the SSH wrapper with an environment:
 
 ```bash
-./scripts/deploy-vps.sh
+./scripts/deploy-vps.sh staging
+./scripts/deploy-vps.sh production
 ```
 
 What it does:
 
-1. SSH to the configured VPS.
+1. SSH to the configured staging or production VPS.
 2. forwards the local SSH agent to the VPS
 3. ensures the VPS repo uses the configured GitHub SSH remote
 4. `git fetch --all --prune`
-5. `git pull --ff-only`
+5. checks out the requested git branch or exact ref
 6. restart the VPS stack from `deploy/vps/docker-compose.yml`
 
 ## 6. Update n8n Workflows On VPS
 
-Use the workflow import wrapper:
+Use the per-environment sync wrapper:
 
 ```bash
-./scripts/import-n8n-workflows-vps.sh
+./scripts/sync-environment.sh staging
+./scripts/sync-environment.sh production
 ```
 
 What it does:
 
-1. SSH to the VPS.
-2. export a workflow backup from the running `n8n` container into `backups/n8n/<timestamp>/` on the VPS
-3. copy repo workflow JSON files into the container
-4. run `n8n import:workflow --separate --input=/tmp/n8n-workflows-import`
-5. print the workflow list after import
-
-Then reconcile the imported repo-ID workflows with the currently working credentials and publish state:
-
-```bash
-./scripts/reconcile-n8n-workflows-vps.sh
-```
-
-What it does:
-
-1. makes a fresh backup of workflows and credentials on the VPS
-2. exports the current n8n workflows
-3. copies credential references from the currently working duplicates into the repo-ID workflow JSON files, only in a temporary VPS import directory
-4. re-imports those repo workflows by ID so the stored definitions match the repo while keeping the credential attachments needed in production
-5. unpublishes the legacy active duplicates
-6. publishes the repo-ID workflows as the final active set
-7. updates `webhook_entity` to point the public webhook routes at those repo-ID workflows and restarts `n8n`
+1. checks that embedded workflow source data is already in sync
+2. exports a workflow backup from the target `n8n` container into `backups/n8n/<timestamp>/` on the VPS
+3. imports the repo workflow JSON files into the target n8n instance
+4. reconciles credentials and publish state on the target n8n instance
+5. syncs the matching Vapi assistant and tool URLs for the same environment
 
 Important:
 
 - The script assumes the repo on the VPS already contains the desired workflow JSON files. Run deploy first.
 - Because workflow import can create drift or duplicates if IDs do not line up, always inspect the post-import workflow list.
 - Credentials are not versioned in this repo. Imported workflows can arrive as inactive drafts without the credential attachments used by the currently active workflows.
-- Do not unpublish the active workflows manually before `./scripts/reconcile-n8n-workflows-vps.sh` finishes successfully.
+- Do not unpublish the active workflows manually before the reconcile step finishes successfully.
 
-## 7. Repo Health Checks
+## 7. Promotion
+
+Promote an approved ref to production:
+
+```bash
+git checkout <approved-commit-or-tag>
+./scripts/promote-to-production.sh HEAD
+```
+
+This requires a clean local git worktree so the production Vapi and n8n sync steps come from the same repo state as the deployed git ref.
+
+## 8. Repo Health Checks
 
 Run these when the repo starts to feel improvised:
 
@@ -172,8 +165,9 @@ git status --short
 ./scripts/check-repo-health.sh
 ./scripts/check-workflow-regressions.js
 ./scripts/sync-n8n-workflow-data.sh --check
-docker exec ai-receptionist-n8n n8n list:workflow
-./scripts/update-vapi-assistant.sh
+./scripts/render-vapi-assistant-config.sh production >/tmp/ai-receptionist-production-assistant.json
+# after staging bindings are filled:
+# ./scripts/render-vapi-assistant-config.sh staging >/tmp/ai-receptionist-staging-assistant.json
 ```
 
 Interpretation:
@@ -182,10 +176,10 @@ Interpretation:
 - `./scripts/check-repo-health.sh` should pass before deploys and after repo cleanup. It now includes workflow regression checks when `node` is installed.
 - `./scripts/check-workflow-regressions.js` exercises the embedded n8n logic directly and should stay green when tool contracts change.
 - `./scripts/sync-n8n-workflow-data.sh --check` should pass after proof-of-concept data edits.
-- `n8n list:workflow` should roughly match the workflow files under [`n8n/workflows/`](../n8n/workflows/).
+- rendered staging and production assistant configs should build cleanly from repo state plus root `.env`.
 - a clean Vapi update path means assistant changes are reproducible outside the dashboard.
 
-## 8. Workflow State Notes
+## 9. Workflow State Notes
 
 Treat local and VPS `n8n` state as disposable runtime state, not source control.
 It is normal for a running instance to drift behind the repo until you explicitly import or reconcile the workflows.

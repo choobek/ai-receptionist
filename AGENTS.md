@@ -4,7 +4,8 @@
 
 - Root `.env.example` is the only env template in the repo.
 - Root `.env` is the only local env file future automation should read by default.
-- Vapi assistant config lives in `configs/vapi/assistant.v1.json`.
+- Shared Vapi assistant behavior lives in `configs/vapi/assistant.v1.json`.
+- Environment-specific Vapi bindings live in `configs/vapi/environments/staging.json` and `configs/vapi/environments/production.json`.
 - Service catalog source data lives in `configs/services/catalog.v1.json`.
 - Prompt mirror files in `prompts/` are generated mirrors for readability. If they drift, the JSON config wins.
 - n8n workflow source files live in `n8n/workflows/`.
@@ -22,17 +23,17 @@
 
 ## Standard Operations
 
-### Update Vapi Assistant
+### Sync Vapi Environment
 
-1. Edit `configs/vapi/assistant.v1.json`.
+1. Edit `configs/vapi/assistant.v1.json` for shared behavior and/or the matching file under `configs/vapi/environments/`.
 2. Run `./scripts/sync-vapi-prompt-mirrors.sh`.
-3. Run `./scripts/update-vapi-assistant.sh`.
+3. Run `./scripts/sync-vapi-environment.sh staging` or `./scripts/sync-vapi-environment.sh production`.
 4. If the Vapi API rejects a field, remove or adjust that field in the repo config before retrying.
 
 ### Deploy Repo To VPS
 
-1. Ensure SSH placeholders in root `.env` are filled.
-2. Run `./scripts/deploy-vps.sh`.
+1. Ensure the `STAGING_*` or `PRODUCTION_*` SSH placeholders in root `.env` are filled.
+2. Run `./scripts/deploy-vps.sh staging` or `./scripts/deploy-vps.sh production`.
 3. The deploy script should use SSH agent forwarding and a GitHub SSH remote on the VPS.
 4. Verify the stack on the VPS after pull + restart.
 
@@ -40,15 +41,15 @@
 
 1. Commit or at least save the desired workflow JSON changes locally.
 2. If you changed `mock-data/mock-patients.json`, `knowledge-base/clinic-knowledge.json`, or `configs/services/catalog.v1.json`, run `./scripts/sync-n8n-workflow-data.sh` first so the embedded workflow data stays in sync.
-3. Run `./scripts/import-n8n-workflows-vps.sh`.
+3. Run `./scripts/import-n8n-workflows-vps.sh staging` or `./scripts/import-n8n-workflows-vps.sh production`.
 4. The script must export a backup on the VPS before importing.
 5. Verify the workflow list after import.
 6. Do not unpublish the currently active workflows until the imported copies have credentials attached and are ready to publish.
 
 ## Audit Checklist
 
-- Compare repo workflow files with `docker exec ai-receptionist-n8n n8n list:workflow`.
-- Check for config drift between Vapi and `configs/vapi/assistant.v1.json`.
+- Compare repo workflow files with the target environment's `n8n list:workflow`.
+- Check for config drift between Vapi and `configs/vapi/assistant.v1.json` plus `configs/vapi/environments/*.json`.
 - Run `./scripts/sync-n8n-workflow-data.sh --check` after changing proof-of-concept data files.
 - Check for duplicate env templates or new ad-hoc scripts that bypass root `.env`.
 - Prefer additive scripts and docs over tribal knowledge in chat history.
@@ -56,3 +57,4 @@
 ## Human Runbook
 
 - See `docs/operations-runbook.md` for the step-by-step operational guide.
+- See `docs/environment-separation.md` for staging vs production commands and promotion flow.
