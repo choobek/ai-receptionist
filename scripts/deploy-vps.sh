@@ -18,6 +18,7 @@ legacy_vps_ssh_identity_file=""
 legacy_vps_app_dir=""
 legacy_vps_git_remote_ssh_url=""
 legacy_vps_compose_file=""
+legacy_vps_compose_project_name=""
 
 if [ "$ENVIRONMENT" = "production" ]; then
   legacy_vps_ssh_host="VPS_SSH_HOST"
@@ -27,6 +28,7 @@ if [ "$ENVIRONMENT" = "production" ]; then
   legacy_vps_app_dir="VPS_APP_DIR"
   legacy_vps_git_remote_ssh_url="VPS_GIT_REMOTE_SSH_URL"
   legacy_vps_compose_file="VPS_COMPOSE_FILE"
+  legacy_vps_compose_project_name="VPS_COMPOSE_PROJECT_NAME"
 fi
 
 VPS_SSH_HOST="$(require_context_value "$ENVIRONMENT" "VPS_SSH_HOST" "$legacy_vps_ssh_host" "VPS_SSH_HOST")"
@@ -38,6 +40,8 @@ VPS_APP_DIR="$(require_context_value "$ENVIRONMENT" "VPS_APP_DIR" "$legacy_vps_a
 VPS_GIT_REMOTE_SSH_URL="$(get_context_value "$ENVIRONMENT" "VPS_GIT_REMOTE_SSH_URL" "$legacy_vps_git_remote_ssh_url")"
 VPS_COMPOSE_FILE="$(get_context_value "$ENVIRONMENT" "VPS_COMPOSE_FILE" "$legacy_vps_compose_file")"
 VPS_COMPOSE_FILE="${VPS_COMPOSE_FILE:-deploy/vps/docker-compose.yml}"
+VPS_COMPOSE_PROJECT_NAME="$(get_context_value "$ENVIRONMENT" "VPS_COMPOSE_PROJECT_NAME" "$legacy_vps_compose_project_name")"
+VPS_COMPOSE_PROJECT_NAME="${VPS_COMPOSE_PROJECT_NAME:-$(basename "$VPS_APP_DIR")}"
 
 if [ -z "$VPS_GIT_REMOTE_SSH_URL" ]; then
   origin_url="$(git -C "$ROOT_DIR" remote get-url origin)"
@@ -54,7 +58,7 @@ if [ -n "$VPS_SSH_IDENTITY_FILE" ]; then
 fi
 
 ssh "${ssh_args[@]}" "${VPS_SSH_USER}@${VPS_SSH_HOST}" \
-  "APP_DIR='$VPS_APP_DIR' REMOTE_URL='$VPS_GIT_REMOTE_SSH_URL' TARGET_ENV='$ENVIRONMENT' GIT_REF='$GIT_REF' COMPOSE_FILE='$VPS_COMPOSE_FILE' bash -s" <<'EOF'
+  "APP_DIR='$VPS_APP_DIR' REMOTE_URL='$VPS_GIT_REMOTE_SSH_URL' TARGET_ENV='$ENVIRONMENT' GIT_REF='$GIT_REF' COMPOSE_FILE='$VPS_COMPOSE_FILE' COMPOSE_PROJECT_NAME='$VPS_COMPOSE_PROJECT_NAME' bash -s" <<'EOF'
 set -euo pipefail
 
 if [ ! -d "$APP_DIR/.git" ]; then
@@ -92,9 +96,9 @@ fi
 ./scripts/render-vps-caddy-fragments.sh .env
 
 if docker compose version >/dev/null 2>&1; then
-  docker compose --env-file .env -f "$COMPOSE_FILE" up -d
+  docker compose --env-file .env -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up -d
 elif command -v docker-compose >/dev/null 2>&1; then
-  docker-compose -f "$COMPOSE_FILE" up -d
+  COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" docker-compose -f "$COMPOSE_FILE" up -d
 else
   echo "Neither docker-compose nor docker compose is available on the VPS" >&2
   exit 1

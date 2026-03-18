@@ -27,11 +27,13 @@ Create root `.env` from [`../.env.example`](../.env.example) and fill at minimum
   - `STAGING_VPS_SSH_USER`
   - `STAGING_VPS_APP_DIR`
   - `STAGING_VPS_COMPOSE_FILE`
+  - `STAGING_VPS_COMPOSE_PROJECT_NAME`
 - Production VPS automation:
   - `PRODUCTION_VPS_SSH_HOST`
   - `PRODUCTION_VPS_SSH_USER`
   - `PRODUCTION_VPS_APP_DIR`
   - `PRODUCTION_VPS_COMPOSE_FILE`
+  - `PRODUCTION_VPS_COMPOSE_PROJECT_NAME`
 
 Optional but strongly recommended for public webhooks:
 
@@ -46,7 +48,9 @@ If both environments share one host, keep production on the full compose file an
 
 - local root `.env`:
   - `STAGING_VPS_COMPOSE_FILE=deploy/vps/docker-compose.n8n-only.yml`
+  - `STAGING_VPS_COMPOSE_PROJECT_NAME=ai-receptionist-staging`
   - `PRODUCTION_VPS_COMPOSE_FILE=deploy/vps/docker-compose.yml`
+  - `PRODUCTION_VPS_COMPOSE_PROJECT_NAME=<current production compose project name>`
 - production host root `.env`:
   - `STAGING_N8N_DOMAIN=<public staging hostname>`
   - `STAGING_N8N_UPSTREAM=host.docker.internal:<staging-host-port>`

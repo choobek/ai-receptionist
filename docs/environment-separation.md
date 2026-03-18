@@ -49,11 +49,11 @@ The promotion script deploys the exact git ref to the production VPS and then sy
 
 ## Manual Setup Still Required
 
-1. Fill root `.env` with `STAGING_*` and `PRODUCTION_*` SSH targets plus `*_N8N_PUBLIC_BASE_URL`. Use `*_AI_RECEPTIONIST_WEBHOOK_SECRET` when the corresponding public n8n webhooks require a secret. If staging should run on the same host as production, point `STAGING_VPS_COMPOSE_FILE` at `deploy/vps/docker-compose.n8n-only.yml`.
+1. Fill root `.env` with `STAGING_*` and `PRODUCTION_*` SSH targets plus `*_N8N_PUBLIC_BASE_URL`. Use `*_AI_RECEPTIONIST_WEBHOOK_SECRET` when the corresponding public n8n webhooks require a secret. If staging should run on the same host as production, point `STAGING_VPS_COMPOSE_FILE` at `deploy/vps/docker-compose.n8n-only.yml` and give staging its own `STAGING_VPS_COMPOSE_PROJECT_NAME`.
 2. Create a separate staging Vapi assistant and five separate staging Vapi tool resources. Put their IDs into [`../configs/vapi/environments/staging.json`](../configs/vapi/environments/staging.json).
 3. Keep the existing production Vapi assistant IDs in [`../configs/vapi/environments/production.json`](../configs/vapi/environments/production.json). Do not point staging at those production tool IDs.
 4. Stand up a separate staging n8n deployment with its own root `.env`, encryption key, webhook secret, data volume, credentials, and preferably a separate Google Calendar ID.
-5. If staging and production share one VPS, keep production on [`../deploy/vps/docker-compose.yml`](../deploy/vps/docker-compose.yml), run staging from [`../deploy/vps/docker-compose.n8n-only.yml`](../deploy/vps/docker-compose.n8n-only.yml), and set `STAGING_N8N_DOMAIN` plus `STAGING_N8N_UPSTREAM` in the production host's root `.env` so the shared Caddy instance can proxy the staging hostname to the staging port.
+5. If staging and production share one VPS, keep production on [`../deploy/vps/docker-compose.yml`](../deploy/vps/docker-compose.yml), run staging from [`../deploy/vps/docker-compose.n8n-only.yml`](../deploy/vps/docker-compose.n8n-only.yml), give each environment a distinct Compose project name, and set `STAGING_N8N_DOMAIN` plus `STAGING_N8N_UPSTREAM` in the production host's root `.env` so the shared Caddy instance can proxy the staging hostname to the staging port.
 6. After the first workflow import into each n8n environment, reattach that environment's credentials before publishing the imported workflows.
 
 ## Production Phone Number
