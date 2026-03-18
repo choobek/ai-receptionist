@@ -1,26 +1,32 @@
 [
   {
     "id": "consultation",
-    "name": "Konsultacja"
+    "name": "Konsultacja",
+    "durationMinutes": 45
   },
   {
     "id": "urgent_consultation",
-    "name": "Pilna konsultacja"
+    "name": "Pilna konsultacja",
+    "durationMinutes": 45
   },
   {
     "id": "implant_consultation",
-    "name": "Konsultacja implantologiczna"
+    "name": "Konsultacja implantologiczna",
+    "durationMinutes": 45
   },
   {
     "id": "orthodontic_consultation",
-    "name": "Konsultacja ortodontyczna"
+    "name": "Konsultacja ortodontyczna",
+    "durationMinutes": 45
   },
   {
     "id": "aesthetic_consultation",
-    "name": "Konsultacja estetyczna"
+    "name": "Konsultacja estetyczna",
+    "durationMinutes": 45
   },
   {
     "id": "hygiene",
-    "name": "Higienizacja"
+    "name": "Higienizacja",
+    "durationMinutes": 45
   }
 ]
