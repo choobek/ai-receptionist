@@ -570,6 +570,8 @@ test('assistant prompt anchors createEvent to the exact selected slot boundary',
     .join('\n');
   assert.match(systemPrompts, /slotStart i slotEnd z wybranego slotu/);
   assert.match(systemPrompts, /Patrz na pola start i end w wybranym slocie/);
+  assert.match(systemPrompts, /pierwszy termin/);
+  assert.match(systemPrompts, /09:00-09:45/);
   assert.match(systemPrompts, /2026-03-19T09:30:00\+01:00/);
   assert.match(systemPrompts, /2026-03-19T10:15:00\+01:00/);
   assert.match(systemPrompts, /Nigdy nie zamieniaj tego na 10:00/);

@@ -19,6 +19,7 @@ load_root_env
 API_BASE_URL="${VAPI_API_BASE_URL:-https://api.vapi.ai}"
 API_KEY="$(get_context_value "$ENVIRONMENT" "VAPI_API_KEY" "VAPI_API_KEY")"
 BINDINGS_PATH="$ROOT_DIR/configs/vapi/environments/$ENVIRONMENT.json"
+RENDERED_CONFIG_FILE=""
 
 if ! command -v jq >/dev/null 2>&1; then
   echo "jq is required" >&2
@@ -39,6 +40,9 @@ if [ ! -f "$BINDINGS_PATH" ]; then
   echo "Bindings file not found: $BINDINGS_PATH" >&2
   exit 1
 fi
+
+RENDERED_CONFIG_FILE="$(mktemp)"
+"$ROOT_DIR/scripts/render-vapi-assistant-config.sh" "$ENVIRONMENT" "$RENDERED_CONFIG_FILE"
 
 case "$TOOL_NAME" in
   checkAvailability)
@@ -73,23 +77,61 @@ SCHEMA_JSON="$(
   jq -c 'del(."$schema", .title, .examples)' "$SCHEMA_PATH"
 )"
 
+EXPECTED_SERVER_URL="$(
+  jq -r --arg tool_name "$TOOL_NAME" '
+    .toolBindings[]
+    | select(.name == $tool_name)
+    | .serverUrl // empty
+  ' "$RENDERED_CONFIG_FILE"
+)"
+
+CURRENT_TOOL_FILE="$(mktemp)"
+CURRENT_TOOL_STATUS="$(
+  curl -sS \
+    -o "$CURRENT_TOOL_FILE" \
+    -w '%{http_code}' \
+    "$API_BASE_URL/tool/$TOOL_ID" \
+    -H "Authorization: Bearer $API_KEY"
+)"
+
+if [ "$CURRENT_TOOL_STATUS" -lt 200 ] || [ "$CURRENT_TOOL_STATUS" -ge 300 ]; then
+  echo "Failed to fetch current tool state for $TOOL_NAME ($TOOL_ID) with HTTP $CURRENT_TOOL_STATUS" >&2
+  cat "$CURRENT_TOOL_FILE" >&2
+  rm -f "$CURRENT_TOOL_FILE"
+  exit 1
+fi
+
+SERVER_JSON="$(
+  jq -c --arg expected_url "$EXPECTED_SERVER_URL" '
+    if (.server | type) == "object" and (.server | length) > 0 then
+      .server
+    elif ($expected_url | length) > 0 then
+      {url: $expected_url}
+    else
+      null
+    end
+  ' "$CURRENT_TOOL_FILE"
+)"
+
 PAYLOAD="$(
   jq -cn \
     --arg tool_name "$TOOL_NAME" \
     --arg tool_description "$TOOL_DESCRIPTION" \
     --argjson schema "$SCHEMA_JSON" \
+    --argjson server "$SERVER_JSON" \
     '{
       function: {
         name: $tool_name,
         description: $tool_description,
         parameters: $schema
       }
-    }'
+    }
+    | if $server != null then .server = $server else . end'
 )"
 
 RESPONSE_BODY_FILE="$(mktemp)"
 cleanup() {
-  rm -f "$RESPONSE_BODY_FILE"
+  rm -f "$CURRENT_TOOL_FILE" "$RESPONSE_BODY_FILE" "$RENDERED_CONFIG_FILE"
 }
 trap cleanup EXIT
 
