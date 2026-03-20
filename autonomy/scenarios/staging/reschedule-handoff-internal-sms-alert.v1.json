@@ -1,0 +1,146 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "reschedule-handoff-internal-sms-alert",
+  "title": "Reschedule handoff triggers an internal receptionist SMS alert after task creation",
+  "description": "The caller wants to reschedule an existing visit, provides synthetic identity data in the first turn, confirms the repeated phone number, and should stay in the reception-task branch. When the internal SMS tool is available, the assistant should call sendSmsToReceptionists only after createReceptionTask succeeds and should reuse the created taskId.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "handoff",
+    "sms",
+    "existing-patient",
+    "staging-safe"
+  ],
+  "required_tool_bindings": [
+    "sendSmsToReceptionists"
+  ],
+  "source": {
+    "origin": "project_scope",
+    "references": [
+      "configs/vapi/assistant.v1.json",
+      "docs/tool-contracts.md"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 2
+  },
+  "turns": [
+    {
+      "turn_id": "request-reschedule",
+      "user": "Dzien dobry, chce przelozyc moja wtorkowa wizyte na inny dzien po poludniu. Mam na imie Test Regresji SMS Recepcja, moj numer to siedem zero dwa, zero zero trzy, zero zero siedem.",
+      "assertions": [
+        {
+          "criterion_id": "no-handoff-before-phone-confirmation",
+          "description": "The assistant should not create a reception task before the caller confirms the repeated phone number.",
+          "severity": "high",
+          "root_cause_hint": "assistant skipped the phone confirmation step before createReceptionTask",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 1,
+            "tool_name": "createReceptionTask"
+          }
+        },
+        {
+          "criterion_id": "no-internal-sms-before-phone-confirmation",
+          "description": "The assistant should not trigger the internal receptionist SMS before createReceptionTask exists.",
+          "severity": "high",
+          "root_cause_hint": "assistant tried to send the internal receptionist SMS before the task was created",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 1,
+            "tool_name": "sendSmsToReceptionists"
+          }
+        }
+      ]
+    },
+    {
+      "turn_id": "confirm-phone",
+      "user": "Tak, zgadza sie."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "reception-task-created",
+      "description": "The reschedule branch should create a reception task after confirmation.",
+      "severity": "critical",
+      "root_cause_hint": "assistant confirmation flow or createReceptionTask workflow failed before the internal SMS step",
+      "rule": {
+        "type": "tool_result_path_equals",
+        "tool_name": "createReceptionTask",
+        "path": "accepted",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "reschedule-task-type-used",
+      "description": "The handoff should keep the reschedule_or_cancel task type.",
+      "severity": "critical",
+      "root_cause_hint": "assistant mapped the reschedule request to the wrong task type",
+      "rule": {
+        "type": "tool_arg_equals",
+        "tool_name": "createReceptionTask",
+        "path": "taskType",
+        "equals": "reschedule_or_cancel"
+      }
+    },
+    {
+      "criterion_id": "internal-sms-called-on-confirmation-turn",
+      "description": "The internal receptionist SMS should be triggered on the confirmation turn only.",
+      "severity": "critical",
+      "root_cause_hint": "assistant did not call sendSmsToReceptionists after the handoff task succeeded",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 2,
+        "tool_name": "sendSmsToReceptionists"
+      }
+    },
+    {
+      "criterion_id": "internal-sms-called-after-task-result",
+      "description": "The internal receptionist SMS should be triggered only after createReceptionTask has already returned its result.",
+      "severity": "critical",
+      "root_cause_hint": "assistant called sendSmsToReceptionists before createReceptionTask returned the taskId",
+      "rule": {
+        "type": "tool_called_after_tool_result",
+        "tool_name": "sendSmsToReceptionists",
+        "source_tool_name": "createReceptionTask"
+      }
+    },
+    {
+      "criterion_id": "internal-sms-reuses-task-id",
+      "description": "The internal receptionist SMS must reuse the exact taskId returned by createReceptionTask.",
+      "severity": "critical",
+      "root_cause_hint": "assistant did not propagate the created taskId into sendSmsToReceptionists",
+      "rule": {
+        "type": "tool_arg_matches_tool_result_path",
+        "tool_name": "sendSmsToReceptionists",
+        "path": "taskId",
+        "source_tool_name": "createReceptionTask",
+        "source_path": "taskId"
+      }
+    },
+    {
+      "criterion_id": "internal-sms-keeps-task-type",
+      "description": "The internal receptionist SMS payload should keep the reschedule_or_cancel task type.",
+      "severity": "medium",
+      "root_cause_hint": "assistant lost the handoff task type before the sendSmsToReceptionists call",
+      "rule": {
+        "type": "tool_arg_equals",
+        "tool_name": "sendSmsToReceptionists",
+        "path": "taskType",
+        "equals": "reschedule_or_cancel"
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "A reschedule handoff with internal SMS must not create a new booking.",
+      "severity": "critical",
+      "root_cause_hint": "assistant attempted to createEvent instead of staying in the handoff branch",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    }
+  ]
+}

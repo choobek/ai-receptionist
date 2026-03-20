@@ -236,6 +236,29 @@ function loadScenarios(selectedIds) {
   return selected;
 }
 
+function getEnabledToolBindings(bindings) {
+  const toolIds = bindings?.toolIds;
+  if (!toolIds || typeof toolIds !== 'object') {
+    return new Set();
+  }
+
+  return new Set(
+    Object.entries(toolIds)
+      .filter(([, toolId]) => typeof toolId === 'string' && toolId.trim())
+      .map(([toolName]) => toolName)
+  );
+}
+
+function getMissingRequiredToolBindings(scenario, enabledToolBindings) {
+  const requiredToolBindings = Array.isArray(scenario?.required_tool_bindings)
+    ? scenario.required_tool_bindings
+      .filter((toolName) => typeof toolName === 'string' && toolName.trim())
+      .map((toolName) => toolName.trim())
+    : [];
+
+  return requiredToolBindings.filter((toolName) => !enabledToolBindings.has(toolName));
+}
+
 function printScenarioList(scenarios) {
   for (const scenario of scenarios) {
     console.log(`${scenario.scenario_id}\t${scenario.title}`);
@@ -402,6 +425,18 @@ function findToolCalls(context, toolName, turn) {
   });
 }
 
+function findTranscriptEntries(context, kind, toolName) {
+  return context.transcript.filter((entry) => {
+    if (kind && entry.kind !== kind) {
+      return false;
+    }
+    if (toolName && entry.tool_name !== toolName) {
+      return false;
+    }
+    return true;
+  });
+}
+
 function pickOccurrence(traces, occurrence) {
   if (traces.length === 0) {
     return null;
@@ -432,6 +467,7 @@ function getAssistantTextForTurn(context, turn) {
 function evaluateCriterion(context, criterion) {
   const rule = criterion.rule || {};
   const occurrence = rule.occurrence || 'last';
+  const sourceOccurrence = rule.source_occurrence || 'last';
   const evidence = [];
   const fail = (failureReason) => ({
     criterion_id: criterion.criterion_id,
@@ -608,12 +644,78 @@ function evaluateCriterion(context, criterion) {
         : fail(`Expected ${occurrence} ${rule.tool_name} result ${rule.path} to equal ${formatValue(rule.equals)}`);
     }
 
+    case 'tool_arg_matches_tool_result_path': {
+      const sourceMatches = findToolCalls(context, rule.source_tool_name);
+      const sourceTrace = pickOccurrence(sourceMatches, sourceOccurrence);
+      const sourceValue = getByPath(sourceTrace?.result, rule.source_path);
+      if (sourceTrace) {
+        evidence.push(`${sourceTrace.tool_name} result ${rule.source_path}=${formatValue(sourceValue)}`);
+      } else {
+        evidence.push(`0 ${rule.source_tool_name} call(s)`);
+      }
+
+      const matches = findToolCalls(context, rule.tool_name);
+      const candidate = occurrence === 'any'
+        ? matches.find((trace) => valuesEqual(getByPath(trace.arguments, rule.path), sourceValue))
+        : pickOccurrence(matches, occurrence);
+
+      if (candidate) {
+        evidence.push(`${candidate.tool_name}.${rule.path}=${formatValue(getByPath(candidate.arguments, rule.path))}`);
+      } else {
+        evidence.push(`0 ${rule.tool_name} call(s)`);
+      }
+
+      if (!sourceTrace) {
+        return fail(`Expected ${rule.source_tool_name} to provide result ${rule.source_path}`);
+      }
+
+      if (occurrence === 'any') {
+        return candidate
+          ? pass()
+          : fail(`Expected any ${rule.tool_name} call to reuse ${rule.source_tool_name} result ${rule.source_path} at ${rule.path}`);
+      }
+
+      return candidate && valuesEqual(getByPath(candidate.arguments, rule.path), sourceValue)
+        ? pass()
+        : fail(`Expected ${occurrence} ${rule.tool_name} call to reuse ${rule.source_tool_name} result ${rule.source_path} at ${rule.path}`);
+    }
+
     case 'tool_call_count_at_least': {
       const matches = findToolCalls(context, rule.tool_name);
       evidence.push(`${matches.length} ${rule.tool_name} call(s)`);
       return matches.length >= rule.min
         ? pass()
         : fail(`Expected at least ${rule.min} ${rule.tool_name} call(s)`);
+    }
+
+    case 'tool_called_after_tool_result': {
+      const sourceEntry = pickOccurrence(
+        findTranscriptEntries(context, 'tool_result', rule.source_tool_name),
+        sourceOccurrence
+      );
+      const targetEntries = findTranscriptEntries(context, 'tool_call', rule.tool_name);
+      const targetEntry = occurrence === 'any'
+        ? targetEntries.find((entry) => sourceEntry && entry.sequence > sourceEntry.sequence) || null
+        : pickOccurrence(targetEntries, occurrence);
+
+      evidence.push(
+        sourceEntry
+          ? `${rule.source_tool_name} result sequence=${sourceEntry.sequence}`
+          : `0 ${rule.source_tool_name} result(s)`
+      );
+      evidence.push(
+        targetEntry
+          ? `${rule.tool_name} call sequence=${targetEntry.sequence}`
+          : `0 ${rule.tool_name} call(s)`
+      );
+
+      if (!sourceEntry || !targetEntry) {
+        return fail(`Expected ${rule.tool_name} to be called after ${rule.source_tool_name} returned a result`);
+      }
+
+      return targetEntry.sequence > sourceEntry.sequence
+        ? pass()
+        : fail(`Expected ${rule.tool_name} to be called after the ${rule.source_tool_name} result`);
     }
 
     case 'tool_arg_changed_between_turns': {
@@ -729,7 +831,45 @@ function buildScenarioSummary(context, criteriaResults, error) {
   };
 }
 
+function buildSkippedScenarioRun(scenario, clientConfig, missingToolBindings) {
+  const timestamp = stableNowIso();
+  const reason = `Required staging tool bindings are missing: ${missingToolBindings.join(', ')}`;
+
+  return {
+    schema_version: 'staging-chat-run.v1',
+    suite_run_id: clientConfig.suiteRunId,
+    scenario_id: scenario.scenario_id,
+    title: scenario.title,
+    environment: 'staging',
+    chat_id: null,
+    started_at: timestamp,
+    completed_at: timestamp,
+    status: 'skipped',
+    transcript: [],
+    tool_trace: [],
+    criteria: [],
+    summary: {
+      failure_count: 0,
+      warning_count: 0,
+      booking_created: false,
+      reception_task_created: false,
+      suspected_root_cause: null,
+      failure_reason: reason,
+      transcript_excerpt: []
+    },
+    error: null
+  };
+}
+
 async function executeScenario(scenario, clientConfig) {
+  const missingToolBindings = getMissingRequiredToolBindings(
+    scenario,
+    clientConfig.enabledToolBindings || new Set()
+  );
+  if (missingToolBindings.length > 0) {
+    return buildSkippedScenarioRun(scenario, clientConfig, missingToolBindings);
+  }
+
   const context = createContext(scenario);
   const startedAt = stableNowIso();
 
@@ -829,7 +969,7 @@ function renderMarkdownReport(suiteSummary, scenarioRuns) {
     `- Started: \`${suiteSummary.started_at}\``,
     `- Completed: \`${suiteSummary.completed_at}\``,
     `- Status: **${suiteSummary.status.toUpperCase()}**`,
-    `- Scenarios: ${suiteSummary.passed_count}/${suiteSummary.scenario_count} passed`,
+    `- Scenarios: ${suiteSummary.passed_count} passed, ${suiteSummary.skipped_count} skipped, ${suiteSummary.failed_count} failed`,
     '',
     '## Scenario Summary',
     '',
@@ -855,6 +995,10 @@ function renderMarkdownReport(suiteSummary, scenarioRuns) {
     lines.push(`- Booking created: ${scenarioRun.summary.booking_created ? 'yes' : 'no'}`);
     lines.push(`- Reception task created: ${scenarioRun.summary.reception_task_created ? 'yes' : 'no'}`);
 
+    if (scenarioRun.status === 'skipped') {
+      lines.push(`- Skip reason: ${scenarioRun.summary.failure_reason || 'missing required tool bindings'}`);
+    }
+
     if (failedCriteria.length > 0) {
       lines.push('', 'Failed criteria:');
       for (const criterion of failedCriteria) {
@@ -878,9 +1022,11 @@ function renderMarkdownReport(suiteSummary, scenarioRuns) {
 
 function printConsoleSummary(suiteSummary) {
   console.log('');
-  console.log(`Suite ${suiteSummary.suite_run_id}: ${suiteSummary.passed_count}/${suiteSummary.scenario_count} passed`);
+  console.log(
+    `Suite ${suiteSummary.suite_run_id}: ${suiteSummary.passed_count} passed, ${suiteSummary.skipped_count} skipped, ${suiteSummary.failed_count} failed`
+  );
   for (const scenario of suiteSummary.scenario_results) {
-    const status = scenario.status.toUpperCase().padEnd(6, ' ');
+    const status = scenario.status.toUpperCase().padEnd(7, ' ');
     const suffix = scenario.failure_reason ? ` - ${scenario.failure_reason}` : '';
     console.log(`${status} ${scenario.scenario_id}${suffix}`);
   }
@@ -900,6 +1046,7 @@ async function main() {
 
   const bindings = readJson(STAGING_BINDINGS_PATH);
   const assistantId = bindings.assistantId;
+  const enabledToolBindings = getEnabledToolBindings(bindings);
   const apiKey = process.env.STAGING_VAPI_API_KEY || process.env.VAPI_API_KEY || '';
   const baseUrl = process.env.VAPI_API_BASE_URL || 'https://api.vapi.ai';
 
@@ -924,7 +1071,8 @@ async function main() {
     assistantId,
     apiKey,
     baseUrl,
-    suiteRunId
+    suiteRunId,
+    enabledToolBindings
   };
 
   const scenarioRuns = [];
@@ -937,7 +1085,11 @@ async function main() {
     scenarioRuns.push(result);
   }
 
-  const failedCount = scenarioRuns.filter((scenario) => scenario.status !== 'passed').length;
+  const passedCount = scenarioRuns.filter((scenario) => scenario.status === 'passed').length;
+  const skippedCount = scenarioRuns.filter((scenario) => scenario.status === 'skipped').length;
+  const failedCount = scenarioRuns.filter(
+    (scenario) => scenario.status === 'failed' || scenario.status === 'error'
+  ).length;
   const suiteSummary = {
     schema_version: 'staging-chat-suite.v1',
     suite_run_id: suiteRunId,
@@ -946,7 +1098,8 @@ async function main() {
     completed_at: stableNowIso(),
     status: failedCount === 0 ? 'passed' : 'failed',
     scenario_count: scenarioRuns.length,
-    passed_count: scenarioRuns.length - failedCount,
+    passed_count: passedCount,
+    skipped_count: skippedCount,
     failed_count: failedCount,
     run_dir: toRelativePath(outputDir),
     report_path: toRelativePath(reportPath),
@@ -971,7 +1124,17 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error.message);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+} else {
+  module.exports = {
+    createContext,
+    normalizeOutputForTurn,
+    evaluateCriterion,
+    getEnabledToolBindings,
+    getMissingRequiredToolBindings
+  };
+}

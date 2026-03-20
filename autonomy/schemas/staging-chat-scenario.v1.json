@@ -56,6 +56,14 @@
         "type": "string"
       }
     },
+    "required_tool_bindings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      }
+    },
     "source": {
       "type": "object",
       "additionalProperties": false,
@@ -198,7 +206,9 @@
             "tool_not_called",
             "tool_arg_equals",
             "tool_result_path_equals",
+            "tool_arg_matches_tool_result_path",
             "tool_call_count_at_least",
+            "tool_called_after_tool_result",
             "tool_arg_changed_between_turns",
             "create_event_matches_selected_slot"
           ]
@@ -224,6 +234,16 @@
           "maxLength": 100
         },
         "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "source_tool_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "source_path": {
           "type": "string",
           "minLength": 1,
           "maxLength": 200
@@ -256,6 +276,15 @@
           }
         },
         "occurrence": {
+          "type": "string",
+          "enum": [
+            "first",
+            "last",
+            "any"
+          ],
+          "default": "last"
+        },
+        "source_occurrence": {
           "type": "string",
           "enum": [
             "first",

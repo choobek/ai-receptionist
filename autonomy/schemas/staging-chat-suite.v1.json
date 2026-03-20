@@ -12,6 +12,7 @@
     "status",
     "scenario_count",
     "passed_count",
+    "skipped_count",
     "failed_count",
     "run_dir",
     "report_path",
@@ -48,6 +49,10 @@
       "minimum": 0
     },
     "passed_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "skipped_count": {
       "type": "integer",
       "minimum": 0
     },

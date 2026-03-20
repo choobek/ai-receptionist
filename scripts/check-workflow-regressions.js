@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const assert = require('node:assert/strict');
+const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -14,9 +15,25 @@ const { selectCompletedRecentCall } = require(path.join(
   'autonomy',
   'run-staging-voice-smoke-suite.js'
 ));
+const {
+  createContext: createChatRegressionContext,
+  normalizeOutputForTurn,
+  evaluateCriterion: evaluateChatCriterion,
+  getEnabledToolBindings,
+  getMissingRequiredToolBindings
+} = require(path.join(
+  rootDir,
+  'scripts',
+  'autonomy',
+  'run-staging-regression-suite.js'
+));
 
 function loadJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function loadEnvironmentBindings(environment) {
+  return loadJson(path.join(rootDir, 'configs', 'vapi', 'environments', `${environment}.json`));
 }
 
 function loadWorkflow(filename) {
@@ -29,6 +46,22 @@ function loadAssistantConfig() {
 
 function loadStructuredOutputSchema() {
   return loadJson(structuredOutputSchemaPath);
+}
+
+function loadStagingScenario(filename) {
+  return loadJson(path.join(rootDir, 'autonomy', 'scenarios', 'staging', filename));
+}
+
+function renderAssistantConfig(environment, envOverrides = {}) {
+  const output = execFileSync('bash', ['scripts/render-vapi-assistant-config.sh', environment], {
+    cwd: rootDir,
+    env: {
+      ...process.env,
+      ...envOverrides
+    },
+    encoding: 'utf8'
+  });
+  return JSON.parse(output);
 }
 
 function getAssistantSystemPrompt(config = loadAssistantConfig()) {
@@ -939,6 +972,303 @@ test('assistant config keeps the post-endpoint wait', () => {
     }
   ]);
   assert.equal(config.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 3);
+});
+
+test('assistant renderer includes SMS tools in production when bindings are configured', () => {
+  const rendered = renderAssistantConfig('production', {
+    PRODUCTION_N8N_PUBLIC_BASE_URL: 'https://prod.example.test',
+    PRODUCTION_AI_RECEPTIONIST_WEBHOOK_SECRET: 'prod-secret'
+  });
+  const receptionSmsBinding = rendered.toolBindings.find(
+    (binding) => binding.name === 'sendSmsToReceptionists'
+  );
+  const patientSmsBinding = rendered.toolBindings.find(
+    (binding) => binding.name === 'sendSmsToPatient'
+  );
+
+  assert.deepEqual(
+    rendered.toolBindings.map((binding) => binding.name),
+    [
+      'lookupPatient',
+      'checkAvailability',
+      'searchKnowledgeBase',
+      'createEvent',
+      'createReceptionTask',
+      'sendSmsToReceptionists',
+      'sendSmsToPatient'
+    ]
+  );
+  assert.equal(rendered.assistant?.model?.toolIds?.length, 7);
+  assert.ok(receptionSmsBinding?.serverUrl?.includes('/send-sms-to-receptionists?secret='));
+  assert.ok(patientSmsBinding?.serverUrl?.includes('/send-sms-to-patient?secret='));
+});
+
+test('assistant renderer includes SMS tools in staging when bindings are configured', () => {
+  const rendered = renderAssistantConfig('staging', {
+    STAGING_N8N_PUBLIC_BASE_URL: 'https://staging.example.test',
+    STAGING_AI_RECEPTIONIST_WEBHOOK_SECRET: 'stage-secret'
+  });
+  const receptionSmsBinding = rendered.toolBindings.find(
+    (binding) => binding.name === 'sendSmsToReceptionists'
+  );
+  const patientSmsBinding = rendered.toolBindings.find(
+    (binding) => binding.name === 'sendSmsToPatient'
+  );
+
+  assert.deepEqual(
+    rendered.toolBindings.map((binding) => binding.name),
+    [
+      'lookupPatient',
+      'checkAvailability',
+      'searchKnowledgeBase',
+      'createEvent',
+      'createReceptionTask',
+      'sendSmsToReceptionists',
+      'sendSmsToPatient'
+    ]
+  );
+  assert.equal(rendered.assistant?.model?.toolIds?.length, 7);
+  assert.ok(receptionSmsBinding?.serverUrl?.includes('/send-sms-to-receptionists?secret='));
+  assert.ok(patientSmsBinding?.serverUrl?.includes('/send-sms-to-patient?secret='));
+});
+
+test('assistant SMS scenarios resolve required tool bindings against staging and production environments', () => {
+  const stagingEnabledBindings = getEnabledToolBindings(loadEnvironmentBindings('staging'));
+  const productionEnabledBindings = getEnabledToolBindings(loadEnvironmentBindings('production'));
+  const patientSmsScenario = loadStagingScenario('booking-confirmation-sms.v1.json');
+  const receptionSmsScenario = loadStagingScenario('reschedule-handoff-internal-sms-alert.v1.json');
+
+  assert.deepEqual(
+    getMissingRequiredToolBindings(patientSmsScenario, stagingEnabledBindings),
+    []
+  );
+  assert.deepEqual(
+    getMissingRequiredToolBindings(receptionSmsScenario, stagingEnabledBindings),
+    []
+  );
+  assert.deepEqual(
+    getMissingRequiredToolBindings(patientSmsScenario, productionEnabledBindings),
+    []
+  );
+  assert.deepEqual(
+    getMissingRequiredToolBindings(receptionSmsScenario, productionEnabledBindings),
+    []
+  );
+});
+
+test('assistant chat rubric can verify patient SMS ordering and calendarEventId reuse', () => {
+  const context = createChatRegressionContext({
+    turns: [{ user: 'synthetic turn' }],
+    rubric: []
+  });
+
+  normalizeOutputForTurn(context, 1, [
+    {
+      role: 'assistant',
+      tool_calls: [
+        {
+          id: 'tool_create_event_1',
+          function: {
+            name: 'createEvent',
+            arguments: JSON.stringify({
+              service: { id: 'consultation' },
+              slotStart: '2026-03-23T09:00:00+01:00',
+              slotEnd: '2026-03-23T09:45:00+01:00'
+            })
+          }
+        }
+      ]
+    },
+    {
+      role: 'tool',
+      tool_call_id: 'tool_create_event_1',
+      content: {
+        created: true,
+        calendarEventId: 'evt_sms_patient_001'
+      }
+    },
+    {
+      role: 'assistant',
+      tool_calls: [
+        {
+          id: 'tool_send_sms_patient_1',
+          function: {
+            name: 'sendSmsToPatient',
+            arguments: JSON.stringify({
+              calendarEventId: 'evt_sms_patient_001',
+              consentConfirmed: true,
+              language: 'pl'
+            })
+          }
+        }
+      ]
+    },
+    {
+      role: 'tool',
+      tool_call_id: 'tool_send_sms_patient_1',
+      content: {
+        accepted: true
+      }
+    }
+  ]);
+
+  const orderingResult = evaluateChatCriterion(context, {
+    criterion_id: 'sms-after-booking',
+    description: 'sendSmsToPatient should happen after createEvent returned',
+    severity: 'critical',
+    rule: {
+      type: 'tool_called_after_tool_result',
+      tool_name: 'sendSmsToPatient',
+      source_tool_name: 'createEvent'
+    }
+  });
+  assert.equal(orderingResult.passed, true);
+
+  const idReuseResult = evaluateChatCriterion(context, {
+    criterion_id: 'sms-reuses-event-id',
+    description: 'sendSmsToPatient should reuse calendarEventId from createEvent',
+    severity: 'critical',
+    rule: {
+      type: 'tool_arg_matches_tool_result_path',
+      tool_name: 'sendSmsToPatient',
+      path: 'calendarEventId',
+      source_tool_name: 'createEvent',
+      source_path: 'calendarEventId'
+    }
+  });
+  assert.equal(idReuseResult.passed, true);
+});
+
+test('assistant chat rubric rejects patient SMS calls that happen before createEvent returns', () => {
+  const context = createChatRegressionContext({
+    turns: [{ user: 'synthetic turn' }],
+    rubric: []
+  });
+
+  normalizeOutputForTurn(context, 1, [
+    {
+      role: 'assistant',
+      tool_calls: [
+        {
+          id: 'tool_create_event_early',
+          function: {
+            name: 'createEvent',
+            arguments: JSON.stringify({
+              service: { id: 'consultation' }
+            })
+          }
+        }
+      ]
+    },
+    {
+      role: 'assistant',
+      tool_calls: [
+        {
+          id: 'tool_send_sms_patient_early',
+          function: {
+            name: 'sendSmsToPatient',
+            arguments: JSON.stringify({
+              calendarEventId: 'evt_missing'
+            })
+          }
+        }
+      ]
+    },
+    {
+      role: 'tool',
+      tool_call_id: 'tool_create_event_early',
+      content: {
+        created: true,
+        calendarEventId: 'evt_missing'
+      }
+    }
+  ]);
+
+  const orderingResult = evaluateChatCriterion(context, {
+    criterion_id: 'sms-before-booking',
+    description: 'sendSmsToPatient should not happen before createEvent returned',
+    severity: 'critical',
+    rule: {
+      type: 'tool_called_after_tool_result',
+      tool_name: 'sendSmsToPatient',
+      source_tool_name: 'createEvent'
+    }
+  });
+  assert.equal(orderingResult.passed, false);
+  assert.match(orderingResult.failure_reason || '', /after the createEvent result/);
+});
+
+test('assistant chat rubric can verify internal receptionist SMS ordering and taskId reuse', () => {
+  const context = createChatRegressionContext({
+    turns: [{ user: 'synthetic turn' }],
+    rubric: []
+  });
+
+  normalizeOutputForTurn(context, 1, [
+    {
+      role: 'assistant',
+      tool_calls: [
+        {
+          id: 'tool_create_task_1',
+          function: {
+            name: 'createReceptionTask',
+            arguments: JSON.stringify({
+              taskType: 'reschedule_or_cancel'
+            })
+          }
+        }
+      ]
+    },
+    {
+      role: 'tool',
+      tool_call_id: 'tool_create_task_1',
+      content: {
+        accepted: true,
+        taskId: 'task_sms_reception_001'
+      }
+    },
+    {
+      role: 'assistant',
+      tool_calls: [
+        {
+          id: 'tool_send_sms_reception_1',
+          function: {
+            name: 'sendSmsToReceptionists',
+            arguments: JSON.stringify({
+              taskId: 'task_sms_reception_001',
+              taskType: 'reschedule_or_cancel'
+            })
+          }
+        }
+      ]
+    }
+  ]);
+
+  const orderingResult = evaluateChatCriterion(context, {
+    criterion_id: 'internal-sms-after-task',
+    description: 'sendSmsToReceptionists should happen after createReceptionTask returned',
+    severity: 'critical',
+    rule: {
+      type: 'tool_called_after_tool_result',
+      tool_name: 'sendSmsToReceptionists',
+      source_tool_name: 'createReceptionTask'
+    }
+  });
+  assert.equal(orderingResult.passed, true);
+
+  const idReuseResult = evaluateChatCriterion(context, {
+    criterion_id: 'internal-sms-reuses-task-id',
+    description: 'sendSmsToReceptionists should reuse taskId from createReceptionTask',
+    severity: 'critical',
+    rule: {
+      type: 'tool_arg_matches_tool_result_path',
+      tool_name: 'sendSmsToReceptionists',
+      path: 'taskId',
+      source_tool_name: 'createReceptionTask',
+      source_path: 'taskId'
+    }
+  });
+  assert.equal(idReuseResult.passed, true);
 });
 
 test('voice smoke recent-call selection prefers the current scenario call', () => {

@@ -35,6 +35,8 @@ For each scenario it:
 5. renders a Markdown regression report
 6. exits non-zero if any required criterion fails
 
+If a scenario declares `required_tool_bindings` that are not present in the current staging Vapi bindings, the runner marks that scenario as `skipped` instead of failing the suite. This keeps future-facing assistant scenarios in the active set without pretending staging can exercise tools that are not enabled there yet.
+
 ## Scenario format
 
 Runnable staging scenarios live under:
@@ -56,9 +58,11 @@ Each scenario contains:
 Current seeded coverage:
 
 - booking flow with real staging `createEvent` plus combined identity capture
+- booking flow with patient-facing confirmation SMS
 - availability lookup without booking
 - knowledge-base question
 - reception follow-up task creation
+- reception handoff with internal SMS alert
 - alternative-day ambiguity refresh with a second lookup
 - corrected-day refresh with a second availability lookup
 - urgent first-available lookup

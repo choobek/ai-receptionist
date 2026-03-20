@@ -51,7 +51,8 @@
       "enum": [
         "passed",
         "failed",
-        "error"
+        "error",
+        "skipped"
       ]
     },
     "transcript": {

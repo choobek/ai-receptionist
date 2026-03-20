@@ -15,6 +15,8 @@
     "checkAvailability": "0110b399-9815-46af-a9a5-e3626f25f9f7",
     "searchKnowledgeBase": "173bb284-d6a9-4f7b-9bb4-ec85e4da0e8b",
     "createEvent": "2ed8f43d-a086-4e4c-94e1-f50970fafdee",
-    "createReceptionTask": "00fa7a52-6163-439e-9812-f6aa51192754"
+    "createReceptionTask": "00fa7a52-6163-439e-9812-f6aa51192754",
+    "sendSmsToReceptionists": "af60da21-c3f7-4e3b-84dc-9b3e31269394",
+    "sendSmsToPatient": "69edc91c-7122-471d-a180-2cbab66d6018"
   }
 }

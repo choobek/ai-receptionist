@@ -1,0 +1,214 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "booking-confirmation-sms",
+  "title": "Confirmed booking triggers patient SMS only after createEvent succeeds",
+  "description": "The caller asks to book a first consultation, explicitly requests an SMS confirmation, selects the first slot, confirms synthetic identity details, and then confirms the booking. When the SMS tool is available, the assistant should call sendSmsToPatient only after createEvent succeeds and should reuse the created calendarEventId.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "booking",
+    "sms",
+    "post-booking",
+    "staging-write"
+  ],
+  "required_tool_bindings": [
+    "sendSmsToPatient"
+  ],
+  "source": {
+    "origin": "project_scope",
+    "references": [
+      "configs/vapi/assistant.v1.json",
+      "docs/tool-contracts.md"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 6
+  },
+  "turns": [
+    {
+      "turn_id": "ask-to-book-with-sms",
+      "user": "Chcialabym umowic pierwsza konsultacje na jutro rano. Jesli sie uda, prosze potem o SMS z potwierdzeniem.",
+      "assertions": [
+        {
+          "criterion_id": "no-patient-sms-on-initial-request",
+          "description": "The assistant must not try to send the patient SMS before the booking exists.",
+          "severity": "high",
+          "root_cause_hint": "assistant tried to send a booking SMS before createEvent succeeded",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 1,
+            "tool_name": "sendSmsToPatient"
+          }
+        }
+      ]
+    },
+    {
+      "turn_id": "select-first-slot",
+      "user": "Pierwszy termin pasuje.",
+      "assertions": [
+        {
+          "criterion_id": "no-patient-sms-before-slot-confirmation-flow-finishes",
+          "description": "The assistant must still wait with the patient SMS after slot selection.",
+          "severity": "high",
+          "root_cause_hint": "assistant tried to send the booking SMS before the booking confirmation flow finished",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 2,
+            "tool_name": "sendSmsToPatient"
+          }
+        }
+      ]
+    },
+    {
+      "turn_id": "confirm-first-visit",
+      "user": "Tak, to pierwsza wizyta.",
+      "assertions": [
+        {
+          "criterion_id": "no-patient-sms-before-identity-capture",
+          "description": "The assistant must not send the booking SMS before it has all booking details.",
+          "severity": "high",
+          "root_cause_hint": "assistant tried to send the booking SMS before patient identity was confirmed",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 3,
+            "tool_name": "sendSmsToPatient"
+          }
+        }
+      ]
+    },
+    {
+      "turn_id": "provide-synthetic-identity",
+      "user": "Test Regresji SMS Pacjent, moj numer to siedem zero dwa, zero zero trzy, zero zero szesc.",
+      "assertions": [
+        {
+          "criterion_id": "no-patient-sms-before-phone-confirmation",
+          "description": "The assistant must wait until the repeated phone number is confirmed.",
+          "severity": "high",
+          "root_cause_hint": "assistant tried to send the booking SMS before the phone confirmation step completed",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 4,
+            "tool_name": "sendSmsToPatient"
+          }
+        }
+      ]
+    },
+    {
+      "turn_id": "confirm-phone",
+      "user": "Tak, zgadza sie.",
+      "assertions": [
+        {
+          "criterion_id": "no-patient-sms-before-final-booking-consent",
+          "description": "The assistant must still wait with the patient SMS until after the final booking confirmation.",
+          "severity": "high",
+          "root_cause_hint": "assistant tried to send the booking SMS before the final booking consent",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 5,
+            "tool_name": "sendSmsToPatient"
+          }
+        }
+      ]
+    },
+    {
+      "turn_id": "confirm-booking-and-sms",
+      "user": "Tak, prosze potwierdzic rezerwacje i wyslac SMS z potwierdzeniem."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "availability-lookup-used",
+      "description": "The assistant should look up consultation availability before booking.",
+      "severity": "critical",
+      "root_cause_hint": "assistant stopped calling checkAvailability for simple booking requests",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 1,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "booking-created",
+      "description": "The final booking confirmation should create a real staging event.",
+      "severity": "critical",
+      "root_cause_hint": "assistant confirmation flow or createEvent workflow failed before the SMS step",
+      "rule": {
+        "type": "tool_result_path_equals",
+        "tool_name": "createEvent",
+        "path": "created",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "patient-sms-called-on-final-turn",
+      "description": "The assistant should only call sendSmsToPatient on the final confirmation turn.",
+      "severity": "critical",
+      "root_cause_hint": "assistant did not trigger the patient SMS after a fully confirmed booking",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 6,
+        "tool_name": "sendSmsToPatient"
+      }
+    },
+    {
+      "criterion_id": "patient-sms-called-after-booking-result",
+      "description": "The patient SMS should be triggered only after createEvent has already returned its result.",
+      "severity": "critical",
+      "root_cause_hint": "assistant called sendSmsToPatient before the createEvent result was available",
+      "rule": {
+        "type": "tool_called_after_tool_result",
+        "tool_name": "sendSmsToPatient",
+        "source_tool_name": "createEvent"
+      }
+    },
+    {
+      "criterion_id": "patient-sms-reuses-calendar-event-id",
+      "description": "The patient SMS must reuse the exact calendarEventId returned by createEvent.",
+      "severity": "critical",
+      "root_cause_hint": "assistant did not propagate the created booking ID into sendSmsToPatient",
+      "rule": {
+        "type": "tool_arg_matches_tool_result_path",
+        "tool_name": "sendSmsToPatient",
+        "path": "calendarEventId",
+        "source_tool_name": "createEvent",
+        "source_path": "calendarEventId"
+      }
+    },
+    {
+      "criterion_id": "patient-sms-keeps-consent-confirmed",
+      "description": "The SMS request must pass explicit consent into sendSmsToPatient.",
+      "severity": "high",
+      "root_cause_hint": "assistant lost the explicit SMS consent before the sendSmsToPatient call",
+      "rule": {
+        "type": "tool_arg_equals",
+        "tool_name": "sendSmsToPatient",
+        "path": "consentConfirmed",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "patient-sms-keeps-polish-language",
+      "description": "A Polish conversation should set sendSmsToPatient.language to pl.",
+      "severity": "medium",
+      "root_cause_hint": "assistant drifted the SMS language away from the conversation language",
+      "rule": {
+        "type": "tool_arg_equals",
+        "tool_name": "sendSmsToPatient",
+        "path": "language",
+        "equals": "pl"
+      }
+    },
+    {
+      "criterion_id": "no-reception-task-on-booking-flow",
+      "description": "A successful direct booking with SMS should not create a reception handoff task.",
+      "severity": "high",
+      "root_cause_hint": "assistant routed a simple booking flow into createReceptionTask unexpectedly",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createReceptionTask"
+      }
+    }
+  ]
+}
