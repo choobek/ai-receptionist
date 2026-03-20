@@ -14,6 +14,11 @@ API_BASE_URL="${VAPI_API_BASE_URL:-https://api.vapi.ai}"
 API_KEY="$(get_context_value "$ENVIRONMENT" "VAPI_API_KEY" "VAPI_API_KEY")"
 TWILIO_ACCOUNT_SID="$(get_context_value "$ENVIRONMENT" "TWILIO_ACCOUNT_SID" "TWILIO_ACCOUNT_SID")"
 TWILIO_AUTH_TOKEN="$(get_context_value "$ENVIRONMENT" "TWILIO_AUTH_TOKEN" "TWILIO_AUTH_TOKEN")"
+TWILIO_PHONE_NUMBER_LEGACY_VAR=""
+if [ "$ENVIRONMENT" = "production" ]; then
+  TWILIO_PHONE_NUMBER_LEGACY_VAR="TWILIO_PHONE_NUMBER"
+fi
+ENV_TWILIO_PHONE_NUMBER="$(get_context_value "$ENVIRONMENT" "TWILIO_PHONE_NUMBER" "$TWILIO_PHONE_NUMBER_LEGACY_VAR")"
 BINDINGS_PATH="$ROOT_DIR/configs/vapi/environments/$ENVIRONMENT.json"
 
 if ! command -v jq >/dev/null 2>&1; then
@@ -76,11 +81,8 @@ resolve_twilio_phone_number() {
     return 0
   fi
 
-  local configured_phone_number
-  configured_phone_number="$(get_context_value "$ENVIRONMENT" "TWILIO_PHONE_NUMBER")"
-  configured_phone_number="${TWILIO_PHONE_NUMBER:-$configured_phone_number}"
-  if [ -n "$configured_phone_number" ]; then
-    printf '%s\n' "$configured_phone_number"
+  if [ -n "$ENV_TWILIO_PHONE_NUMBER" ]; then
+    printf '%s\n' "$ENV_TWILIO_PHONE_NUMBER"
     return 0
   fi
 
@@ -284,9 +286,9 @@ import_phone_number() {
 }
 
 RESOLVED_TWILIO_PHONE_NUMBER=""
-if [ -n "$DECLARED_PHONE_NUMBER" ] || [ -n "${TWILIO_PHONE_NUMBER:-}" ] || [ -n "$(get_context_value "$ENVIRONMENT" "TWILIO_PHONE_NUMBER")" ]; then
+if [ -n "$DECLARED_PHONE_NUMBER" ] || [ -n "$ENV_TWILIO_PHONE_NUMBER" ]; then
   RESOLVED_TWILIO_PHONE_NUMBER="$(resolve_twilio_phone_number)"
-elif [ -n "$TWILIO_ACCOUNT_SID" ] && [ -n "$TWILIO_AUTH_TOKEN" ]; then
+elif [ "$ENVIRONMENT" = "production" ] && [ -n "$TWILIO_ACCOUNT_SID" ] && [ -n "$TWILIO_AUTH_TOKEN" ]; then
   RESOLVED_TWILIO_PHONE_NUMBER="$(resolve_twilio_phone_number)"
 fi
 
