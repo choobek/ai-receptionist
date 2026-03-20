@@ -81,7 +81,7 @@
       "type": "integer",
       "minimum": 1,
       "maximum": 14,
-      "description": "How many consecutive clinic days to search when timePreference is first_available."
+      "description": "How many consecutive clinic days to search from requestedDate. Use it for first_available and for broad multi-day morning/afternoon/evening ranges such as next week."
     },
     "patient": {
       "type": "object",
@@ -173,6 +173,19 @@
         "durationMinutes": 45
       },
       "timePreference": "first_available",
+      "timezone": "Europe/Warsaw",
+      "limit": 3,
+      "searchDays": 5
+    },
+    {
+      "requestId": "req_003",
+      "service": {
+        "id": "hygiene",
+        "name": "Higienizacja",
+        "durationMinutes": 45
+      },
+      "requestedDate": "2026-03-23",
+      "timePreference": "afternoon",
       "timezone": "Europe/Warsaw",
       "limit": 3,
       "searchDays": 5

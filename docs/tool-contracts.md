@@ -115,7 +115,7 @@ Key fields:
 - `requestedDate` in `YYYY-MM-DD` for date-specific searches, optional for `first_available`
 - `requestedTime` in `HH:MM` or `timePreference`
 - `timezone`
-- optional `searchDays` for multi-day `first_available` lookup
+- optional `searchDays` for multi-day `first_available` lookup or broad multi-day morning/afternoon/evening ranges
 - optional `limit`
 
 ### Workflow behavior
@@ -125,10 +125,11 @@ Key fields:
 3. Reject malformed dates, times, and timezones with a validation error.
 4. Normalize service duration and search window.
 5. For `first_available`, start from the requested date or from today in the clinic timezone if the date was omitted.
-6. Search across one or more working days while skipping overnight hours and past slots on the current day.
-7. Read busy events from Google Calendar.
-8. Build up to `limit` valid slots.
-9. Return a short structured response.
+6. If `requestedDate` falls on a closed clinic day and the request is not `specific_time`, roll the search to the next open clinic day.
+7. Search across one or more working days while skipping overnight hours and past slots on the current day.
+8. Read busy events from Google Calendar.
+9. Build up to `limit` valid slots.
+10. Return a short structured response.
 
 ### Success response
 

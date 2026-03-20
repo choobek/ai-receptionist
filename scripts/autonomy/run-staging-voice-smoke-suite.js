@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const { spawnSync } = require('node:child_process');
-const { chromium } = require('playwright-core');
+let chromium = null;
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const DEFAULT_SCENARIOS_DIR = path.join(ROOT_DIR, 'autonomy', 'scenarios', 'staging-voice');
@@ -389,6 +389,9 @@ function createAudioFixtureForScenario(scenario, tempDir) {
       runCommand('ffmpeg', [
         '-y',
         '-i', clipPath,
+        '-af', step.fixture_style === 'low_confidence_noise'
+          ? 'loudnorm=I=-18:LRA=11:TP=-1.5,volume=1.5'
+          : 'loudnorm=I=-18:LRA=11:TP=-1.5',
         '-ac', '1',
         '-ar', '48000',
         '-c:a', 'pcm_s16le',
@@ -746,6 +749,40 @@ function isCallEnded(call) {
   return Boolean(call) && (call.status === 'ended' || Boolean(call.endedAt));
 }
 
+function getCallStartedTimestamp(call) {
+  const startedAt = Date.parse(call?.startedAt || call?.createdAt || '');
+  return Number.isFinite(startedAt) ? startedAt : null;
+}
+
+function selectCompletedRecentCall({ calls, assistantId, scenarioStartedAt, preferredCallId }) {
+  if (!Array.isArray(calls) || calls.length === 0) {
+    return null;
+  }
+
+  const startedTimestamp = Date.parse(scenarioStartedAt || '');
+  const endedCalls = calls.filter((call) =>
+    isCallEnded(call) && (call?.assistantId === assistantId || !call?.assistantId)
+  );
+
+  if (preferredCallId) {
+    const exactMatch = endedCalls.find((call) => call?.id === preferredCallId);
+    if (exactMatch) {
+      return exactMatch;
+    }
+  }
+
+  const eligibleCalls = endedCalls
+    .map((call) => ({ call, startedTimestamp: getCallStartedTimestamp(call) }))
+    .filter(({ startedTimestamp: callStartedTimestamp }) =>
+      Number.isFinite(startedTimestamp)
+        ? Number.isFinite(callStartedTimestamp) && callStartedTimestamp >= startedTimestamp
+        : Number.isFinite(callStartedTimestamp)
+    )
+    .sort((left, right) => right.startedTimestamp - left.startedTimestamp);
+
+  return eligibleCalls[0]?.call || null;
+}
+
 async function fetchCompletedCall({ callId, assistantId, apiKey, baseUrl, scenarioStartedAt, scenario }) {
   const settleSeconds = scenario.runner?.post_call_settle_seconds ?? 5;
   if (settleSeconds > 0) {
@@ -754,7 +791,6 @@ async function fetchCompletedCall({ callId, assistantId, apiKey, baseUrl, scenar
 
   const attempts = scenario.runner?.artifact_poll_attempts ?? 15;
   const intervalMs = (scenario.runner?.artifact_poll_seconds ?? 2) * 1000;
-  const startedTimestamp = Date.parse(scenarioStartedAt);
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     if (callId) {
@@ -769,12 +805,11 @@ async function fetchCompletedCall({ callId, assistantId, apiKey, baseUrl, scenar
     }
 
     const calls = await fetchRecentCalls({ assistantId, apiKey, baseUrl, limit: 10 });
-    const recent = calls.find((call) => {
-      const callStartedAt = Date.parse(call?.startedAt || '');
-      if (!Number.isFinite(callStartedAt) || callStartedAt < startedTimestamp - 60000) {
-        return false;
-      }
-      return isCallEnded(call) && (call?.assistantId === assistantId || !call?.assistantId);
+    const recent = selectCompletedRecentCall({
+      calls,
+      assistantId,
+      scenarioStartedAt,
+      preferredCallId: callId
     });
 
     if (recent) {
@@ -1462,6 +1497,9 @@ async function executeScenario(scenario, clientConfig, suiteRunId, suiteOutputDi
   let scenarioStepTimings = [];
 
   try {
+    if (!chromium) {
+      ({ chromium } = require('playwright-core'));
+    }
     const { combinedPath, segmentPaths, stepTimings } = createAudioFixtureForScenario(scenario, tempDir);
     scenarioStepTimings = stepTimings;
     server = createHarnessServer(clientConfig);
@@ -1797,7 +1835,13 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error.message);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  selectCompletedRecentCall
+};

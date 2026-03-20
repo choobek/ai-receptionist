@@ -86,8 +86,8 @@
           "mode": "id",
           "value": "={{ $json.calendarId }}"
         },
-        "start": "={{ $json.slotStart }}",
-        "end": "={{ $json.slotEnd }}",
+        "timeMin": "={{ $json.slotStart }}",
+        "timeMax": "={{ $json.slotEnd }}",
         "options": {
           "outputFormat": "bookedSlots",
           "timezone": "={{ $json.timezone }}"

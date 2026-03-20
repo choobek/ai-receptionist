@@ -61,7 +61,7 @@
     },
     "searchDays": {
       "type": "integer",
-      "description": "For first_available, how many days ahead to search. Usually 5."
+      "description": "How many clinic days to search from requestedDate. Use it for first_available and for broader ranges such as next week afternoons."
     }
   },
   "required": [

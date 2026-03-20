@@ -382,6 +382,7 @@ If tool calls fail:
 - n8n workflow executions
 - VPS-side n8n and reverse proxy logs
 - Google Calendar credential status in n8n
+  See [`operations-runbook.md`](./operations-runbook.md) section `Google Calendar Credential Recovery` for the standard repair path.
 
 If the assistant speaks but no booking happens:
 - verify the Vapi tool URLs use `https://vps-2c8bbf65.vps.ovh.net`

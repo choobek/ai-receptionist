@@ -161,6 +161,44 @@ Important:
 - Credentials are not versioned in this repo. Imported workflows can arrive as inactive drafts without the credential attachments used by the currently active workflows.
 - Do not unpublish the active workflows manually before the reconcile step finishes successfully.
 
+### Google Calendar Credential Recovery
+
+Use this when staging or production starts returning empty or failed availability responses and the n8n executions show Google Calendar auth failures such as `EAUTH` or `invalid_grant`.
+
+Recommended recovery path:
+
+1. Make sure the desired repo workflow JSON is already deployed to the VPS.
+2. Run the reconcile step for the affected environment:
+
+```bash
+./scripts/reconcile-n8n-workflows-vps.sh staging
+./scripts/reconcile-n8n-workflows-vps.sh production
+```
+
+This is the safe first move because it:
+- exports workflow and credential backups on the VPS first
+- copies credential attachments from the best matching existing workflows onto the repo-owned workflow IDs
+- republishes the repo-owned workflows and rewires webhooks to those active IDs
+
+3. If reconcile reports missing Google Calendar credentials, or the next execution still fails with `EAUTH` / `invalid_grant`, refresh or recreate the Google Calendar credential inside the target n8n environment.
+4. Run the reconcile step again after the credential refresh so the repo-owned workflow IDs inherit the live credential attachment.
+5. Verify the fix with both a direct webhook probe and a suite run:
+
+```bash
+curl -sS "https://<environment-host>/webhook/ai-receptionist/check-availability?secret=***" \
+  -H 'content-type: application/json' \
+  --data '{"service":{"id":"consultation"},"timePreference":"first_available","timezone":"Europe/Warsaw"}'
+
+./scripts/run-staging-regression-suite.sh
+./scripts/run-staging-voice-smoke-suite.sh --language all
+```
+
+Notes:
+
+- Treat direct sqlite edits as emergency-only incident response, not the standard operator path.
+- If you must do an emergency runtime patch, follow up by refreshing the real n8n credential and rerunning reconcile so the active state is recoverable through normal scripts.
+- A healthy `checkAvailability` response should return JSON with `available`, `slots`, and `normalizedRequest`, not HTTP 200 with an empty body.
+
 ## 7. Promotion
 
 Promote an approved ref to production:

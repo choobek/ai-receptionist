@@ -8,6 +8,12 @@ const rootDir = path.resolve(__dirname, '..');
 const workflowsDir = path.join(rootDir, 'n8n', 'workflows');
 const assistantConfigPath = path.join(rootDir, 'configs', 'vapi', 'assistant.v1.json');
 const structuredOutputSchemaPath = path.join(rootDir, 'docs', 'vapi-structured-output.json');
+const { selectCompletedRecentCall } = require(path.join(
+  rootDir,
+  'scripts',
+  'autonomy',
+  'run-staging-voice-smoke-suite.js'
+));
 
 function loadJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -49,6 +55,11 @@ function getNodeCode(workflow, nodeName) {
     throw new Error(`Node ${nodeName} not found in workflow ${workflow.name}`);
   }
   return node.parameters.jsCode;
+}
+
+function getNodeParameters(workflowFilename, nodeName) {
+  const workflow = loadWorkflow(workflowFilename);
+  return getNode(workflow, nodeName).parameters || {};
 }
 
 function executeCode(code, globals) {
@@ -259,6 +270,56 @@ test('checkAvailability first_available search window skips closed weekend days'
   assert.ok(['2026-03-23', '2026-03-24'].includes(result.windowEnd.slice(0, 10)));
   assert.notEqual(result.windowStart.slice(0, 10), '2026-03-21');
   assert.notEqual(result.windowStart.slice(0, 10), '2026-03-22');
+});
+
+test('checkAvailability broad-window searches can span multiple clinic days', () => {
+  const result = runParse(
+    'tool_check-availability.json',
+    'Parse Request',
+    {
+      service: { id: 'consultation' },
+      requestedDate: '2026-03-20',
+      timePreference: 'afternoon',
+      searchDays: 3,
+      timezone: 'Europe/Warsaw'
+    },
+    defaultEnv
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.searchDays, 3);
+  assert.equal(result.windowStart.slice(0, 10), '2026-03-20');
+  assert.equal(result.windowEnd.slice(0, 10), '2026-03-24');
+});
+
+test('checkAvailability broad weekend requests roll to the next open clinic day', () => {
+  const result = runParse(
+    'tool_check-availability.json',
+    'Parse Request',
+    {
+      service: { id: 'consultation' },
+      requestedDate: '2026-03-21',
+      timePreference: 'morning',
+      timezone: 'Europe/Warsaw'
+    },
+    defaultEnv
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.windowStart.slice(0, 10), '2026-03-23');
+  assert.equal(result.windowEnd.slice(0, 10), '2026-03-23');
+});
+
+test('calendar availability nodes use timeMin/timeMax fields expected by n8n import', () => {
+  const checkAvailabilityParams = getNodeParameters('tool_check-availability.json', 'Get Busy Events');
+  assert.equal(checkAvailabilityParams.timeMin, '={{ $json.windowStart }}');
+  assert.equal(checkAvailabilityParams.timeMax, '={{ $json.windowEnd }}');
+  assert.equal(checkAvailabilityParams.start, undefined);
+  assert.equal(checkAvailabilityParams.end, undefined);
+
+  const createEventParams = getNodeParameters('tool_create-event.json', 'Re-check Busy Events');
+  assert.equal(createEventParams.timeMin, '={{ $json.slotStart }}');
+  assert.equal(createEventParams.timeMax, '={{ $json.slotEnd }}');
+  assert.equal(createEventParams.start, undefined);
+  assert.equal(createEventParams.end, undefined);
 });
 
 test('checkAvailability returns only weekday slots inside clinic hours', () => {
@@ -835,6 +896,9 @@ test('assistant prompt contains the call-quality guardrails from recent real-cal
   assert.match(prompt, /od poniedzialku do piatku w godzinach 09:00-21:00/i);
   assert.match(prompt, /dwie opcje: jedna rano lub w okolicy poludnia, a druga po poludniu/i);
   assert.match(prompt, /bez luk miedzy wizytami/i);
+  assert.match(prompt, /po lunchu \/ po obiedzie -> afternoon/i);
+  assert.match(prompt, /ustaw requestedDate na najwczesniejszy pasujacy otwarty dzien i searchDays/i);
+  assert.match(prompt, /mimo szumu slyszysz kluczowe slowa pytania ogolnego/i);
   assert.match(prompt, /Jesli w danym srodowisku wlaczone sa narzedzia SMS/);
   assert.match(prompt, /sendSmsToReceptionists/);
   assert.match(prompt, /sendSmsToPatient/);
@@ -857,7 +921,48 @@ test('assistant prompt anchors createEvent to the exact selected slot boundary',
 
 test('assistant config keeps the post-endpoint wait', () => {
   const config = loadAssistantConfig();
+  assert.equal(config.assistant?.transcriber?.provider, 'openai');
+  assert.equal(config.assistant?.transcriber?.model, 'gpt-4o-transcribe');
+  assert.equal(config.assistant?.transcriber?.language, 'pl');
   assert.equal(config.assistant?.startSpeakingPlan?.waitSeconds, 0.6);
+  assert.equal(config.assistant?.startSpeakingPlan?.smartEndpointingPlan, undefined);
+  assert.deepEqual(config.assistant?.startSpeakingPlan?.customEndpointingRules, [
+    {
+      type: 'customer',
+      regex: '^[Aa]\\s+co\\s+[Jj]e(?:s|ś)li(?:\\s*[.?!…]+)?\\s*$',
+      timeoutSeconds: 3.2
+    },
+    {
+      type: 'customer',
+      regex: '^[Ww]hat\\s+[Ii]f(?:\\s*[.?!…]+)?\\s*$',
+      timeoutSeconds: 3.2
+    }
+  ]);
+  assert.equal(config.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 3);
+});
+
+test('voice smoke recent-call selection prefers the current scenario call', () => {
+  const selected = selectCompletedRecentCall({
+    calls: [
+      {
+        id: 'older-call',
+        assistantId: 'assistant_staging',
+        status: 'ended',
+        startedAt: '2026-03-20T19:01:48.313Z'
+      },
+      {
+        id: 'current-call',
+        assistantId: 'assistant_staging',
+        status: 'ended',
+        startedAt: '2026-03-20T19:02:40.973Z'
+      }
+    ],
+    assistantId: 'assistant_staging',
+    scenarioStartedAt: '2026-03-20T19:02:39.832Z',
+    preferredCallId: 'missing-call'
+  });
+
+  assert.equal(selected?.id, 'current-call');
 });
 
 test('structured output schema exposes QA flags for conversation regressions', () => {
