@@ -1,0 +1,233 @@
+{
+  "schema_version": "staging-voice-scenario.v1",
+  "scenario_id": "implant-inquiry-to-booking-voice",
+  "title": "Implant inquiry converts into an implant consultation booking",
+  "description": "A staging web call asks about All-on-4, then books the first offered implant consultation slot and confirms the reservation.",
+  "status": "draft",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "voice",
+    "booking",
+    "implantology",
+    "smoke"
+  ],
+  "source": {
+    "origin": "manual_voice_test",
+    "references": [
+      "docs/test-scenario-2026-03-17-implant-inquiry-to-booking.md",
+      "docs/test-scenario-2026-03-17-implant-booking-retry.md",
+      "autonomy/scenarios/implant-inquiry-to-booking.v1.json"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_web_call",
+    "max_duration_seconds": 180,
+    "post_call_settle_seconds": 5,
+    "artifact_poll_seconds": 2,
+    "artifact_poll_attempts": 20
+  },
+  "steps": [
+    {
+      "step_id": "wait-for-greeting",
+      "type": "pause",
+      "duration_ms": 14000
+    },
+    {
+      "step_id": "implant-question",
+      "type": "play_clip",
+      "clip_path": "autonomy/scenarios/staging-voice/fixtures/implant-booking/01-inquiry.wav",
+      "transcript": "Czy może mi pan wyjaśnić leczenie implantologiczne All on four?"
+    },
+    {
+      "step_id": "listen-after-inquiry",
+      "type": "pause",
+      "duration_ms": 18000
+    },
+    {
+      "step_id": "booking-request",
+      "type": "play_clip",
+      "clip_path": "autonomy/scenarios/staging-voice/fixtures/implant-booking/02-booking-request.wav",
+      "transcript": "Chciałabym umówić najbliższą konsultację implantologiczną rano."
+    },
+    {
+      "step_id": "listen-for-slots",
+      "type": "pause",
+      "duration_ms": 18000
+    },
+    {
+      "step_id": "select-first-slot",
+      "type": "play_clip",
+      "clip_path": "autonomy/scenarios/staging-voice/fixtures/implant-booking/03-select-first-slot.wav",
+      "transcript": "Pierwszy termin mi odpowiada."
+    },
+    {
+      "step_id": "listen-for-first-visit-question",
+      "type": "pause",
+      "duration_ms": 10000
+    },
+    {
+      "step_id": "confirm-first-visit",
+      "type": "play_clip",
+      "clip_path": "autonomy/scenarios/staging-voice/fixtures/implant-booking/04-name-and-phone.wav",
+      "transcript": "Tak, to będzie moja pierwsza wizyta."
+    },
+    {
+      "step_id": "listen-for-name-request",
+      "type": "pause",
+      "duration_ms": 10000
+    },
+    {
+      "step_id": "provide-name",
+      "type": "play_clip",
+      "clip_path": "autonomy/scenarios/staging-voice/fixtures/implant-booking/05-phone-confirmation.wav",
+      "transcript": "Anna Kowalska."
+    },
+    {
+      "step_id": "listen-for-phone-request",
+      "type": "pause",
+      "duration_ms": 9000
+    },
+    {
+      "step_id": "provide-phone",
+      "type": "play_clip",
+      "clip_path": "autonomy/scenarios/staging-voice/fixtures/implant-booking/06-booking-confirmation.wav",
+      "transcript": "Mój numer to sześć zero cztery, jeden dwa trzy, cztery pięć sześć."
+    },
+    {
+      "step_id": "listen-for-phone-confirmation",
+      "type": "pause",
+      "duration_ms": 10000
+    },
+    {
+      "step_id": "confirm-phone",
+      "type": "play_clip",
+      "clip_path": "autonomy/scenarios/staging-voice/fixtures/implant-booking/07-phone-confirmation.wav",
+      "transcript": "Tak, zgadza się."
+    },
+    {
+      "step_id": "listen-for-booking-summary",
+      "type": "pause",
+      "duration_ms": 12000
+    },
+    {
+      "step_id": "confirm-booking",
+      "type": "play_clip",
+      "clip_path": "autonomy/scenarios/staging-voice/fixtures/implant-booking/08-booking-confirmation.wav",
+      "transcript": "Tak, proszę potwierdzić rezerwację."
+    },
+    {
+      "step_id": "listen-after-booking",
+      "type": "pause",
+      "duration_ms": 12000
+    },
+    {
+      "step_id": "goodbye",
+      "type": "play_clip",
+      "clip_path": "autonomy/scenarios/staging-voice/fixtures/implant-booking/09-goodbye.wav",
+      "transcript": "Dziękuję, do widzenia."
+    },
+    {
+      "step_id": "listen-after-goodbye",
+      "type": "pause",
+      "duration_ms": 8000
+    },
+    {
+      "step_id": "wait-for-end",
+      "type": "wait_for_call_end",
+      "timeout_ms": 180000
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "implant-availability-service-id",
+      "description": "The booking flow should query implant consultation availability.",
+      "severity": "critical",
+      "root_cause_hint": "wrong_service_selected_for_implant_booking",
+      "rule": {
+        "type": "tool_arg_equals",
+        "tool_name": "checkAvailability",
+        "occurrence": "last",
+        "path": "service.id",
+        "equals": "implant_consultation"
+      }
+    },
+    {
+      "criterion_id": "doctor-name-mentioned",
+      "description": "The offered slot should include the doctor name in the assistant response.",
+      "severity": "high",
+      "root_cause_hint": "slot_offer_missing_doctor_name",
+      "rule": {
+        "type": "assistant_text_contains_any",
+        "contains_any": [
+          "szajnar"
+        ]
+      }
+    },
+    {
+      "criterion_id": "create-event-called",
+      "description": "The assistant should create a calendar event after the final confirmation.",
+      "severity": "critical",
+      "root_cause_hint": "booking_flow_did_not_reach_create_event",
+      "rule": {
+        "type": "tool_called",
+        "tool_name": "createEvent"
+      }
+    },
+    {
+      "criterion_id": "create-event-service-id",
+      "description": "The final booking should preserve the implant consultation service ID.",
+      "severity": "critical",
+      "root_cause_hint": "wrong_service_selected_for_final_booking",
+      "rule": {
+        "type": "tool_arg_equals",
+        "tool_name": "createEvent",
+        "occurrence": "last",
+        "path": "service.id",
+        "equals": "implant_consultation"
+      }
+    },
+    {
+      "criterion_id": "selected-slot-preserved",
+      "description": "The first offered slot should be preserved when createEvent is called.",
+      "severity": "critical",
+      "root_cause_hint": "selected_slot_boundaries_changed_before_booking",
+      "rule": {
+        "type": "create_event_matches_selected_slot",
+        "selected_slot_index": 0
+      }
+    },
+    {
+      "criterion_id": "booking-created-in-structured-output",
+      "description": "Structured output should confirm that a booking was created.",
+      "severity": "critical",
+      "root_cause_hint": "structured_output_missing_booking_success",
+      "rule": {
+        "type": "structured_output_path_equals",
+        "path": "booking.bookingCreated",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "successful-for-assistant-scope",
+      "description": "Structured output should mark the booking flow successful for assistant scope.",
+      "severity": "high",
+      "root_cause_hint": "structured_output_marks_booking_flow_unsuccessful",
+      "rule": {
+        "type": "structured_output_path_equals",
+        "path": "successfulForAssistantScope",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "no-reception-handoff-in-booking-flow",
+      "description": "The booking flow should not create a reception follow-up task.",
+      "severity": "high",
+      "root_cause_hint": "booking_flow_fell_back_to_reception_unnecessarily",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createReceptionTask"
+      }
+    }
+  ]
+}

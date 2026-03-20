@@ -49,6 +49,26 @@ Focused reference:
 
 - [`../docs/staging-regression-suite.md`](../docs/staging-regression-suite.md)
 - [`../docs/autonomy-loop.md`](../docs/autonomy-loop.md)
+- [`../docs/staging-voice-smoke-suite.md`](../docs/staging-voice-smoke-suite.md)
+
+## Voice smoke lane
+
+The repo now also has a dedicated staging voice smoke lane surface:
+
+- scenarios: `autonomy/scenarios/staging-voice/`
+- scenario schema: [`../autonomy/schemas/staging-voice-scenario.v1.json`](../autonomy/schemas/staging-voice-scenario.v1.json)
+- run schema: [`../autonomy/schemas/staging-voice-run.v1.json`](../autonomy/schemas/staging-voice-run.v1.json)
+- suite schema: [`../autonomy/schemas/staging-voice-suite.v1.json`](../autonomy/schemas/staging-voice-suite.v1.json)
+- guide: [`../docs/staging-voice-smoke-suite.md`](../docs/staging-voice-smoke-suite.md)
+- runner: [`../scripts/run-staging-voice-smoke-suite.sh`](../scripts/run-staging-voice-smoke-suite.sh)
+
+Run the current voice smoke suite with:
+
+```bash
+./scripts/run-staging-voice-smoke-suite.sh
+```
+
+The default suite runs the active Polish scenarios. Use `--language en` for the English companion scenarios or `--language all` to run both. Missing caller clips can be generated locally from scenario transcripts through [`../scripts/autonomy/generate-staging-voice-fixtures.sh`](../scripts/autonomy/generate-staging-voice-fixtures.sh).
 
 ## Historical ingestion command
 

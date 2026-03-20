@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sendSmsToReceptionists request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "taskId",
+    "taskType",
+    "patient",
+    "summary"
+  ],
+  "properties": {
+    "requestId": {
+      "type": "string"
+    },
+    "taskId": {
+      "type": "string",
+      "description": "Task identifier returned by createReceptionTask."
+    },
+    "taskType": {
+      "type": "string",
+      "enum": [
+        "existing_patient_booking",
+        "reschedule_or_cancel",
+        "urgent_case",
+        "general_follow_up"
+      ]
+    },
+    "patient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fullName",
+        "phoneE164"
+      ],
+      "properties": {
+        "fullName": {
+          "type": "string"
+        },
+        "phoneE164": {
+          "type": "string",
+          "pattern": "^\\+[1-9]\\d{7,14}$"
+        },
+        "isExistingPatient": {
+          "type": "boolean"
+        }
+      }
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 240
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "preferredCallbackWindow": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "sourceCallId": {
+      "type": "string"
+    }
+  },
+  "examples": [
+    {
+      "requestId": "req_sms_reception_001",
+      "taskId": "task_20260320_001",
+      "taskType": "existing_patient_booking",
+      "patient": {
+        "fullName": "Anna Kowalska",
+        "phoneE164": "+48500111001",
+        "isExistingPatient": true
+      },
+      "summary": "Pacjentka chce umowic kolejna wizyte.",
+      "notes": "Preferuje kontakt rano.",
+      "preferredCallbackWindow": "rano",
+      "sourceCallId": "call_001"
+    }
+  ]
+}

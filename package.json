@@ -1,0 +1,10 @@
+{
+  "name": "ai-receptionist",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Automation helpers for the AI receptionist repo.",
+  "dependencies": {
+    "@vapi-ai/web": "2.5.2",
+    "playwright-core": "1.58.2"
+  }
+}

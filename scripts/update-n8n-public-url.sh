@@ -60,4 +60,6 @@ echo "  checkAvailability: ${normalized_base}/webhook/ai-receptionist/check-avai
 echo "  searchKnowledgeBase: ${normalized_base}/webhook/ai-receptionist/search-knowledge-base"
 echo "  createEvent: ${normalized_base}/webhook/ai-receptionist/create-event"
 echo "  createReceptionTask: ${normalized_base}/webhook/ai-receptionist/create-reception-task"
+echo "  sendSmsToReceptionists: ${normalized_base}/webhook/ai-receptionist/send-sms-to-receptionists"
+echo "  sendSmsToPatient: ${normalized_base}/webhook/ai-receptionist/send-sms-to-patient"
 echo "  vapi call.ended router: ${normalized_base}/webhook/ai-receptionist/vapi-call-ended"

@@ -6,10 +6,40 @@ fi
 
 load_root_env() {
   if [ -f "$ROOT_DIR/.env" ]; then
-    set -a
-    # shellcheck source=/dev/null
-    . "$ROOT_DIR/.env"
-    set +a
+    local exports
+    exports="$(
+      python3 - "$ROOT_DIR/.env" <<'PY'
+import shlex
+import sys
+
+env_path = sys.argv[1]
+
+with open(env_path, "r", encoding="utf-8") as handle:
+    for raw_line in handle:
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].lstrip()
+        if "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key:
+            continue
+
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            quote = value[0]
+            value = value[1:-1]
+            if quote == '"':
+                value = bytes(value, "utf-8").decode("unicode_escape")
+
+        print(f"export {key}={shlex.quote(value)}")
+PY
+    )"
+    eval "$exports"
   fi
 }
 

@@ -35,14 +35,26 @@ VPS_APP_DIR="$(require_context_value "$ENVIRONMENT" "VPS_APP_DIR" "$legacy_vps_a
 VPS_N8N_CONTAINER_NAME="$(get_context_value "$ENVIRONMENT" "VPS_N8N_CONTAINER_NAME" "$legacy_vps_n8n_container_name")"
 
 ssh_args=(-p "$VPS_SSH_PORT")
+scp_args=(-P "$VPS_SSH_PORT")
 if [ -n "$VPS_SSH_IDENTITY_FILE" ]; then
   ssh_args+=(-i "$VPS_SSH_IDENTITY_FILE")
+  scp_args+=(-i "$VPS_SSH_IDENTITY_FILE")
 fi
 
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+local_workflows_archive="$(mktemp "${TMPDIR:-/tmp}/ai-receptionist-workflows-${ENVIRONMENT}-${timestamp}.XXXXXX.tar.gz")"
+remote_workflows_archive="/tmp/ai-receptionist-workflows-${ENVIRONMENT}-${timestamp}.tar.gz"
+
+cleanup() {
+  rm -f "$local_workflows_archive"
+}
+trap cleanup EXIT
+
+tar -C "$ROOT_DIR" -czf "$local_workflows_archive" n8n/workflows
+scp "${scp_args[@]}" "$local_workflows_archive" "${VPS_SSH_USER}@${VPS_SSH_HOST}:${remote_workflows_archive}"
 
 ssh "${ssh_args[@]}" "${VPS_SSH_USER}@${VPS_SSH_HOST}" \
-  "APP_DIR='$VPS_APP_DIR' REMOTE_CONTAINER='$VPS_N8N_CONTAINER_NAME' TIMESTAMP='$timestamp' bash -s" <<'EOF'
+  "APP_DIR='$VPS_APP_DIR' REMOTE_CONTAINER='$VPS_N8N_CONTAINER_NAME' TIMESTAMP='$timestamp' REMOTE_WORKFLOWS_ARCHIVE='$remote_workflows_archive' bash -s" <<'EOF'
 set -euo pipefail
 
 cd "$APP_DIR"
@@ -53,8 +65,9 @@ TEMP_DIR="/tmp/ai-receptionist-n8n-reconcile-$TIMESTAMP"
 EXPORT_DIR="$TEMP_DIR/exported"
 MERGED_DIR="$TEMP_DIR/merged"
 REPORT_DIR="$TEMP_DIR/report"
+LOCAL_WORKFLOWS_DIR="$TEMP_DIR/local-workflows"
 
-mkdir -p "$BACKUP_DIR/workflows" "$BACKUP_DIR/credentials" "$EXPORT_DIR" "$MERGED_DIR" "$REPORT_DIR"
+mkdir -p "$BACKUP_DIR/workflows" "$BACKUP_DIR/credentials" "$EXPORT_DIR" "$MERGED_DIR" "$REPORT_DIR" "$LOCAL_WORKFLOWS_DIR"
 
 docker exec "$CONTAINER" rm -rf \
   /tmp/n8n-reconcile-backup-workflows \
@@ -75,8 +88,9 @@ docker cp "$CONTAINER:/tmp/n8n-reconcile-backup-credentials/." "$BACKUP_DIR/cred
 
 docker exec "$CONTAINER" n8n export:workflow --backup --output=/tmp/n8n-reconcile-export >/dev/null
 docker cp "$CONTAINER:/tmp/n8n-reconcile-export/." "$EXPORT_DIR/"
+tar -xzf "$REMOTE_WORKFLOWS_ARCHIVE" -C "$LOCAL_WORKFLOWS_DIR"
 
-python3 - "$APP_DIR/n8n/workflows" "$EXPORT_DIR" "$MERGED_DIR" "$REPORT_DIR" <<'PY'
+python3 - "$LOCAL_WORKFLOWS_DIR/n8n/workflows" "$EXPORT_DIR" "$MERGED_DIR" "$REPORT_DIR" <<'PY'
 import glob
 import json
 import os
@@ -269,4 +283,5 @@ echo "Active workflows after reconcile:"
 docker exec "$CONTAINER" n8n list:workflow --active=true
 echo
 echo "Fresh backup saved to $BACKUP_DIR"
+rm -rf "$TEMP_DIR" "$REMOTE_WORKFLOWS_ARCHIVE"
 EOF

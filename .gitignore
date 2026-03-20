@@ -1,8 +1,10 @@
 .env
 .env.local
+node_modules/
 backups/
 n8n/.env
 deploy/vps/.env
 autonomy/runs/generated/
 autonomy/reports/generated/
 autonomy/scenarios/generated/
+autonomy/scenarios/staging-voice/fixtures/**/*.wav

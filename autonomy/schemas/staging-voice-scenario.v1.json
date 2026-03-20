@@ -1,0 +1,378 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Staging voice scenario v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "title",
+    "status",
+    "environment",
+    "language",
+    "runner",
+    "steps",
+    "rubric"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "staging-voice-scenario.v1"
+    },
+    "scenario_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "archived"
+      ]
+    },
+    "environment": {
+      "const": "staging"
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "pl",
+        "en",
+        "mixed"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "type": "string",
+          "enum": [
+            "project_scope",
+            "manual_regression",
+            "manual_voice_test",
+            "real_call",
+            "repo_audit"
+          ]
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "runner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider"
+      ],
+      "properties": {
+        "provider": {
+          "const": "vapi_web_call"
+        },
+        "max_duration_seconds": {
+          "type": "integer",
+          "minimum": 15,
+          "maximum": 1800
+        },
+        "post_call_settle_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 120
+        },
+        "artifact_poll_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120
+        },
+        "artifact_poll_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/step"
+      }
+    },
+    "rubric": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/criterion"
+      }
+    }
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_id",
+        "type"
+      ],
+      "properties": {
+        "step_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "play_clip",
+            "pause",
+            "wait_for_assistant",
+            "wait_for_call_end",
+            "hangup"
+          ]
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "clip_path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "transcript": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "fixture_style": {
+          "type": "string",
+          "enum": [
+            "clean",
+            "low_confidence_noise"
+          ]
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300000
+        },
+        "window_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "assertions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/criterion"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "play_clip"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "clip_path"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "pause"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "duration_ms"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "wait_for_assistant"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "timeout_ms"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "wait_for_call_end"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "timeout_ms"
+            ]
+          }
+        }
+      ]
+    },
+    "criterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "criterion_id",
+        "description",
+        "severity",
+        "rule"
+      ],
+      "properties": {
+        "criterion_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "required": {
+          "type": "boolean",
+          "default": true
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        },
+        "root_cause_hint": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "rule": {
+          "$ref": "#/$defs/rule"
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "tool_called",
+            "tool_not_called",
+            "tool_arg_equals",
+            "tool_result_path_equals",
+            "assistant_text_contains_any",
+            "assistant_text_contains_all",
+            "structured_output_path_equals",
+            "call_path_equals",
+            "assistant_did_not_speak_during_window",
+            "assistant_spoke_after_window",
+            "ended_reason_equals",
+            "create_event_matches_selected_slot"
+          ]
+        },
+        "step_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "window_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "tool_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "equals": {
+          "type": [
+            "object",
+            "array",
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "contains_any": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "contains_all": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "occurrence": {
+          "type": "string",
+          "enum": [
+            "first",
+            "last",
+            "any"
+          ]
+        },
+        "availability_step_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "selected_slot_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        }
+      }
+    }
+  }
+}

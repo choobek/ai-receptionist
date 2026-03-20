@@ -8,6 +8,7 @@
   "structuredOutputIds": [
     "dff8d16d-1f39-4d46-9f3d-370c8ecaeb40"
   ],
+  "phoneNumberSmsEnabled": false,
   "scorecardIds": [
     "dd70a6ae-75a8-4a32-ab97-e8474ddb10ee"
   ],
@@ -16,6 +17,10 @@
     "checkAvailability": "677e05c6-8ed6-46f3-a5e0-599b51629c32",
     "searchKnowledgeBase": "c8064ed7-83ea-4987-badf-a280eb155768",
     "createEvent": "c0b8f9b2-9758-48b8-8812-de398f135112",
-    "createReceptionTask": "c5e53de8-2695-4aee-817a-403b45b49478"
-  }
+    "createReceptionTask": "c5e53de8-2695-4aee-817a-403b45b49478",
+    "sendSmsToReceptionists": "17208f77-3184-4191-89b1-07a2d4f09ed0",
+    "sendSmsToPatient": "6e074a05-57f5-464c-9b6f-9f28fb75d056"
+  },
+  "phoneNumber": "+48732096274",
+  "phoneNumberId": "c3d38990-f21e-4b5d-a7fb-1ffaac22173d"
 }

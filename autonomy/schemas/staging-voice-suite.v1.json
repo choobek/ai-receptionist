@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Staging voice suite v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "suite_run_id",
+    "environment",
+    "started_at",
+    "completed_at",
+    "status",
+    "scenario_count",
+    "passed_count",
+    "failed_count",
+    "run_dir",
+    "report_path",
+    "scenario_results"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "staging-voice-suite.v1"
+    },
+    "suite_run_id": {
+      "type": "string"
+    },
+    "environment": {
+      "const": "staging"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "failed",
+        "error"
+      ]
+    },
+    "scenario_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "passed_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "failed_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "run_dir": {
+      "type": "string"
+    },
+    "report_path": {
+      "type": "string"
+    },
+    "scenario_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scenario_id",
+          "title",
+          "status",
+          "result_path",
+          "failure_type",
+          "failure_reason"
+        ],
+        "properties": {
+          "scenario_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "call_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "result_path": {
+            "type": "string"
+          },
+          "normalized_run_path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failure_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "assistant_behavior_failure",
+              "transport_failure",
+              "runner_failure",
+              null
+            ]
+          },
+          "failure_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "suspected_root_cause": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

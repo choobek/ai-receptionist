@@ -8,6 +8,7 @@
   "structuredOutputIds": [
     "7ee177c4-69ab-4589-ab30-864506585553"
   ],
+  "phoneNumberSmsEnabled": false,
   "scorecardIds": [],
   "toolIds": {
     "lookupPatient": "e8c4fa60-9cf3-41fe-a9cd-3c2372ed1018",

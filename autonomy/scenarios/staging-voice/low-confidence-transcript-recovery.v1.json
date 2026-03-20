@@ -1,0 +1,102 @@
+{
+  "schema_version": "staging-voice-scenario.v1",
+  "scenario_id": "low-confidence-transcript-recovery",
+  "title": "Low-confidence transcript recovers without wrong booking action",
+  "description": "A degraded caller clip asks about bonding versus veneers. The assistant should either answer safely or ask for clarification, but it must not start a booking or handoff flow.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "voice",
+    "transcript-recovery",
+    "knowledge-base",
+    "smoke"
+  ],
+  "source": {
+    "origin": "project_scope",
+    "references": [
+      "docs/testing.md",
+      "docs/voice-e2e-execution-lane.md"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_web_call",
+    "max_duration_seconds": 95,
+    "post_call_settle_seconds": 5,
+    "artifact_poll_seconds": 2,
+    "artifact_poll_attempts": 15
+  },
+  "steps": [
+    {
+      "step_id": "wait-for-greeting",
+      "type": "pause",
+      "duration_ms": 14000
+    },
+    {
+      "step_id": "degraded-question",
+      "type": "play_clip",
+      "clip_path": "autonomy/scenarios/staging-voice/fixtures/low-confidence/bonding-or-veneers-noisy.wav",
+      "transcript": "Przepraszam, słabo słychać, chciałem zapytać o bonding i licówki.",
+      "fixture_style": "low_confidence_noise"
+    },
+    {
+      "step_id": "listen-after-degraded-question",
+      "type": "pause",
+      "duration_ms": 18000,
+      "notes": "Allow time for a safe answer or a narrow clarification request."
+    },
+    {
+      "step_id": "wait-for-end",
+      "type": "wait_for_call_end",
+      "timeout_ms": 95000
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "no-booking-tools",
+      "description": "A degraded informational question must not advance into a booking flow.",
+      "severity": "critical",
+      "root_cause_hint": "assistant_misclassified_noisy_question_as_booking_intent",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    },
+    {
+      "criterion_id": "no-availability-search",
+      "description": "A degraded informational question must not trigger availability lookup.",
+      "severity": "high",
+      "root_cause_hint": "assistant_misclassified_noisy_question_as_booking_intent",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "no-reception-handoff",
+      "description": "A degraded informational question must not create a reception follow-up task.",
+      "severity": "high",
+      "root_cause_hint": "assistant_routed_noisy_question_to_reception_unnecessarily",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createReceptionTask"
+      }
+    },
+    {
+      "criterion_id": "assistant-stayed-on-topic",
+      "description": "The assistant should either clarify the question or respond about bonding and veneers.",
+      "severity": "high",
+      "root_cause_hint": "assistant_failed_to_recover_from_low_confidence_transcript",
+      "rule": {
+        "type": "assistant_text_contains_any",
+        "contains_any": [
+          "bonding",
+          "liców",
+          "powtórz",
+          "doprecyz",
+          "proszę powtórzyć"
+        ]
+      }
+    }
+  ]
+}

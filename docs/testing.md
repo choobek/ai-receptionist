@@ -28,6 +28,8 @@ These are the URLs that should be configured in Vapi:
 - `https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/create-event`
 - `https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/search-knowledge-base`
 - `https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/create-reception-task`
+- `https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/send-sms-to-receptionists`
+- `https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/send-sms-to-patient`
 - `https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/vapi-call-ended`
 
 Confirm them in:
@@ -36,6 +38,8 @@ Confirm them in:
 - Vapi custom tool `createEvent`
 - Vapi custom tool `searchKnowledgeBase`
 - Vapi custom tool `createReceptionTask`
+- optional Vapi custom tool `sendSmsToReceptionists`
+- optional Vapi custom tool `sendSmsToPatient`
 - any Vapi webhook/server configuration that sends `call.ended` events to n8n
 
 Nothing in the Google Calendar credentials should need to change if the workflows are already connected correctly in n8n.
@@ -203,7 +207,71 @@ Expected:
 - `accepted: true`
 - `taskId` present
 
-## 9. Structured output webhook router test
+## 9. Direct tool test: `sendSmsToReceptionists`
+
+For a safe first pass, keep `AI_RECEPTIONIST_SMS_PROVIDER=mock` in the target environment.
+
+```bash
+curl -sS -X POST https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/send-sms-to-receptionists \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestId": "test_sms_reception_001",
+    "taskId": "task_20260320_001",
+    "taskType": "existing_patient_booking",
+    "patient": {
+      "fullName": "Anna Kowalska",
+      "phoneE164": "+48500111001",
+      "isExistingPatient": true
+    },
+    "summary": "Pacjentka chce umowic kolejna wizyte.",
+    "notes": "Preferuje kontakt rano."
+  }' | jq .
+```
+
+Expected:
+- HTTP 200
+- `accepted: true`
+- `delivery.status: "simulated"` in `mock` mode
+- `notification.body` present
+
+## 10. Direct tool test: `sendSmsToPatient`
+
+For a safe first pass, keep `AI_RECEPTIONIST_SMS_PROVIDER=mock` in the target environment.
+
+```bash
+curl -sS -X POST https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/send-sms-to-patient \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestId": "test_sms_patient_001",
+    "calendarEventId": "evt_test_001",
+    "consentConfirmed": true,
+    "language": "pl",
+    "patient": {
+      "fullName": "Jan Testowy",
+      "phoneE164": "+48500100200"
+    },
+    "appointment": {
+      "start": "2026-03-20T10:30:00+01:00",
+      "timezone": "Europe/Warsaw",
+      "service": {
+        "id": "consultation",
+        "name": "Konsultacja"
+      }
+    }
+  }' | jq .
+```
+
+Expected:
+- HTTP 200
+- `accepted: true`
+- `delivery.status: "simulated"` in `mock` mode
+- `sms.body` present
+
+If `AI_RECEPTIONIST_SMS_PROVIDER=twilio` is enabled instead, expect `delivery.status` to move to `queued` or `sent`. Set `TWILIO_PHONE_NUMBER` explicitly or keep exactly one incoming number on the Twilio account so the workflow can auto-discover the sender.
+
+If `AI_RECEPTIONIST_SMS_PROVIDER=webhook` is enabled instead, expect `delivery.status` to move to `queued` or `sent` and verify the downstream gateway receives the posted payload.
+
+## 11. Structured output webhook router test
 
 Test the n8n router directly with a synthetic `call.ended` payload:
 
@@ -252,7 +320,7 @@ Expected:
 
 For a payload shape closer to Vapi Server URL events, you can also test with `message.type: "end-of-call-report"` and `message.artifact.structuredOutputs`.
 
-## 10. End-to-end Vapi call test
+## 12. End-to-end Vapi call test
 
 After direct webhook tests pass, test the assistant in Vapi with a real call.
 
@@ -307,7 +375,7 @@ Verify:
 - the answer stays within the ODT-derived source material
 - the assistant does not invent unsupported pricing or medical advice
 
-## 11. What to inspect if something fails
+## 13. What to inspect if something fails
 
 If tool calls fail:
 - Vapi tool request logs
@@ -318,6 +386,7 @@ If tool calls fail:
 If the assistant speaks but no booking happens:
 - verify the Vapi tool URLs use `https://vps-2c8bbf65.vps.ovh.net`
 - verify the schema names in Vapi still match `lookupPatient`, `checkAvailability`, `searchKnowledgeBase`, `createEvent`, and `createReceptionTask`
+- if SMS is enabled in that environment, also verify `sendSmsToReceptionists` and `sendSmsToPatient`
 - verify the system prompt is the current file from this repo
 
 If structured output exists but router does not classify it:
@@ -325,7 +394,7 @@ If structured output exists but router does not classify it:
 - verify the Vapi event actually includes `call.artifact.structuredOutputs`
 - inspect the raw event in n8n execution data
 
-## 12. Minimal acceptance criteria
+## 14. Minimal acceptance criteria
 
 Consider the setup healthy when all of these are true:
 - public `lookupPatient` works through the hosted URL
@@ -333,6 +402,8 @@ Consider the setup healthy when all of these are true:
 - public `checkAvailability` works through the hosted URL
 - public `createEvent` works through the hosted URL
 - public `createReceptionTask` works through the hosted URL
+- public `sendSmsToReceptionists` works through the hosted URL
+- public `sendSmsToPatient` works through the hosted URL
 - a real Vapi call creates a Google Calendar event
 - the call produces structured output
 - the `call.ended` n8n router returns the expected route

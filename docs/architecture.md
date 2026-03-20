@@ -21,6 +21,8 @@ Deliver a first working version of an AI receptionist for a Polish dental clinic
 - can answer supported general clinic questions through `searchKnowledgeBase`
 - calls `checkAvailability` and `createEvent`
 - can queue human follow-up through `createReceptionTask`
+- can optionally alert reception through `sendSmsToReceptionists`
+- can optionally send a patient booking confirmation through `sendSmsToPatient`
 - speaks the returned result in natural language
 
 ### n8n
@@ -32,6 +34,7 @@ Deliver a first working version of an AI receptionist for a Polish dental clinic
 - talks to Google Calendar
 - keeps proof-of-concept patient registry data for known patients
 - keeps a proof-of-concept curated knowledge base derived from clinic ODT files
+- can simulate SMS delivery safely in `mock` mode or hand off to an external SMS webhook
 - returns a tool result in Vapi-compatible format
 
 ### Google Calendar
@@ -93,6 +96,20 @@ Deliver a first working version of an AI receptionist for a Polish dental clinic
 4. n8n creates a queued proof-of-concept task in the workflow execution payload.
 5. n8n returns a task confirmation object.
 
+### Reception SMS alert
+
+1. After `createReceptionTask` succeeds, Vapi can call `sendSmsToReceptionists`.
+2. n8n builds a short internal SMS body from the saved task payload.
+3. In `mock` mode it returns a simulated delivery result.
+4. In `webhook` mode it POSTs the SMS payload to the configured downstream gateway.
+
+### Patient confirmation SMS
+
+1. After `createEvent` succeeds and the caller explicitly agreed to SMS, Vapi can call `sendSmsToPatient`.
+2. n8n builds a short confirmation SMS in Polish or English.
+3. In `mock` mode it returns a simulated delivery result.
+4. In `webhook` mode it POSTs the SMS payload to the configured downstream gateway.
+
 ## Design choices
 
 ### Keep prompts out of workflows
@@ -139,6 +156,6 @@ That makes debugging easier without adding a custom backend layer.
 - real patient record sync
 - treatment pricing logic
 - voicemail workflows
-- outbound reminders and real SMS delivery
+- outbound reminder campaigns beyond the transactional SMS tools
 
 These can be added as separate workflows once the core booking loop is stable.

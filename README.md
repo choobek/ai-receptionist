@@ -48,6 +48,10 @@ schemas/
   createReceptionTask.response.json
   createEvent.request.json
   createEvent.response.json
+  sendSmsToReceptionists.request.json
+  sendSmsToReceptionists.response.json
+  sendSmsToPatient.request.json
+  sendSmsToPatient.response.json
 knowledge-base/
   clinic-knowledge.json
 mock-data/
@@ -58,6 +62,8 @@ n8n/workflows/
   tool_search-knowledge-base.json
   tool_create-reception-task.json
   tool_create-event.json
+  tool_send-sms-to-receptionists.json
+  tool_send-sms-to-patient.json
   webhook_vapi-call-ended-router.json
 .env.example
 ```
@@ -73,7 +79,8 @@ This first version is intentionally small:
 - proof-of-concept patient lookup against a mock registry
 - proof-of-concept knowledge base derived from clinic ODT materials
 - proof-of-concept receptionist task queue inside n8n
-- no real CRM, SMS, payments, or patient history sync yet
+- optional SMS workflows with `mock` mode by default plus native Twilio or webhook delivery when configured
+- no real CRM, payments, or patient history sync yet
 
 ## Request flow
 
@@ -115,16 +122,28 @@ This first version is intentionally small:
 3. n8n validates the payload and creates a queued proof-of-concept reception task.
 4. n8n returns confirmation data.
 
+### `sendSmsToReceptionists`
+
+1. After `createReceptionTask` succeeds, Vapi can call `sendSmsToReceptionists` for an internal receptionist alert.
+2. n8n builds a short SMS body from the saved task context.
+3. In `mock` mode it returns a simulated delivery result; in `twilio` mode it sends through the Twilio Messages API; in `webhook` mode it posts the SMS payload to the configured downstream gateway.
+
+### `sendSmsToPatient`
+
+1. After `createEvent` succeeds and the caller explicitly agreed to SMS, Vapi can call `sendSmsToPatient`.
+2. n8n builds a booking confirmation SMS in Polish or English.
+3. In `mock` mode it returns a simulated delivery result; in `twilio` mode it sends through the Twilio Messages API; in `webhook` mode it posts the SMS payload to the configured downstream gateway.
+
 ## Quick start
 
 1. Copy [`.env.example`](./.env.example) to root `.env`.
 2. Start n8n with Docker Compose from [`n8n/docker-compose.yml`](./n8n/docker-compose.yml).
 3. Open n8n, complete the owner account setup on first launch, and then import the workflow files from [`n8n/workflows/`](./n8n/workflows).
 4. Create Google Calendar credentials in n8n and attach them to the Google Calendar nodes.
-5. Set the Vapi custom tool server URLs to the five n8n webhook endpoints.
+5. Set the Vapi custom tool server URLs to the five core n8n webhook endpoints, plus the optional SMS endpoints if you create those extra Vapi tool resources. The repo now includes [`scripts/create-vapi-tool.sh`](./scripts/create-vapi-tool.sh) for that.
 6. If you set `AI_RECEPTIONIST_WEBHOOK_SECRET`, configure the same secret in Vapi using the `X-AI-Receptionist-Secret` header or a `?secret=` query parameter fallback.
 7. Keep the Vapi assistant source of truth in [`configs/vapi/assistant.v1.json`](./configs/vapi/assistant.v1.json).
-8. Apply the config with [`scripts/sync-vapi-environment.sh`](./scripts/sync-vapi-environment.sh) for the target environment.
+8. Apply the config with [`scripts/sync-vapi-environment.sh`](./scripts/sync-vapi-environment.sh) for the target environment. If Twilio is configured, that sync also keeps the environment's Vapi phone number bound to the assistant.
 
 Operational reference:
 
@@ -132,6 +151,8 @@ Operational reference:
 - [`docs/environment-separation.md`](./docs/environment-separation.md) for staging vs production
 - [`docs/operations-runbook.md`](./docs/operations-runbook.md) for human step-by-step operations
 - [`docs/staging-regression-suite.md`](./docs/staging-regression-suite.md) for the staging synthetic suite
+- [`docs/staging-voice-smoke-suite.md`](./docs/staging-voice-smoke-suite.md) for the staged voice smoke-lane surface
+- [`docs/voice-e2e-execution-lane.md`](./docs/voice-e2e-execution-lane.md) for the staged plan to add automated voice validation
 
 ## Staging Regression Suite
 
@@ -152,6 +173,24 @@ Run the guarded staging-only autonomous improvement loop with:
 The controller reuses the existing staging regression runner plus the existing deploy/sync scripts, clusters failures into bounded categories, derives draft regression scenarios from failures, applies only repo-backed targeted fixes that have an explicit safe fixer, optionally syncs staging if runtime files changed, reruns the suite, and writes a release-style report plus index under the git-ignored `autonomy/*/generated/staging-loop/` paths.
 
 Today the safe auto-fixer catalog is intentionally narrow: it can split the ambiguous-day false failure coverage and tighten the staging booking prompt around exact selected-slot reuse for `createEvent`. Workflow or VPS-affecting fixes are still reported, but they are blocked from pretending they deployed unless the repo state has been promoted through the existing git-backed staging path.
+
+## Staging Voice Smoke Suite
+
+Run the staging-only automated voice smoke suite with:
+
+```bash
+./scripts/run-staging-voice-smoke-suite.sh
+```
+
+The default run executes the active Polish voice scenarios. Use `--language en` for the English companion lane or `--language all` to run both.
+
+This lane starts a real staging Vapi web call in Chrome through the Vapi Web SDK, feeds a synthesized fake-microphone WAV built from the scenario steps, waits for the call to end, fetches the final call artifact from the Vapi API, normalizes it through the existing autonomy ingester, writes JSON artifacts under `autonomy/runs/generated/staging-voice/`, renders a Markdown report under `autonomy/reports/generated/staging-voice/`, and exits non-zero when a required voice smoke criterion fails. If a referenced caller clip is missing, the runner can synthesize it on demand through ElevenLabs and cache it under `autonomy/scenarios/staging-voice/fixtures/`.
+
+The current runner needs both:
+
+- a private staging Vapi API key for server-side call fetches
+- a browser-side Vapi public key or public JWT token for web-call creation
+- `ELEVENLABS_API_KEY` only when voice fixtures still need to be synthesized locally
 
 ## Staging And Production
 
@@ -209,6 +248,8 @@ The default Google Calendar ID for workflow execution is read from root `.env` v
 - `POST /webhook/ai-receptionist/lookup-patient`
 - `POST /webhook/ai-receptionist/search-knowledge-base`
 - `POST /webhook/ai-receptionist/create-reception-task`
+- `POST /webhook/ai-receptionist/send-sms-to-receptionists`
+- `POST /webhook/ai-receptionist/send-sms-to-patient`
 
 The exported workflows already use these paths.
 
@@ -228,7 +269,7 @@ cloudflared tunnel --url http://localhost:5680
 
 or `ngrok http 5680`.
 
-Then configure five Vapi custom tools:
+Then configure the five core Vapi custom tools, and optionally add the two SMS tools once you create those Vapi tool resources:
 
 ### Tool: `lookupPatient`
 
@@ -266,6 +307,20 @@ Then configure five Vapi custom tools:
 - URL: `https://YOUR-PUBLIC-URL/webhook/ai-receptionist/create-reception-task`
 - Parameters: use [`schemas/createReceptionTask.request.json`](./schemas/createReceptionTask.request.json)
 
+### Optional Tool: `sendSmsToReceptionists`
+
+- Tool type: custom tool / server URL
+- Method: `POST`
+- URL: `https://YOUR-PUBLIC-URL/webhook/ai-receptionist/send-sms-to-receptionists`
+- Parameters: use [`schemas/sendSmsToReceptionists.request.json`](./schemas/sendSmsToReceptionists.request.json)
+
+### Optional Tool: `sendSmsToPatient`
+
+- Tool type: custom tool / server URL
+- Method: `POST`
+- URL: `https://YOUR-PUBLIC-URL/webhook/ai-receptionist/send-sms-to-patient`
+- Parameters: use [`schemas/sendSmsToPatient.request.json`](./schemas/sendSmsToPatient.request.json)
+
 Recommended assistant wiring in Vapi:
 
 - assistant config source of truth: [`configs/vapi/assistant.v1.json`](./configs/vapi/assistant.v1.json)
@@ -273,7 +328,8 @@ Recommended assistant wiring in Vapi:
 - assistant language: `pl-PL`
 - mirrored prompt copy: [`prompts/system-prompt.md`](./prompts/system-prompt.md)
 - mirrored first message copy: [`prompts/first-message.md`](./prompts/first-message.md)
-- enable all five tools on the assistant
+- enable the five core tools on the assistant
+- add the optional SMS tools only after their Vapi tool resources exist and their IDs are present in [`configs/vapi/environments/`](./configs/vapi/environments/)
 - let Vapi collect arguments and call the tools only when the prompt says to
 
 To apply the versioned config to the existing assistant:
@@ -322,6 +378,8 @@ The repo now also includes an offline-first autonomy workspace for ingesting raw
 - design doc: [`docs/autonomy-loop.md`](./docs/autonomy-loop.md)
 - workspace overview: [`autonomy/README.md`](./autonomy/README.md)
 - ingestion CLI: [`scripts/autonomy/ingest-vapi-call-log.js`](./scripts/autonomy/ingest-vapi-call-log.js)
+- voice smoke suite surface: [`docs/staging-voice-smoke-suite.md`](./docs/staging-voice-smoke-suite.md)
+- planned voice lane: [`docs/voice-e2e-execution-lane.md`](./docs/voice-e2e-execution-lane.md)
 
 ## Assumptions baked into this starter
 
@@ -335,7 +393,7 @@ The repo now also includes an offline-first autonomy workspace for ingesting raw
 - cancellation and rescheduling
 - multi-location routing
 - dentist-specific availability
-- reminders or real SMS delivery
+- scheduled reminders or multi-step notification campaigns
 - real patient database lookup
 
 Those can be added later without changing the basic contract.

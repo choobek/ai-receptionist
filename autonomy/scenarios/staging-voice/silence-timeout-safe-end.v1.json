@@ -1,0 +1,73 @@
+{
+  "schema_version": "staging-voice-scenario.v1",
+  "scenario_id": "silence-timeout-safe-end",
+  "title": "Silence timeout ends safely without tool activity",
+  "description": "Start a real staging web call, provide no caller speech, and verify the session ends without booking or follow-up side effects.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "voice",
+    "timeout",
+    "smoke"
+  ],
+  "source": {
+    "origin": "real_call",
+    "references": [
+      "docs/real-call-evaluation-2026-03-15-scenario-b.md",
+      "docs/testing.md"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_web_call",
+    "max_duration_seconds": 60,
+    "post_call_settle_seconds": 5,
+    "artifact_poll_seconds": 2,
+    "artifact_poll_attempts": 15
+  },
+  "steps": [
+    {
+      "step_id": "caller-silence",
+      "type": "pause",
+      "duration_ms": 26000,
+      "notes": "Provide no caller speech and let the call hit the assistant-side silence timeout."
+    },
+    {
+      "step_id": "wait-for-end",
+      "type": "wait_for_call_end",
+      "timeout_ms": 60000
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "silence-timeout-ended-reason",
+      "description": "The call should end with the silence timeout reason observed in prior real calls.",
+      "severity": "high",
+      "root_cause_hint": "voice_timeout_or_endpointing_behavior_changed",
+      "rule": {
+        "type": "ended_reason_equals",
+        "equals": "silence-timed-out"
+      }
+    },
+    {
+      "criterion_id": "no-create-event-on-silence",
+      "description": "Silence timeout should not create a booking.",
+      "severity": "critical",
+      "root_cause_hint": "assistant_or_tool_sequence_advanced_without_caller_input",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    },
+    {
+      "criterion_id": "no-reception-task-on-silence",
+      "description": "Silence timeout should not create a reception follow-up task.",
+      "severity": "high",
+      "root_cause_hint": "assistant_or_tool_sequence_advanced_without_caller_input",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createReceptionTask"
+      }
+    }
+  ]
+}

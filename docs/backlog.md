@@ -12,9 +12,9 @@ This backlog maps the current proof-of-concept implementation to the target conv
   - proof-of-concept mock patient registry
   - proof-of-concept receptionist task creation
   - proof-of-concept local knowledge base from ODT files
+  - optional SMS tool contracts/workflows with `mock` mode and webhook handoff mode
 - Still missing after this slice:
-  - real receptionist SMS sending
-  - patient confirmation SMS sending
+  - concrete production SMS provider selection and credential wiring
   - doctor-specific scheduling
   - real clinic CRM integration
 
@@ -56,11 +56,11 @@ Acceptance criteria:
 
 ## Phase 3: SMS Automations
 
-Status: not started
+Status: in progress
 
 - Add `sendSmsToReceptionists` using a real SMS provider or clinic communication system.
 - Add `sendSmsToPatient` for booking confirmations after successful appointment creation.
-- Add explicit delivery status handling and failure messaging.
+- Keep explicit delivery status handling and failure messaging.
 
 Acceptance criteria:
 

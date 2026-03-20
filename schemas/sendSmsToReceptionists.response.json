@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sendSmsToReceptionists response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "accepted",
+    "delivery",
+    "message"
+  ],
+  "properties": {
+    "requestId": {
+      "type": "string"
+    },
+    "accepted": {
+      "type": "boolean"
+    },
+    "delivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "provider",
+        "recipientCount"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "simulated",
+            "queued",
+            "sent",
+            "failed"
+          ]
+        },
+        "provider": {
+          "type": "string"
+        },
+        "recipientCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "providerMessageId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "notification": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "taskId": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        }
+      }
+    },
+    "message": {
+      "type": "string"
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "requestId": "req_sms_reception_001",
+      "accepted": true,
+      "delivery": {
+        "status": "simulated",
+        "provider": "mock",
+        "recipientCount": 1,
+        "providerMessageId": null
+      },
+      "notification": {
+        "kind": "reception_follow_up",
+        "taskId": "task_20260320_001",
+        "body": "Nowa prosba recepcji: istniejacy pacjent. Pacjent: Anna Kowalska, +48500111001. Pacjentka chce umowic kolejna wizyte."
+      },
+      "message": "Powiadomienie SMS dla recepcji zostalo przygotowane."
+    }
+  ]
+}

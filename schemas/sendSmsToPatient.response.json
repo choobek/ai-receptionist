@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sendSmsToPatient response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "accepted",
+    "delivery",
+    "message"
+  ],
+  "properties": {
+    "requestId": {
+      "type": "string"
+    },
+    "accepted": {
+      "type": "boolean"
+    },
+    "delivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "provider",
+        "recipientCount"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "simulated",
+            "queued",
+            "sent",
+            "failed"
+          ]
+        },
+        "provider": {
+          "type": "string"
+        },
+        "recipientCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "providerMessageId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "sms": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        }
+      }
+    },
+    "message": {
+      "type": "string"
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "requestId": "req_sms_patient_001",
+      "accepted": true,
+      "delivery": {
+        "status": "simulated",
+        "provider": "mock",
+        "recipientCount": 1,
+        "providerMessageId": null
+      },
+      "sms": {
+        "kind": "booking_confirmation",
+        "language": "pl",
+        "body": "Demo Dental Clinic: potwierdzenie wizyty dla Jan Kowalski. Konsultacja, piatek, 20 marca, 10:30."
+      },
+      "message": "Potwierdzenie SMS dla pacjenta zostalo przygotowane."
+    }
+  ]
+}

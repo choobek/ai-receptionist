@@ -2,13 +2,15 @@
 
 ## Purpose
 
-This project exposes five Vapi custom tools backed by n8n webhooks:
+This project exposes five core Vapi custom tools backed by n8n webhooks, plus two optional SMS tools:
 
 - `lookupPatient`
 - `checkAvailability`
 - `searchKnowledgeBase`
 - `createEvent`
 - `createReceptionTask`
+- `sendSmsToReceptionists`
+- `sendSmsToPatient`
 
 The JSON schemas in [`schemas/`](../schemas) describe the tool arguments and result objects.
 
@@ -29,6 +31,18 @@ Supported transport options:
 In production, Vapi sends a custom-tool webhook request that includes a `toolCallId` plus the function arguments for the tool call.
 
 For local testing, the workflows also accept the schema payload directly as the HTTP body.
+
+### SMS delivery modes
+
+The SMS workflows support three runtime modes:
+
+- default `mock` mode via `AI_RECEPTIONIST_SMS_PROVIDER=mock`
+- native `twilio` mode via `AI_RECEPTIONIST_SMS_PROVIDER=twilio` plus `TWILIO_ACCOUNT_SID` and `TWILIO_AUTH_TOKEN`
+- optional `webhook` mode via `AI_RECEPTIONIST_SMS_PROVIDER=webhook` plus `AI_RECEPTIONIST_SMS_WEBHOOK_URL`
+
+In `mock` mode the workflows return `delivery.status: simulated` so end-to-end testing can cover the SMS step safely before a real provider is chosen.
+
+In `twilio` mode the workflows send through Twilio's Messages API. `TWILIO_PHONE_NUMBER` is recommended as the explicit sender number. If it is omitted and the Twilio account has exactly one incoming number, the workflows auto-discover that number and use it as the sender.
 
 ## Response model
 
@@ -236,6 +250,84 @@ Important fields:
 - `accepted`
 - `taskId`
 - `task`
+- `message`
+
+## Tool: `sendSmsToReceptionists`
+
+### Intent
+
+Send an internal receptionist SMS alert only after `createReceptionTask` already succeeded.
+
+### Input shape
+
+Defined in [`schemas/sendSmsToReceptionists.request.json`](../schemas/sendSmsToReceptionists.request.json).
+
+Key fields:
+
+- `taskId` from `createReceptionTask`
+- `taskType`
+- `patient.fullName`
+- `patient.phoneE164`
+- `summary`
+
+### Workflow behavior
+
+1. Parse Vapi wrapper or direct body.
+2. Validate that the receptionist task context is complete.
+3. Build a concise internal SMS body from the task payload.
+4. In `mock` mode, return a simulated delivery result.
+5. In `webhook` mode, POST the SMS payload to the configured downstream SMS gateway or clinic webhook.
+
+### Success response
+
+Defined in [`schemas/sendSmsToReceptionists.response.json`](../schemas/sendSmsToReceptionists.response.json).
+
+Important fields:
+
+- `accepted`
+- `delivery.status`
+- `delivery.provider`
+- `notification`
+- `message`
+
+## Tool: `sendSmsToPatient`
+
+### Intent
+
+Send a booking confirmation SMS only after `createEvent` already succeeded and the caller explicitly agreed to receive the SMS.
+
+### Input shape
+
+Defined in [`schemas/sendSmsToPatient.request.json`](../schemas/sendSmsToPatient.request.json).
+
+Key fields:
+
+- `calendarEventId` from `createEvent`
+- `consentConfirmed`
+- `patient.fullName`
+- `patient.phoneE164`
+- `appointment.start`
+- `appointment.timezone`
+- `appointment.service`
+
+### Workflow behavior
+
+1. Parse Vapi wrapper or direct body.
+2. Validate patient fields, booking context, consent, language, and timezone.
+3. Build a concise SMS body in Polish or English.
+4. In `mock` mode, return a simulated delivery result.
+5. In `webhook` mode, POST the SMS payload to the configured downstream SMS gateway or clinic webhook.
+
+### Success response
+
+Defined in [`schemas/sendSmsToPatient.response.json`](../schemas/sendSmsToPatient.response.json).
+
+Important fields:
+
+- `accepted`
+- `delivery.status`
+- `delivery.provider`
+- `sms`
 - `message`
 
 ## Error contract

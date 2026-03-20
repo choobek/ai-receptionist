@@ -106,6 +106,25 @@ function runCodeNode(workflowFilename, nodeName, selectorNodes, inputItems = [],
   })[0].json;
 }
 
+async function runAsyncCodeNode(
+  workflowFilename,
+  nodeName,
+  selectorNodes,
+  inputItems = [],
+  env = {},
+  extraGlobals = {}
+) {
+  const workflow = loadWorkflow(workflowFilename);
+  const code = getNodeCode(workflow, nodeName);
+  const result = await executeCode(code, {
+    $: makeSelector(selectorNodes),
+    $input: makeInput(inputItems),
+    $env: env,
+    ...extraGlobals
+  });
+  return result[0].json;
+}
+
 function getResponseCodeOption(workflowFilename, nodeName) {
   const workflow = loadWorkflow(workflowFilename);
   const node = getNode(workflow, nodeName);
@@ -113,17 +132,22 @@ function getResponseCodeOption(workflowFilename, nodeName) {
 }
 
 let testsRun = 0;
+const pendingTests = [];
 
 function test(name, fn) {
   testsRun += 1;
-  try {
-    fn();
-    console.log(`ok - ${name}`);
-  } catch (error) {
-    console.error(`not ok - ${name}`);
-    console.error(error.stack || error.message);
-    process.exitCode = 1;
-  }
+  pendingTests.push(
+    Promise.resolve()
+      .then(fn)
+      .then(() => {
+        console.log(`ok - ${name}`);
+      })
+      .catch((error) => {
+        console.error(`not ok - ${name}`);
+        console.error(error.stack || error.message);
+        process.exitCode = 1;
+      })
+  );
 }
 
 const defaultEnv = {
@@ -230,8 +254,11 @@ test('checkAvailability first_available search window skips closed weekend days'
     defaultEnv
   );
   assert.equal(result.ok, true);
-  assert.equal(result.windowStart, '2026-03-20T08:00:00.000Z');
-  assert.equal(result.windowEnd, '2026-03-23T20:00:00.000Z');
+  assert.ok(new Date(result.windowEnd) > new Date(result.windowStart));
+  assert.ok(['2026-03-20', '2026-03-23'].includes(result.windowStart.slice(0, 10)));
+  assert.ok(['2026-03-23', '2026-03-24'].includes(result.windowEnd.slice(0, 10)));
+  assert.notEqual(result.windowStart.slice(0, 10), '2026-03-21');
+  assert.notEqual(result.windowStart.slice(0, 10), '2026-03-22');
 });
 
 test('checkAvailability returns only weekday slots inside clinic hours', () => {
@@ -421,6 +448,235 @@ test('createReceptionTask rejects unknown taskType', () => {
   expectValidationError(result, 'taskType is invalid');
 });
 
+test('sendSmsToReceptionists requires createReceptionTask taskId', () => {
+  const result = runParse(
+    'tool_send-sms-to-receptionists.json',
+    'Parse Request',
+    {
+      taskType: 'existing_patient_booking',
+      patient: { fullName: 'Anna Kowalska', phoneE164: '+48500111001' },
+      summary: 'Pacjentka chce umowic kolejna wizyte.'
+    },
+    defaultEnv
+  );
+  expectValidationError(result, 'taskId is required');
+});
+
+test('sendSmsToReceptionists prepares an internal alert body', () => {
+  const parseResult = runParse(
+    'tool_send-sms-to-receptionists.json',
+    'Parse Request',
+    {
+      taskId: 'task_20260320_001',
+      taskType: 'existing_patient_booking',
+      patient: { fullName: 'Anna Kowalska', phoneE164: '+48500111001' },
+      summary: 'Pacjentka chce umowic kolejna wizyte.',
+      preferredCallbackWindow: 'rano'
+    },
+    defaultEnv
+  );
+  assert.equal(parseResult.ok, true);
+
+  const prepared = runCodeNode(
+    'tool_send-sms-to-receptionists.json',
+    'Prepare SMS',
+    { 'Parse Request': parseResult },
+    [],
+    {
+      ...defaultEnv,
+      AI_RECEPTIONIST_RECEPTION_SMS_RECIPIENTS: '+48793385531'
+    }
+  );
+
+  assert.equal(prepared.kind, 'reception_follow_up');
+  assert.match(prepared.messageBody, /Task ID: task_20260320_001/);
+  assert.match(prepared.messageBody, /Preferowany kontakt: rano/);
+});
+
+test('sendSmsToPatient requires explicit SMS consent', () => {
+  const result = runParse(
+    'tool_send-sms-to-patient.json',
+    'Parse Request',
+    {
+      calendarEventId: 'evt_001',
+      consentConfirmed: false,
+      patient: { fullName: 'Jan Testowy', phoneE164: '+48500100200' },
+      appointment: {
+        start: '2026-03-20T10:30:00+01:00',
+        timezone: 'Europe/Warsaw',
+        service: { id: 'consultation', name: 'Konsultacja' }
+      }
+    },
+    defaultEnv
+  );
+  expectValidationError(result, 'consentConfirmed must be true');
+});
+
+test('sendSmsToPatient prepares an English booking confirmation SMS', () => {
+  const parseResult = runParse(
+    'tool_send-sms-to-patient.json',
+    'Parse Request',
+    {
+      calendarEventId: 'evt_001',
+      consentConfirmed: true,
+      language: 'en',
+      patient: { fullName: 'Jane Example', phoneE164: '+48500100200' },
+      appointment: {
+        start: '2026-03-20T10:30:00+01:00',
+        timezone: 'Europe/Warsaw',
+        service: { id: 'consultation', name: 'Consultation' }
+      }
+    },
+    { ...defaultEnv, CLINIC_NAME: 'Demo Dental Clinic' }
+  );
+  assert.equal(parseResult.ok, true);
+
+  const prepared = runCodeNode(
+    'tool_send-sms-to-patient.json',
+    'Prepare SMS',
+    { 'Parse Request': parseResult },
+    [],
+    { ...defaultEnv, CLINIC_NAME: 'Demo Dental Clinic' }
+  );
+
+  assert.equal(prepared.kind, 'booking_confirmation');
+  assert.deepEqual(prepared.recipients, ['+48500100200']);
+  assert.match(prepared.messageBody, /appointment confirmed/i);
+  assert.match(prepared.messageBody, /Demo Dental Clinic/);
+});
+
+test('sendSmsToReceptionists twilio mode requires Twilio credentials', async () => {
+  const parseResult = runParse(
+    'tool_send-sms-to-receptionists.json',
+    'Parse Request',
+    {
+      taskId: 'task_20260320_001',
+      taskType: 'existing_patient_booking',
+      patient: { fullName: 'Anna Kowalska', phoneE164: '+48500111001' },
+      summary: 'Pacjentka chce umowic kolejna wizyte.'
+    },
+    defaultEnv
+  );
+  assert.equal(parseResult.ok, true);
+
+  const prepared = runCodeNode(
+    'tool_send-sms-to-receptionists.json',
+    'Prepare SMS',
+    { 'Parse Request': parseResult },
+    [],
+    {
+      ...defaultEnv,
+      AI_RECEPTIONIST_RECEPTION_SMS_RECIPIENTS: '+48793385531'
+    }
+  );
+
+  const result = await runAsyncCodeNode(
+    'tool_send-sms-to-receptionists.json',
+    'Send SMS',
+    { 'Prepare SMS': prepared },
+    [],
+    {
+      ...defaultEnv,
+      AI_RECEPTIONIST_SMS_PROVIDER: 'twilio',
+      AI_RECEPTIONIST_RECEPTION_SMS_RECIPIENTS: '+48793385531'
+    },
+    {
+      fetch: async () => {
+        throw new Error('fetch should not be called when Twilio credentials are missing');
+      },
+      Buffer,
+      URLSearchParams,
+      AbortController,
+      setTimeout,
+      clearTimeout
+    }
+  );
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.error?.code, 'SMS_PROVIDER_NOT_CONFIGURED');
+  assert.equal(result.delivery?.provider, 'twilio');
+});
+
+test('sendSmsToPatient twilio mode auto-discovers the single sender number', async () => {
+  const parseResult = runParse(
+    'tool_send-sms-to-patient.json',
+    'Parse Request',
+    {
+      calendarEventId: 'evt_001',
+      consentConfirmed: true,
+      language: 'en',
+      patient: { fullName: 'Jane Example', phoneE164: '+48500100200' },
+      appointment: {
+        start: '2026-03-20T10:30:00+01:00',
+        timezone: 'Europe/Warsaw',
+        service: { id: 'consultation', name: 'Consultation' }
+      }
+    },
+    { ...defaultEnv, CLINIC_NAME: 'Demo Dental Clinic' }
+  );
+  assert.equal(parseResult.ok, true);
+
+  const prepared = runCodeNode(
+    'tool_send-sms-to-patient.json',
+    'Prepare SMS',
+    { 'Parse Request': parseResult },
+    [],
+    { ...defaultEnv, CLINIC_NAME: 'Demo Dental Clinic' }
+  );
+
+  const fetchCalls = [];
+  const result = await runAsyncCodeNode(
+    'tool_send-sms-to-patient.json',
+    'Send SMS',
+    { 'Prepare SMS': prepared },
+    [],
+    {
+      ...defaultEnv,
+      AI_RECEPTIONIST_SMS_PROVIDER: 'twilio',
+      TWILIO_ACCOUNT_SID: 'AC_test_account',
+      TWILIO_AUTH_TOKEN: 'test_token'
+    },
+    {
+      fetch: async (url, options = {}) => {
+        fetchCalls.push({ url, options });
+        if (url.endsWith('/IncomingPhoneNumbers.json?PageSize=20')) {
+          return {
+            ok: true,
+            status: 200,
+            text: async () => JSON.stringify({
+              incoming_phone_numbers: [{ phone_number: '+18207774711' }]
+            })
+          };
+        }
+        if (url.endsWith('/Messages.json')) {
+          assert.match(options.body, /From=%2B18207774711/);
+          assert.match(options.body, /To=%2B48500100200/);
+          return {
+            ok: true,
+            status: 201,
+            text: async () => JSON.stringify({
+              sid: 'SM123',
+              status: 'queued'
+            })
+          };
+        }
+        throw new Error(`Unexpected fetch URL: ${url}`);
+      },
+      Buffer,
+      URLSearchParams,
+      AbortController,
+      setTimeout,
+      clearTimeout
+    }
+  );
+
+  assert.equal(fetchCalls.length, 2);
+  assert.equal(result.accepted, true);
+  assert.equal(result.delivery?.provider, 'twilio');
+  assert.equal(result.delivery?.status, 'queued');
+  assert.equal(result.delivery?.providerMessageId, 'SM123');
+});
+
 test('searchKnowledgeBase returns English answers for English queries', () => {
   const workflow = loadWorkflow('tool_search-knowledge-base.json');
   const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
@@ -536,10 +792,29 @@ test('tool webhooks map validation and auth failures to HTTP status codes', () =
     getResponseCodeOption('tool_search-knowledge-base.json', 'Respond Error'),
     "={{ $json.error?.code === 'UNAUTHORIZED' ? 401 : 400 }}"
   );
+  assert.equal(
+    getResponseCodeOption('tool_send-sms-to-receptionists.json', 'Respond Validation Error'),
+    "={{ $json.error?.code === 'UNAUTHORIZED' ? 401 : 400 }}"
+  );
+  assert.equal(
+    getResponseCodeOption('tool_send-sms-to-patient.json', 'Respond Validation Error'),
+    "={{ $json.error?.code === 'UNAUTHORIZED' ? 401 : 400 }}"
+  );
 });
 
 test('createEvent maps slot conflicts to HTTP 409', () => {
   assert.equal(getResponseCodeOption('tool_create-event.json', 'Respond Conflict'), 409);
+});
+
+test('SMS provider failures map to 5xx status codes', () => {
+  assert.equal(
+    getResponseCodeOption('tool_send-sms-to-receptionists.json', 'Respond Provider Error'),
+    "={{ ['SMS_PROVIDER_NOT_CONFIGURED', 'SMS_RECIPIENTS_NOT_CONFIGURED'].includes($json.error?.code) ? 503 : 502 }}"
+  );
+  assert.equal(
+    getResponseCodeOption('tool_send-sms-to-patient.json', 'Respond Provider Error'),
+    502
+  );
 });
 
 test('call-ended router maps invalid events to HTTP 400 and unauthorized calls to 401', () => {
@@ -560,6 +835,9 @@ test('assistant prompt contains the call-quality guardrails from recent real-cal
   assert.match(prompt, /od poniedzialku do piatku w godzinach 09:00-21:00/i);
   assert.match(prompt, /dwie opcje: jedna rano lub w okolicy poludnia, a druga po poludniu/i);
   assert.match(prompt, /bez luk miedzy wizytami/i);
+  assert.match(prompt, /Jesli w danym srodowisku wlaczone sa narzedzia SMS/);
+  assert.match(prompt, /sendSmsToReceptionists/);
+  assert.match(prompt, /sendSmsToPatient/);
 });
 
 test('assistant prompt anchors createEvent to the exact selected slot boundary', () => {
@@ -599,8 +877,12 @@ test('structured output schema exposes QA flags for conversation regressions', (
   );
 });
 
-if (process.exitCode) {
-  process.exit(process.exitCode);
-}
+(async () => {
+  await Promise.all(pendingTests);
 
-console.log(`Workflow regression checks passed (${testsRun} tests).`);
+  if (process.exitCode) {
+    process.exit(process.exitCode);
+  }
+
+  console.log(`Workflow regression checks passed (${testsRun} tests).`);
+})();

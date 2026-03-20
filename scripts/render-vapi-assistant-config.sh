@@ -44,6 +44,8 @@ TOOL_ORDER = [
     "searchKnowledgeBase",
     "createEvent",
     "createReceptionTask",
+    "sendSmsToReceptionists",
+    "sendSmsToPatient",
 ]
 
 TOOL_ENDPOINTS = {
@@ -52,6 +54,13 @@ TOOL_ENDPOINTS = {
     "searchKnowledgeBase": "/webhook/ai-receptionist/search-knowledge-base",
     "createEvent": "/webhook/ai-receptionist/create-event",
     "createReceptionTask": "/webhook/ai-receptionist/create-reception-task",
+    "sendSmsToReceptionists": "/webhook/ai-receptionist/send-sms-to-receptionists",
+    "sendSmsToPatient": "/webhook/ai-receptionist/send-sms-to-patient",
+}
+
+OPTIONAL_TOOLS = {
+    "sendSmsToReceptionists",
+    "sendSmsToPatient",
 }
 
 CALL_ENDED_ENDPOINT = "/webhook/ai-receptionist/vapi-call-ended"
@@ -106,6 +115,8 @@ tool_bindings = []
 for tool_name in TOOL_ORDER:
     tool_id = (tool_id_map.get(tool_name) or "").strip()
     if not tool_id:
+        if tool_name in OPTIONAL_TOOLS:
+            continue
         raise SystemExit(f"toolIds.{tool_name} is required in {bindings_path}")
     tool_ids.append(tool_id)
     tool_bindings.append(

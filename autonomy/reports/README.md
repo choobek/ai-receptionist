@@ -10,6 +10,10 @@ The staging regression suite writes Markdown summaries under:
 
 - `autonomy/reports/generated/staging/`
 
+The staging voice smoke suite writes Markdown summaries under:
+
+- `autonomy/reports/generated/staging-voice/`
+
 The guarded staging improvement loop writes Markdown reports and an index under:
 
 - `autonomy/reports/generated/staging-loop/`

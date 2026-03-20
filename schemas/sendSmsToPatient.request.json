@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sendSmsToPatient request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "calendarEventId",
+    "consentConfirmed",
+    "patient",
+    "appointment"
+  ],
+  "properties": {
+    "requestId": {
+      "type": "string"
+    },
+    "calendarEventId": {
+      "type": "string",
+      "description": "Calendar event identifier returned by createEvent."
+    },
+    "consentConfirmed": {
+      "type": "boolean",
+      "description": "Must be true only when the caller explicitly agreed to receive the SMS."
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "pl",
+        "en"
+      ],
+      "default": "pl"
+    },
+    "patient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fullName",
+        "phoneE164"
+      ],
+      "properties": {
+        "fullName": {
+          "type": "string"
+        },
+        "phoneE164": {
+          "type": "string",
+          "pattern": "^\\+[1-9]\\d{7,14}$"
+        }
+      }
+    },
+    "appointment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "timezone",
+        "service"
+      ],
+      "properties": {
+        "start": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "end": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "timezone": {
+          "type": "string",
+          "default": "Europe/Warsaw"
+        },
+        "service": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "sourceCallId": {
+      "type": "string"
+    }
+  },
+  "examples": [
+    {
+      "requestId": "req_sms_patient_001",
+      "calendarEventId": "4pk5u3bdq1q58v7o8dr7sodfkg",
+      "consentConfirmed": true,
+      "language": "pl",
+      "patient": {
+        "fullName": "Jan Kowalski",
+        "phoneE164": "+48500100200"
+      },
+      "appointment": {
+        "start": "2026-03-20T10:30:00+01:00",
+        "end": "2026-03-20T11:15:00+01:00",
+        "timezone": "Europe/Warsaw",
+        "service": {
+          "id": "consultation",
+          "name": "Konsultacja"
+        }
+      },
+      "sourceCallId": "call_002"
+    }
+  ]
+}
