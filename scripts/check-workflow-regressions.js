@@ -1145,9 +1145,10 @@ test('assistant prompt contains the call-quality guardrails from recent real-cal
   assert.match(systemPrompts, /sendSmsToReceptionists/);
   assert.match(systemPrompts, /sendSmsToPatient/);
   assert.match(systemPrompts, /tylko pierwsze wizyty do doktor Magdaleny Szajnar/i);
+  assert.match(systemPrompts, /nie wchodz w normalny flow rezerwacji/i);
   assert.match(systemPrompts, /taskType general_follow_up/i);
   assert.match(systemPrompts, /nie proponuj terminow przez checkAvailability/i);
-  assert.match(systemPrompts, /Nie pytaj wtedy o preferowany dzien, godzine ani dalsze preferencje terminowe/i);
+  assert.match(systemPrompts, /Nastepny krok po potwierdzeniu numeru ma byc createReceptionTask/i);
 });
 
 test('assistant prompt anchors createEvent to the exact selected slot boundary', () => {
@@ -1160,6 +1161,8 @@ test('assistant prompt anchors createEvent to the exact selected slot boundary',
   assert.match(systemPrompts, /Patrz na pola start i end w wybranym slocie/);
   assert.match(systemPrompts, /pierwszy termin/);
   assert.match(systemPrompts, /09:00-09:45/);
+  assert.match(systemPrompts, /16:15-17:00/);
+  assert.match(systemPrompts, /16:15-16:45/i);
   assert.match(systemPrompts, /2026-03-19T09:30:00\+01:00/);
   assert.match(systemPrompts, /2026-03-19T10:15:00\+01:00/);
   assert.match(systemPrompts, /Nigdy nie zamieniaj tego na 10:00/);

@@ -59,6 +59,17 @@
   ],
   "rubric": [
     {
+      "criterion_id": "reception-task-created-on-confirmation-turn",
+      "description": "The assistant should create the reception task immediately after the caller confirms the repeated phone number.",
+      "severity": "critical",
+      "root_cause_hint": "assistant delayed the other-specialist handoff instead of creating the task on turn 2",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 2,
+        "tool_name": "createReceptionTask"
+      }
+    },
+    {
       "criterion_id": "reception-task-created",
       "description": "The assistant should create a reception task for the other-specialist request.",
       "severity": "critical",
