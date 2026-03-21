@@ -1,0 +1,179 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "existing-patient-booking-handoff-internal-sms-alert",
+  "title": "Existing-patient booking requests are handed to reception and trigger an internal SMS alert",
+  "description": "The caller clearly says this is not a first visit, asks to book another visit, provides synthetic identity details in the first turn, confirms the repeated phone number, and should stay in the reception-task branch. When the internal SMS tool is available, the assistant should call sendSmsToReceptionists only after createReceptionTask succeeds and should reuse the created taskId.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "handoff",
+    "sms",
+    "existing-patient",
+    "staging-safe"
+  ],
+  "required_tool_bindings": [
+    "sendSmsToReceptionists"
+  ],
+  "source": {
+    "origin": "manual_regression",
+    "references": [
+      "configs/vapi/assistant.v1.json",
+      "docs/tool-contracts.md"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 2
+  },
+  "turns": [
+    {
+      "turn_id": "request-existing-patient-booking",
+      "user": "Dzien dobry, chce umowic kolejna wizyte na higienizacje. To nie jest moja pierwsza wizyta, bylem juz u was. Mam na imie Test Staly Pacjent SMS, moj numer to siedem zero dwa, zero zero trzy, zero zero dziewiec.",
+      "assertions": [
+        {
+          "criterion_id": "no-handoff-before-phone-confirmation",
+          "description": "The assistant should not create the reception task before the caller confirms the repeated phone number.",
+          "severity": "high",
+          "root_cause_hint": "assistant skipped the phone confirmation step before createReceptionTask",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 1,
+            "tool_name": "createReceptionTask"
+          }
+        },
+        {
+          "criterion_id": "no-availability-check-before-confirmation",
+          "description": "An existing-patient booking request should not enter direct scheduling before the handoff path is complete.",
+          "severity": "critical",
+          "root_cause_hint": "assistant ignored the existing-patient handoff policy and tried scheduling anyway",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 1,
+            "tool_name": "checkAvailability"
+          }
+        }
+      ]
+    },
+    {
+      "turn_id": "confirm-phone",
+      "user": "Tak, zgadza sie."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "reception-task-created-on-confirmation-turn",
+      "description": "The assistant should create the reception task immediately after the caller confirms the repeated phone number.",
+      "severity": "critical",
+      "root_cause_hint": "assistant delayed the existing-patient handoff instead of creating the task on turn 2",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 2,
+        "tool_name": "createReceptionTask"
+      }
+    },
+    {
+      "criterion_id": "reception-task-created",
+      "description": "The existing-patient booking request should create a reception task after confirmation.",
+      "severity": "critical",
+      "root_cause_hint": "assistant prompt or createReceptionTask workflow did not hand off the existing-patient booking request",
+      "rule": {
+        "type": "tool_result_path_equals",
+        "tool_name": "createReceptionTask",
+        "path": "accepted",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "existing-patient-booking-task-type-used",
+      "description": "The handoff should keep the existing_patient_booking task type.",
+      "severity": "critical",
+      "root_cause_hint": "assistant mapped the existing-patient booking request to the wrong task type",
+      "rule": {
+        "type": "tool_arg_equals",
+        "tool_name": "createReceptionTask",
+        "path": "taskType",
+        "equals": "existing_patient_booking"
+      }
+    },
+    {
+      "criterion_id": "internal-sms-called-on-confirmation-turn",
+      "description": "The internal receptionist SMS should be triggered on the confirmation turn only.",
+      "severity": "critical",
+      "root_cause_hint": "assistant did not call sendSmsToReceptionists after the handoff task succeeded",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 2,
+        "tool_name": "sendSmsToReceptionists"
+      }
+    },
+    {
+      "criterion_id": "internal-sms-called-after-task-result",
+      "description": "The internal receptionist SMS should be triggered only after createReceptionTask has already returned its result.",
+      "severity": "critical",
+      "root_cause_hint": "assistant called sendSmsToReceptionists before createReceptionTask returned the taskId",
+      "rule": {
+        "type": "tool_called_after_tool_result",
+        "tool_name": "sendSmsToReceptionists",
+        "source_tool_name": "createReceptionTask"
+      }
+    },
+    {
+      "criterion_id": "internal-sms-workflow-accepted",
+      "description": "The internal SMS workflow itself should accept the receptionist alert request.",
+      "severity": "critical",
+      "root_cause_hint": "sendSmsToReceptionists was called but the SMS workflow rejected or failed the request",
+      "rule": {
+        "type": "tool_result_path_equals",
+        "tool_name": "sendSmsToReceptionists",
+        "path": "accepted",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "internal-sms-reuses-task-id",
+      "description": "The internal receptionist SMS must reuse the exact taskId returned by createReceptionTask.",
+      "severity": "critical",
+      "root_cause_hint": "assistant did not propagate the created taskId into sendSmsToReceptionists",
+      "rule": {
+        "type": "tool_arg_matches_tool_result_path",
+        "tool_name": "sendSmsToReceptionists",
+        "path": "taskId",
+        "source_tool_name": "createReceptionTask",
+        "source_path": "taskId"
+      }
+    },
+    {
+      "criterion_id": "internal-sms-keeps-task-type",
+      "description": "The internal receptionist SMS payload should keep the existing_patient_booking task type.",
+      "severity": "medium",
+      "root_cause_hint": "assistant lost the handoff task type before the sendSmsToReceptionists call",
+      "rule": {
+        "type": "tool_arg_equals",
+        "tool_name": "sendSmsToReceptionists",
+        "path": "taskType",
+        "equals": "existing_patient_booking"
+      }
+    },
+    {
+      "criterion_id": "no-availability-check",
+      "description": "An existing-patient booking handoff must not call checkAvailability.",
+      "severity": "critical",
+      "root_cause_hint": "assistant tried to schedule the existing patient directly",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "An existing-patient booking handoff must not create a new calendar event.",
+      "severity": "critical",
+      "root_cause_hint": "assistant attempted to createEvent instead of staying in the handoff branch",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    }
+  ]
+}

@@ -1301,6 +1301,12 @@ test('assistant prompt keeps the March 18 live-call booking guardrails', () => {
   assert.match(systemPrompts, /createReceptionTask juz zwrocil sukces/i);
   assert.match(systemPrompts, /masz taskId z wyniku createReceptionTask/i);
   assert.match(systemPrompts, /to jest narzedzie wewnetrzne/i);
+  assert.match(systemPrompts, /ta sciezka dotyczy tylko pierwszej wizyty/i);
+  assert.match(systemPrompts, /potwierdzony istniejacy pacjent nie przechodzi do samodzielnej rezerwacji/i);
+  assert.match(systemPrompts, /taskType existing_patient_booking/i);
+  assert.match(systemPrompts, /Nie zostawiaj w wypowiedzi ani jednej cyfry/i);
+  assert.match(systemPrompts, /nie wypowiadaj juz zadnego dodatkowego pytania ani komentarza przed tym wywolaniem/i);
+  assert.match(systemPrompts, /wywolaj sendSmsToReceptionists od razu w tej samej sciezce/i);
   assert.equal(/sendSmsToPatient/.test(systemPrompts), false);
   assert.equal(/taskType general_follow_up/i.test(systemPrompts), false);
   assert.equal(/po lunchu \/ po obiedzie -> afternoon/i.test(systemPrompts), false);
@@ -1417,6 +1423,7 @@ test('assistant SMS scenarios resolve required tool bindings against staging and
   const productionEnabledBindings = getEnabledToolBindings(loadEnvironmentBindings('production'));
   const patientSmsScenario = loadStagingScenario('booking-confirmation-sms.v1.json');
   const receptionSmsScenario = loadStagingScenario('reschedule-handoff-internal-sms-alert.v1.json');
+  const existingPatientBookingScenario = loadStagingScenario('existing-patient-booking-handoff-internal-sms-alert.v1.json');
 
   assert.deepEqual(
     getMissingRequiredToolBindings(patientSmsScenario, stagingEnabledBindings),
@@ -1427,11 +1434,19 @@ test('assistant SMS scenarios resolve required tool bindings against staging and
     []
   );
   assert.deepEqual(
+    getMissingRequiredToolBindings(existingPatientBookingScenario, stagingEnabledBindings),
+    []
+  );
+  assert.deepEqual(
     getMissingRequiredToolBindings(patientSmsScenario, productionEnabledBindings),
     []
   );
   assert.deepEqual(
     getMissingRequiredToolBindings(receptionSmsScenario, productionEnabledBindings),
+    []
+  );
+  assert.deepEqual(
+    getMissingRequiredToolBindings(existingPatientBookingScenario, productionEnabledBindings),
     []
   );
 });
@@ -1450,6 +1465,38 @@ test('specialist handoff scenario routes other specialists into general follow-u
     tool_name: 'createReceptionTask',
     path: 'taskType',
     equals: 'general_follow_up'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-availability-check').rule, {
+    type: 'tool_not_called',
+    tool_name: 'checkAvailability'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-booking-created').rule, {
+    type: 'tool_not_called',
+    tool_name: 'createEvent'
+  });
+});
+
+test('existing-patient booking handoff scenario routes directly to reception with internal SMS and no scheduling', () => {
+  const scenario = loadStagingScenario('existing-patient-booking-handoff-internal-sms-alert.v1.json');
+
+  assert.deepEqual(getScenarioCriterion(scenario, 'existing-patient-booking-task-type-used').rule, {
+    type: 'tool_arg_equals',
+    tool_name: 'createReceptionTask',
+    path: 'taskType',
+    equals: 'existing_patient_booking'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'internal-sms-workflow-accepted').rule, {
+    type: 'tool_result_path_equals',
+    tool_name: 'sendSmsToReceptionists',
+    path: 'accepted',
+    equals: true
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'internal-sms-reuses-task-id').rule, {
+    type: 'tool_arg_matches_tool_result_path',
+    tool_name: 'sendSmsToReceptionists',
+    path: 'taskId',
+    source_tool_name: 'createReceptionTask',
+    source_path: 'taskId'
   });
   assert.deepEqual(getScenarioCriterion(scenario, 'no-availability-check').rule, {
     type: 'tool_not_called',
@@ -1485,6 +1532,7 @@ test('staging chat runner resolves scenario template fallbacks and explicit over
 test('assistant SMS staging scenarios require end-to-end workflow result checks', () => {
   const patientSmsScenario = loadStagingScenario('booking-confirmation-sms.v1.json');
   const receptionSmsScenario = loadStagingScenario('reschedule-handoff-internal-sms-alert.v1.json');
+  const existingPatientBookingScenario = loadStagingScenario('existing-patient-booking-handoff-internal-sms-alert.v1.json');
 
   assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'patient-sms-workflow-accepted').rule, {
     type: 'tool_result_path_equals',
@@ -1528,6 +1576,19 @@ test('assistant SMS staging scenarios require end-to-end workflow result checks'
     tool_name: 'sendSmsToReceptionists',
     path: 'notification.kind',
     equals: 'reception_follow_up'
+  });
+
+  assert.deepEqual(getScenarioCriterion(existingPatientBookingScenario, 'internal-sms-workflow-accepted').rule, {
+    type: 'tool_result_path_equals',
+    tool_name: 'sendSmsToReceptionists',
+    path: 'accepted',
+    equals: true
+  });
+  assert.deepEqual(getScenarioCriterion(existingPatientBookingScenario, 'internal-sms-keeps-task-type').rule, {
+    type: 'tool_arg_equals',
+    tool_name: 'sendSmsToReceptionists',
+    path: 'taskType',
+    equals: 'existing_patient_booking'
   });
 });
 
