@@ -1154,6 +1154,27 @@ test('searchKnowledgeBase returns other-specialist handoff guidance', () => {
   assert.match(searchResult.answer, /recepcji/i);
 });
 
+test('searchKnowledgeBase returns the clinic address for location questions', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Jaki jest adres kliniki ipokrzyku.pl w Krakowie? Gdzie znajduje sie klinika?',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.match(searchResult.answer, /Josepha Conrada 37/i);
+  assert.match(searchResult.answer, /31-357 Krakow/i);
+});
+
 test('searchKnowledgeBase refuses partial-overlap medical questions', () => {
   const workflow = loadWorkflow('tool_search-knowledge-base.json');
   const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
@@ -1260,7 +1281,7 @@ test('call-ended router maps invalid events to HTTP 400 and unauthorized calls t
   );
 });
 
-test('assistant prompt contains the call-quality guardrails from recent real-call regressions', () => {
+test('assistant prompt keeps the March 18 live-call booking guardrails', () => {
   const config = loadAssistantConfig();
   const systemPrompts = (config.assistant?.model?.messages || [])
     .filter((message) => message.role === 'system' && typeof message.content === 'string')
@@ -1275,18 +1296,11 @@ test('assistant prompt contains the call-quality guardrails from recent real-cal
   assert.match(systemPrompts, /od poniedzialku do piatku w godzinach 09:00-21:00/i);
   assert.match(systemPrompts, /dwie opcje: jedna rano lub w okolicy poludnia, a druga po poludniu/i);
   assert.match(systemPrompts, /bez luk miedzy wizytami/i);
-  assert.match(systemPrompts, /po lunchu \/ po obiedzie -> afternoon/i);
-  assert.match(systemPrompts, /ustaw requestedDate na najwczesniejszy pasujacy otwarty dzien i searchDays/i);
-  assert.match(systemPrompts, /mimo szumu slyszysz kluczowe slowa pytania ogolnego/i);
-  assert.match(systemPrompts, /Jesli w danym srodowisku wlaczone sa narzedzia SMS/);
-  assert.match(systemPrompts, /sendSmsToReceptionists/);
-  assert.match(systemPrompts, /sendSmsToPatient/);
-  assert.match(systemPrompts, /jesli chodzi o pierwsza wizyte u innego specjalisty niz dr Magdalena Szajnar/i);
-  assert.match(systemPrompts, /nie wchodz w normalny flow rezerwacji/i);
-  assert.match(systemPrompts, /taskType general_follow_up/i);
-  assert.match(systemPrompts, /Nie odpowiadaj na takie pytania z pamieci/i);
-  assert.match(systemPrompts, /nie proponuj terminow przez checkAvailability/i);
-  assert.match(systemPrompts, /Po potwierdzeniu numeru telefonu od razu uzyj createReceptionTask/i);
+  assert.match(systemPrompts, /Masz dostep do:\s*- lookupPatient\s*- checkAvailability\s*- searchKnowledgeBase\s*- createEvent\s*- createReceptionTask/i);
+  assert.equal(/sendSmsToReceptionists/.test(systemPrompts), false);
+  assert.equal(/sendSmsToPatient/.test(systemPrompts), false);
+  assert.equal(/taskType general_follow_up/i.test(systemPrompts), false);
+  assert.equal(/po lunchu \/ po obiedzie -> afternoon/i.test(systemPrompts), false);
 });
 
 test('assistant prompt anchors createEvent to the exact selected slot boundary', () => {
@@ -1297,65 +1311,44 @@ test('assistant prompt anchors createEvent to the exact selected slot boundary',
     .join('\n');
   assert.match(systemPrompts, /skopiuj slotStart z pola start i slotEnd z pola end wybranego slotu/i);
   assert.match(systemPrompts, /Nie wyliczaj slotEnd z label/i);
-  assert.match(systemPrompts, /pierwszy termin/);
-  assert.match(systemPrompts, /09:00-09:45/);
-  assert.match(systemPrompts, /16:15-17:00/);
-  assert.match(systemPrompts, /16:15-16:45/i);
-  assert.match(systemPrompts, /45 minut/);
-  assert.match(systemPrompts, /18:30 i end 19:15/);
   assert.match(systemPrompts, /2026-03-19T09:30:00\+01:00/);
   assert.match(systemPrompts, /2026-03-19T10:15:00\+01:00/);
-  assert.match(systemPrompts, /Nie tworz createEvent z samej godziny startu/i);
 });
 
-test('assistant prompt keeps an inbound caller-id fallback for repeated phone capture failures', () => {
+test('assistant prompt keeps the baseline spoken-phone and doctor-name guardrails', () => {
   const config = loadAssistantConfig();
   const systemPrompts = (config.assistant?.model?.messages || [])
     .filter((message) => message.role === 'system' && typeof message.content === 'string')
     .map((message) => message.content)
     .join('\n');
-  assert.match(systemPrompts, /W kazdej rozmowie nazwisko lekarza zawsze zapisuj dokladnie jako Szajnar/i);
-  assert.match(systemPrompts, /zapisuj i czytaj go tylko polskimi slowami dla kazdej cyfry/i);
-  assert.match(systemPrompts, /Nie zamieniaj 604 na 6:04 ani 123 na 1:23/i);
-  assert.match(systemPrompts, /Dla numeru 604123456 mow(?: dokladnie)?: szesc zero cztery, jeden dwa trzy, cztery piec szesc/i);
-  assert.match(systemPrompts, /pierwsza powtorka numeru okazala sie bledna/i);
-  assert.match(systemPrompts, /customer\.number/);
-  assert.match(systemPrompts, /po dwoch probach nadal nie udalo sie potwierdzic numeru/i);
-  assert.match(systemPrompts, /numeru, z ktorego pacjent dzwoni/i);
-  assert.match(systemPrompts, /Nie pros o trzeci pelny odczyt/i);
-  assert.match(systemPrompts, /Nie zgaduj numeru, jesli customer\.number nie jest dostepny/i);
+  assert.match(systemPrompts, /nazwisko lekarza to Szajnar/i);
+  assert.match(systemPrompts, /Numer telefonu czytaj cyfra po cyfrze lub parami/i);
+  assert.match(systemPrompts, /nigdy nie rekonstruuj numeru telefonu z pamieci/i);
+  assert.match(systemPrompts, /uzyj polskich slow dla kazdej cyfry/i);
+  assert.equal(/customer\.number/.test(systemPrompts), false);
 });
 
-test('assistant config keeps the post-endpoint wait', () => {
+test('assistant config keeps the March 18 endpointing profile', () => {
   const config = loadAssistantConfig();
   assert.equal(config.assistant?.transcriber?.provider, 'openai');
   assert.equal(config.assistant?.transcriber?.model, 'gpt-4o-transcribe');
   assert.equal(config.assistant?.transcriber?.language, 'pl');
-  assert.equal(config.assistant?.startSpeakingPlan?.waitSeconds, 0.4);
+  assert.equal(config.assistant?.startSpeakingPlan?.waitSeconds, 0.6);
   assert.deepEqual(config.assistant?.startSpeakingPlan?.smartEndpointingPlan, {
     provider: 'vapi'
   });
-  assert.deepEqual(config.assistant?.startSpeakingPlan?.customEndpointingRules, [
-    {
-      type: 'customer',
-      regex: '^[Aa]\\s+co\\s+[Jj]e(?:s|ś)li(?:\\s*[.?!…]+)?\\s*$',
-      timeoutSeconds: 3.2
-    },
-    {
-      type: 'customer',
-      regex: '^[Ww]hat\\s+[Ii]f(?:\\s*[.?!…]+)?\\s*$',
-      timeoutSeconds: 3.2
-    },
-    {
-      type: 'customer',
-      regex: '^(?:(?:m[oó]j\\s+)?(?:numer|telefon)(?:\\s+(?:to|jest))?.*|.*\\d{6,}.*|(?:(?:zero|jeden|dwa|trzy|cztery|piec|pi[eę]c|szesc|sze(?:s|ś)c|siedem|osiem|dziewiec|dziewi(?:e|ę)c)(?:[\\s,.-]+|$)){6,})$',
-      timeoutSeconds: 2.4
-    }
-  ]);
-  assert.equal(config.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.2);
-  assert.equal(config.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 2);
-  assert.equal(config.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 1.2);
-  assert.equal(config.assistant?.stopSpeakingPlan?.backoffSeconds, 1);
+  assert.equal(config.assistant?.startSpeakingPlan?.customEndpointingRules, undefined);
+  assert.equal(config.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.5);
+  assert.equal(config.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 3);
+  assert.equal(config.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 1.5);
+  assert.equal(config.assistant?.stopSpeakingPlan?.backoffSeconds, 1.2);
+});
+
+test('assistant config keeps the March 18 voice model and temperature', () => {
+  const config = loadAssistantConfig();
+  assert.equal(config.assistant?.voice?.model, 'eleven_turbo_v2_5');
+  assert.equal(config.assistant?.voice?.chunkPlan?.enabled, true);
+  assert.equal(config.assistant?.model?.temperature, 0.2);
 });
 
 test('assistant renderer includes SMS tools in production when bindings are configured', () => {
