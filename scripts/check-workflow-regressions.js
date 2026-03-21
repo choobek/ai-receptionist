@@ -1147,6 +1147,7 @@ test('assistant prompt contains the call-quality guardrails from recent real-cal
   assert.match(systemPrompts, /tylko pierwsze wizyty do doktor Magdaleny Szajnar/i);
   assert.match(systemPrompts, /taskType general_follow_up/i);
   assert.match(systemPrompts, /nie proponuj terminow przez checkAvailability/i);
+  assert.match(systemPrompts, /Nie pytaj wtedy o preferowany dzien, godzine ani dalsze preferencje terminowe/i);
 });
 
 test('assistant prompt anchors createEvent to the exact selected slot boundary', () => {

@@ -64,7 +64,8 @@
         "turn": 1,
         "contains_any": [
           "450",
-          "czterysta piecdziesiat"
+          "czterysta piecdziesiat",
+          "czterysta piec dziesiat"
         ]
       }
     },

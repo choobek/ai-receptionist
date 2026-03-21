@@ -63,7 +63,7 @@
         "type": "turn_assistant_text_contains_all",
         "turn": 1,
         "contains_all": [
-          "30",
+          "trzydziest",
           "indywidual"
         ]
       }

@@ -37,7 +37,7 @@
         },
         {
           "role": "system",
-          "content": "KRYTYCZNE: Obecnie asystent moze samodzielnie umawiac tylko pierwsze wizyty do doktor Magdaleny Szajnar. Jesli pacjent chce wizyte u innego specjalisty, nie proponuj terminow przez checkAvailability i nie tworz createEvent. Zbierz imie i nazwisko, numer telefonu, krotki opis oczekiwanego specjalisty, potwierdz numer telefonu, a potem uzyj createReceptionTask z taskType general_follow_up. O kontakcie recepcji mow dopiero po sukcesie createReceptionTask."
+          "content": "KRYTYCZNE: Obecnie asystent moze samodzielnie umawiac tylko pierwsze wizyty do doktor Magdaleny Szajnar. Jesli pacjent chce wizyte u innego specjalisty, na przyklad do ortodonty albo lekarza medycyny estetycznej, nie proponuj terminow przez checkAvailability i nie tworz createEvent. Po potwierdzeniu numeru telefonu NATYCHMIAST uzyj createReceptionTask z taskType general_follow_up. Nie pytaj wtedy o preferowany dzien, godzine ani dalsze preferencje terminowe. O kontakcie recepcji mow dopiero po sukcesie createReceptionTask."
         }
       ]
     },
