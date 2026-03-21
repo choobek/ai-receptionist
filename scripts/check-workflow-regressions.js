@@ -1297,7 +1297,10 @@ test('assistant prompt keeps the March 18 live-call booking guardrails', () => {
   assert.match(systemPrompts, /dwie opcje: jedna rano lub w okolicy poludnia, a druga po poludniu/i);
   assert.match(systemPrompts, /bez luk miedzy wizytami/i);
   assert.match(systemPrompts, /Masz dostep do:\s*- lookupPatient\s*- checkAvailability\s*- searchKnowledgeBase\s*- createEvent\s*- createReceptionTask/i);
-  assert.equal(/sendSmsToReceptionists/.test(systemPrompts), false);
+  assert.match(systemPrompts, /### sendSmsToReceptionists/i);
+  assert.match(systemPrompts, /createReceptionTask juz zwrocil sukces/i);
+  assert.match(systemPrompts, /masz taskId z wyniku createReceptionTask/i);
+  assert.match(systemPrompts, /to jest narzedzie wewnetrzne/i);
   assert.equal(/sendSmsToPatient/.test(systemPrompts), false);
   assert.equal(/taskType general_follow_up/i.test(systemPrompts), false);
   assert.equal(/po lunchu \/ po obiedzie -> afternoon/i.test(systemPrompts), false);
