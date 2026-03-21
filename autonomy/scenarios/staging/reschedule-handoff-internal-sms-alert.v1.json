@@ -108,6 +108,18 @@
       }
     },
     {
+      "criterion_id": "internal-sms-workflow-accepted",
+      "description": "The internal SMS workflow itself should accept the receptionist alert request.",
+      "severity": "critical",
+      "root_cause_hint": "sendSmsToReceptionists was called but the SMS workflow rejected or failed the request",
+      "rule": {
+        "type": "tool_result_path_equals",
+        "tool_name": "sendSmsToReceptionists",
+        "path": "accepted",
+        "equals": true
+      }
+    },
+    {
       "criterion_id": "internal-sms-reuses-task-id",
       "description": "The internal receptionist SMS must reuse the exact taskId returned by createReceptionTask.",
       "severity": "critical",
@@ -118,6 +130,30 @@
         "path": "taskId",
         "source_tool_name": "createReceptionTask",
         "source_path": "taskId"
+      }
+    },
+    {
+      "criterion_id": "internal-sms-targets-single-recipient",
+      "description": "The internal SMS workflow should target exactly one configured receptionist recipient in this staging flow.",
+      "severity": "high",
+      "root_cause_hint": "sendSmsToReceptionists produced an unexpected recipient count in the workflow result",
+      "rule": {
+        "type": "tool_result_path_equals",
+        "tool_name": "sendSmsToReceptionists",
+        "path": "delivery.recipientCount",
+        "equals": 1
+      }
+    },
+    {
+      "criterion_id": "internal-sms-produces-reception-notification",
+      "description": "The internal SMS workflow should return the receptionist follow-up notification payload.",
+      "severity": "high",
+      "root_cause_hint": "sendSmsToReceptionists did not return the expected receptionist notification payload",
+      "rule": {
+        "type": "tool_result_path_equals",
+        "tool_name": "sendSmsToReceptionists",
+        "path": "notification.kind",
+        "equals": "reception_follow_up"
       }
     },
     {

@@ -267,9 +267,26 @@ Expected:
 - `delivery.status: "simulated"` in `mock` mode
 - `sms.body` present
 
-If `AI_RECEPTIONIST_SMS_PROVIDER=twilio` is enabled instead, expect `delivery.status` to move to `queued` or `sent`. Set `TWILIO_PHONE_NUMBER` explicitly or keep exactly one incoming number on the Twilio account so the workflow can auto-discover the sender.
+If `AI_RECEPTIONIST_SMS_PROVIDER=twilio` is enabled instead, expect `delivery.status` to move to `queued` or `sent`. Set `TWILIO_PHONE_NUMBER` explicitly; the workflows no longer rely on Twilio number auto-discovery.
 
 If `AI_RECEPTIONIST_SMS_PROVIDER=webhook` is enabled instead, expect `delivery.status` to move to `queued` or `sent` and verify the downstream gateway receives the posted payload.
+
+## 10a. Automated staging SMS delivery suite
+
+To flip staging into one SMS mode, run both direct probes, and then run the focused assistant SMS scenarios:
+
+```bash
+./scripts/run-staging-sms-delivery-suite.sh --provider mock
+./scripts/run-staging-sms-delivery-suite.sh --provider twilio --patient-phone-e164 +48500100200
+./scripts/run-staging-sms-delivery-suite.sh --provider webhook --patient-phone-e164 +48500100200
+```
+
+Notes:
+- the helper is staging-only
+- by default it restores the staging stack to the provider configured in the remote root `.env` after the run
+- use `--keep-provider` only if you intentionally want staging to stay in the selected mode
+- in `twilio` or `webhook` mode the patient phone must be a real test recipient; if omitted, the helper falls back to the first number from local `AI_RECEPTIONIST_RECEPTION_SMS_RECIPIENTS`
+- the helper also injects that same recipient into the `booking-confirmation-sms` assistant scenario so the patient-facing end-to-end SMS path can be exercised without hand-editing the scenario file
 
 ## 11. Structured output webhook router test
 

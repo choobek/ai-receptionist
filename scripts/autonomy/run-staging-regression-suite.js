@@ -141,6 +141,37 @@ function parseMaybeJson(value) {
   }
 }
 
+function resolveTemplatedString(value, env = process.env) {
+  return value.replace(/\{\{([A-Za-z_][A-Za-z0-9_]*)(?:\|([^{}]*))?\}\}/g, (match, envName, fallback) => {
+    const envValue = env[envName];
+    if (typeof envValue === 'string' && envValue !== '') {
+      return envValue;
+    }
+    if (fallback !== undefined) {
+      return fallback;
+    }
+    throw new Error(`Missing required scenario template variable: ${envName}`);
+  });
+}
+
+function resolveScenarioTemplates(value, env = process.env) {
+  if (Array.isArray(value)) {
+    return value.map((item) => resolveScenarioTemplates(item, env));
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [key, resolveScenarioTemplates(nestedValue, env)])
+    );
+  }
+
+  if (typeof value === 'string' && value.includes('{{')) {
+    return resolveTemplatedString(value, env);
+  }
+
+  return value;
+}
+
 function getByPath(value, dottedPath) {
   if (!dottedPath) {
     return value;
@@ -212,7 +243,7 @@ function loadScenarios(selectedIds) {
     .map((entry) => path.join(DEFAULT_SCENARIOS_DIR, entry));
 
   const scenarios = entries.map((filePath) => {
-    const scenario = readJson(filePath);
+    const scenario = resolveScenarioTemplates(readJson(filePath));
     scenario.__filePath = filePath;
     return scenario;
   });
@@ -1134,6 +1165,7 @@ if (require.main === module) {
     createContext,
     normalizeOutputForTurn,
     evaluateCriterion,
+    resolveScenarioTemplates,
     getEnabledToolBindings,
     getMissingRequiredToolBindings
   };

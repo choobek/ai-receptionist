@@ -91,7 +91,153 @@
         0
       ],
       "parameters": {
-        "jsCode": "return (async () => {\n  const request = $('Prepare SMS').first().json;\n  const providerModeRaw = typeof $env.AI_RECEPTIONIST_SMS_PROVIDER === 'string' ? $env.AI_RECEPTIONIST_SMS_PROVIDER.trim().toLowerCase() : '';\n  const providerMode = providerModeRaw || 'mock';\n  const recipients = Array.isArray(request.recipients)\n    ? request.recipients.filter((value) => typeof value === 'string' && value.trim())\n    : [];\n  const baseResult = {\n    toolCallId: request.toolCallId,\n    requestId: request.requestId,\n    accepted: true,\n    delivery: {\n      status: 'simulated',\n      provider: providerMode,\n      recipientCount: recipients.length > 0 ? recipients.length : 1,\n      providerMessageId: null\n    },\n    notification: {\n      kind: request.kind,\n      taskId: request.taskId,\n      body: request.messageBody\n    },\n    message: 'Powiadomienie SMS dla recepcji zostalo przygotowane.'\n  };\n\n  const buildFailure = (code, message, provider, details, recipientCount = recipients.length) => [{ json: {\n    toolCallId: request.toolCallId,\n    requestId: request.requestId,\n    accepted: false,\n    delivery: {\n      status: 'failed',\n      provider,\n      recipientCount,\n      providerMessageId: null\n    },\n    message,\n    error: {\n      code,\n      details\n    }\n  } }];\n\n  const normalizeProviderStatus = (status) => {\n    const normalized = typeof status === 'string' ? status.trim().toLowerCase() : '';\n    if (normalized === 'sent' || normalized === 'delivered') return 'sent';\n    if (normalized === 'queued' || normalized === 'accepted' || normalized === 'scheduled' || normalized === 'sending') return 'queued';\n    if (normalized === 'failed' || normalized === 'undelivered' || normalized === 'canceled') return 'failed';\n    return 'queued';\n  };\n\n  const resolveTwilioPhoneNumber = async () => {\n    const configuredPhoneNumber = typeof $env.TWILIO_PHONE_NUMBER === 'string' ? $env.TWILIO_PHONE_NUMBER.trim() : '';\n    if (configuredPhoneNumber) {\n      return configuredPhoneNumber;\n    }\n\n    const accountSid = typeof $env.TWILIO_ACCOUNT_SID === 'string' ? $env.TWILIO_ACCOUNT_SID.trim() : '';\n    const authToken = typeof $env.TWILIO_AUTH_TOKEN === 'string' ? $env.TWILIO_AUTH_TOKEN.trim() : '';\n    if (!accountSid || !authToken) {\n      throw new Error('TWILIO_PHONE_NUMBER is not set and Twilio credentials are unavailable for auto-discovery');\n    }\n\n    const authHeader = `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`;\n    const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/IncomingPhoneNumbers.json?PageSize=20`, {\n      headers: {\n        authorization: authHeader\n      }\n    });\n    const responseText = await response.text();\n    if (!response.ok) {\n      throw new Error(`Unable to list Twilio incoming numbers: HTTP ${response.status}${responseText ? ` ${responseText.slice(0, 500)}` : ''}`);\n    }\n\n    let responseBody = null;\n    if (responseText) {\n      try {\n        responseBody = JSON.parse(responseText);\n      } catch (error) {\n        responseBody = null;\n      }\n    }\n\n    const incomingNumbers = Array.isArray(responseBody?.incoming_phone_numbers)\n      ? responseBody.incoming_phone_numbers.filter((item) => typeof item?.phone_number === 'string' && item.phone_number.trim())\n      : [];\n    if (incomingNumbers.length !== 1) {\n      throw new Error(`Expected exactly one Twilio incoming phone number for auto-discovery, found ${incomingNumbers.length}`);\n    }\n\n    return incomingNumbers[0].phone_number.trim();\n  };\n\n  if (providerMode === 'mock') {\n    baseResult.delivery.provider = 'mock';\n    return [{ json: baseResult }];\n  }\n\n  if (providerMode === 'twilio') {\n    if (recipients.length === 0) {\n      return buildFailure(\n        'SMS_RECIPIENTS_NOT_CONFIGURED',\n        'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n        'twilio',\n        ['AI_RECEPTIONIST_RECEPTION_SMS_RECIPIENTS must contain at least one E.164 number'],\n        0\n      );\n    }\n\n    const accountSid = typeof $env.TWILIO_ACCOUNT_SID === 'string' ? $env.TWILIO_ACCOUNT_SID.trim() : '';\n    const authToken = typeof $env.TWILIO_AUTH_TOKEN === 'string' ? $env.TWILIO_AUTH_TOKEN.trim() : '';\n    if (!accountSid || !authToken) {\n      return buildFailure(\n        'SMS_PROVIDER_NOT_CONFIGURED',\n        'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n        'twilio',\n        ['TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN are required for twilio mode']\n      );\n    }\n\n    let fromNumber;\n    try {\n      fromNumber = await resolveTwilioPhoneNumber();\n    } catch (error) {\n      return buildFailure(\n        'SMS_PROVIDER_NOT_CONFIGURED',\n        'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n        'twilio',\n        [error.message]\n      );\n    }\n\n    const authHeader = `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`;\n    let results;\n    try {\n      results = await Promise.all(recipients.map(async (recipient) => {\n        const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {\n          method: 'POST',\n          headers: {\n            authorization: authHeader,\n            'content-type': 'application/x-www-form-urlencoded'\n          },\n          body: new URLSearchParams({\n            From: fromNumber,\n            To: recipient,\n            Body: request.messageBody\n          }).toString()\n        });\n        const responseText = await response.text();\n        let responseBody = null;\n        if (responseText) {\n          try {\n            responseBody = JSON.parse(responseText);\n          } catch (error) {\n            responseBody = null;\n          }\n        }\n        if (!response.ok) {\n          throw new Error(`Twilio rejected recipient ${recipient}: HTTP ${response.status}${responseText ? ` ${responseText.slice(0, 500)}` : ''}`);\n        }\n        return {\n          recipient,\n          sid: typeof responseBody?.sid === 'string' ? responseBody.sid : null,\n          status: normalizeProviderStatus(responseBody?.status)\n        };\n      }));\n    } catch (error) {\n      return buildFailure(\n        'SMS_PROVIDER_REJECTED',\n        'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n        'twilio',\n        [error.message]\n      );\n    }\n\n    const normalizedStatus = results.some((item) => item.status === 'failed')\n      ? 'failed'\n      : results.some((item) => item.status === 'sent')\n        ? 'sent'\n        : 'queued';\n\n    if (normalizedStatus === 'failed') {\n      return buildFailure(\n        'SMS_PROVIDER_REJECTED',\n        'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n        'twilio',\n        results.map((item) => `${item.recipient}: ${item.status}`)\n      );\n    }\n\n    return [{ json: {\n      ...baseResult,\n      delivery: {\n        status: normalizedStatus,\n        provider: 'twilio',\n        recipientCount: recipients.length,\n        providerMessageId: results.map((item) => item.sid).filter(Boolean).join(',') || null\n      },\n      message: normalizedStatus === 'sent'\n        ? 'Powiadomienie SMS dla recepcji zostalo wyslane.'\n        : 'Powiadomienie SMS dla recepcji zostalo przekazane do wysylki.'\n    } }];\n  }\n\n  if (providerMode !== 'webhook') {\n    return buildFailure(\n      'SMS_PROVIDER_INVALID',\n      'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n      providerMode,\n      [`Unsupported AI_RECEPTIONIST_SMS_PROVIDER: ${providerMode}`]\n    );\n  }\n\n  const webhookUrl = typeof $env.AI_RECEPTIONIST_SMS_WEBHOOK_URL === 'string' ? $env.AI_RECEPTIONIST_SMS_WEBHOOK_URL.trim() : '';\n  if (!webhookUrl) {\n    return buildFailure(\n      'SMS_PROVIDER_NOT_CONFIGURED',\n      'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n      'webhook',\n      ['AI_RECEPTIONIST_SMS_WEBHOOK_URL is required for webhook mode']\n    );\n  }\n\n  if (recipients.length === 0) {\n    return buildFailure(\n      'SMS_RECIPIENTS_NOT_CONFIGURED',\n      'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n      'webhook',\n      ['AI_RECEPTIONIST_RECEPTION_SMS_RECIPIENTS must contain at least one E.164 number'],\n      0\n    );\n  }\n\n  const bearerToken = typeof $env.AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN === 'string' ? $env.AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN.trim() : '';\n  const timeoutMsRaw = Number.parseInt($env.AI_RECEPTIONIST_SMS_WEBHOOK_TIMEOUT_MS || '10000', 10);\n  const timeoutMs = Number.isFinite(timeoutMsRaw) && timeoutMsRaw > 0 ? timeoutMsRaw : 10000;\n  const headers = { 'content-type': 'application/json' };\n  if (bearerToken) headers.authorization = `Bearer ${bearerToken}`;\n  const controller = typeof AbortController === 'function' ? new AbortController() : null;\n  let timeoutHandle = null;\n  if (controller) timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);\n\n  let response;\n  let responseText = '';\n  try {\n    response = await fetch(webhookUrl, {\n      method: 'POST',\n      headers,\n      body: JSON.stringify({\n        sender: request.sender,\n        to: recipients,\n        body: request.messageBody,\n        kind: request.kind,\n        metadata: {\n          requestId: request.requestId,\n          taskId: request.taskId,\n          taskType: request.taskType,\n          sourceCallId: request.sourceCallId || null\n        }\n      }),\n      signal: controller ? controller.signal : undefined\n    });\n    responseText = await response.text();\n  } catch (error) {\n    if (timeoutHandle) clearTimeout(timeoutHandle);\n    return buildFailure(\n      'SMS_PROVIDER_REJECTED',\n      'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n      'webhook',\n      [error.message]\n    );\n  }\n\n  if (timeoutHandle) clearTimeout(timeoutHandle);\n\n  let responseBody = null;\n  if (responseText) {\n    try {\n      responseBody = JSON.parse(responseText);\n    } catch (error) {\n      responseBody = null;\n    }\n  }\n\n  if (!response.ok) {\n    const details = [`HTTP ${response.status}`];\n    if (responseText) details.push(responseText.slice(0, 500));\n    return buildFailure(\n      'SMS_PROVIDER_REJECTED',\n      'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n      'webhook',\n      details\n    );\n  }\n\n  const normalizedStatus = normalizeProviderStatus(responseBody?.status);\n  return [{ json: {\n    ...baseResult,\n    delivery: {\n      status: normalizedStatus,\n      provider: 'webhook',\n      recipientCount: recipients.length,\n      providerMessageId: typeof responseBody?.messageId === 'string'\n        ? responseBody.messageId\n        : typeof responseBody?.id === 'string'\n          ? responseBody.id\n          : typeof responseBody?.sid === 'string'\n            ? responseBody.sid\n            : null\n    },\n    message: normalizedStatus === 'sent'\n      ? 'Powiadomienie SMS dla recepcji zostalo wyslane.'\n      : 'Powiadomienie SMS dla recepcji zostalo przekazane do wysylki.'\n  } }];\n})();"
+        "jsCode": "const request = $('Prepare SMS').first().json;\nconst providerModeRaw = typeof $env.AI_RECEPTIONIST_SMS_PROVIDER === 'string' ? $env.AI_RECEPTIONIST_SMS_PROVIDER.trim().toLowerCase() : '';\nconst providerMode = providerModeRaw || 'mock';\nconst recipients = Array.isArray(request.recipients)\n  ? request.recipients.filter((value) => typeof value === 'string' && value.trim())\n  : [];\nconst baseResult = {\n  toolCallId: request.toolCallId,\n  requestId: request.requestId,\n  accepted: true,\n  delivery: {\n    status: 'simulated',\n    provider: providerMode,\n    recipientCount: recipients.length > 0 ? recipients.length : 1,\n    providerMessageId: null\n  },\n  notification: {\n    kind: request.kind,\n    taskId: request.taskId,\n    body: request.messageBody\n  },\n  message: 'Powiadomienie SMS dla recepcji zostalo przygotowane.'\n};\n\nconst buildFailure = (code, message, provider, details, recipientCount = recipients.length) => [{ json: {\n  toolCallId: request.toolCallId,\n  requestId: request.requestId,\n  accepted: false,\n  delivery: {\n    status: 'failed',\n    provider,\n    recipientCount,\n    providerMessageId: null\n  },\n  message,\n  error: {\n    code,\n    details\n  }\n} }];\n\nif (providerMode === 'mock') {\n  return [{ json: {\n    ...baseResult,\n    delivery: {\n      ...baseResult.delivery,\n      provider: 'mock'\n    }\n  } }];\n}\n\nif (providerMode === 'twilio') {\n  if (recipients.length === 0) {\n    return buildFailure(\n      'SMS_RECIPIENTS_NOT_CONFIGURED',\n      'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n      'twilio',\n      ['AI_RECEPTIONIST_RECEPTION_SMS_RECIPIENTS must contain at least one E.164 number'],\n      0\n    );\n  }\n\n  const accountSid = typeof $env.TWILIO_ACCOUNT_SID === 'string' ? $env.TWILIO_ACCOUNT_SID.trim() : '';\n  const authToken = typeof $env.TWILIO_AUTH_TOKEN === 'string' ? $env.TWILIO_AUTH_TOKEN.trim() : '';\n  const fromNumber = typeof $env.TWILIO_PHONE_NUMBER === 'string' ? $env.TWILIO_PHONE_NUMBER.trim() : '';\n  if (!accountSid || !authToken || !fromNumber) {\n    return buildFailure(\n      'SMS_PROVIDER_NOT_CONFIGURED',\n      'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n      'twilio',\n      ['TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER are required for twilio mode']\n    );\n  }\n\n  const authHeader = `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`;\n\n  return recipients.map((recipient) => ({ json: {\n    dispatchMode: 'twilio',\n    toolCallId: request.toolCallId,\n    requestId: request.requestId,\n    recipient,\n    recipients,\n    messageBody: request.messageBody,\n    accountSid,\n    fromNumber,\n    authHeader,\n    baseResult\n  } }));\n}\n\nif (providerMode !== 'webhook') {\n  return buildFailure(\n    'SMS_PROVIDER_INVALID',\n    'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n    providerMode,\n    [`Unsupported AI_RECEPTIONIST_SMS_PROVIDER: ${providerMode}`]\n  );\n}\n\nconst webhookUrl = typeof $env.AI_RECEPTIONIST_SMS_WEBHOOK_URL === 'string' ? $env.AI_RECEPTIONIST_SMS_WEBHOOK_URL.trim() : '';\nif (!webhookUrl) {\n  return buildFailure(\n    'SMS_PROVIDER_NOT_CONFIGURED',\n    'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n    'webhook',\n    ['AI_RECEPTIONIST_SMS_WEBHOOK_URL is required for webhook mode']\n  );\n}\n\nif (recipients.length === 0) {\n  return buildFailure(\n    'SMS_RECIPIENTS_NOT_CONFIGURED',\n    'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n    'webhook',\n    ['AI_RECEPTIONIST_RECEPTION_SMS_RECIPIENTS must contain at least one E.164 number'],\n    0\n  );\n}\n\nconst bearerToken = typeof $env.AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN === 'string' ? $env.AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN.trim() : '';\nconst timeoutMsRaw = Number.parseInt($env.AI_RECEPTIONIST_SMS_WEBHOOK_TIMEOUT_MS || '10000', 10);\nconst timeoutMs = Number.isFinite(timeoutMsRaw) && timeoutMsRaw > 0 ? timeoutMsRaw : 10000;\nconst webhookHeaders = bearerToken ? { authorization: `Bearer ${bearerToken}` } : {};\n\nreturn [{ json: {\n  dispatchMode: 'webhook',\n  toolCallId: request.toolCallId,\n  requestId: request.requestId,\n  recipients,\n  timeoutMs,\n  webhookUrl,\n  webhookHeaders,\n  webhookBody: {\n    sender: request.sender,\n    to: recipients,\n    body: request.messageBody,\n    kind: request.kind,\n    metadata: {\n      requestId: request.requestId,\n      taskId: request.taskId,\n      taskType: request.taskType,\n      sourceCallId: request.sourceCallId || null\n    }\n  },\n  baseResult\n} }];"
+      }
+    },
+    {
+      "id": "27d09929-3be9-4c24-a0fe-e00b2189f97d",
+      "name": "Immediate Result?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        340,
+        -120
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.accepted === true || $json.accepted === false }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fcaa44b0-2478-42ba-ab7a-ecf84876ef02",
+      "name": "Twilio Delivery?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        600,
+        60
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.dispatchMode }}",
+              "operation": "equal",
+              "value2": "twilio"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "58c17c28-8d91-4722-92c0-4a8a576b3e6b",
+      "name": "Dispatch Twilio SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        860,
+        -120
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $json.accountSid + '/Messages.json' }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify({ authorization: $json.authHeader }) }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "={{ $json.fromNumber }}"
+            },
+            {
+              "name": "To",
+              "value": "={{ $json.recipient }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ $json.messageBody }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "autodetect"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "a611dd46-a925-4879-8c9f-c751ef664f43",
+      "name": "Finalize Twilio Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -120
+      ],
+      "parameters": {
+        "jsCode": "const responseItems = $input.all();\nconst plannedItems = $('Send SMS').all().map((item) => item.json).filter((item) => item.dispatchMode === 'twilio');\nconst fallbackItem = plannedItems[0] || {};\nconst baseResult = fallbackItem.baseResult || {};\nconst recipients = Array.isArray(fallbackItem.recipients)\n  ? fallbackItem.recipients.filter((value) => typeof value === 'string' && value.trim())\n  : [];\n\nconst buildFailure = (details, recipientCount = recipients.length || plannedItems.length) => [{ json: {\n  toolCallId: baseResult.toolCallId || fallbackItem.toolCallId || null,\n  requestId: baseResult.requestId || fallbackItem.requestId || null,\n  accepted: false,\n  delivery: {\n    status: 'failed',\n    provider: 'twilio',\n    recipientCount,\n    providerMessageId: null\n  },\n  message: 'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n  error: {\n    code: 'SMS_PROVIDER_REJECTED',\n    details\n  }\n} }];\n\nconst normalizeProviderStatus = (status) => {\n  const normalized = typeof status === 'string' ? status.trim().toLowerCase() : '';\n  if (normalized === 'sent' || normalized === 'delivered') return 'sent';\n  if (normalized === 'queued' || normalized === 'accepted' || normalized === 'scheduled' || normalized === 'sending') return 'queued';\n  if (normalized === 'failed' || normalized === 'undelivered' || normalized === 'canceled') return 'failed';\n  return 'queued';\n};\n\nconst parseBody = (value) => {\n  if (typeof value === 'string') {\n    try {\n      return JSON.parse(value);\n    } catch (error) {\n      return value;\n    }\n  }\n  return value;\n};\n\nconst summarizeBody = (value) => {\n  if (!value) return '';\n  if (typeof value === 'string') return value.slice(0, 500);\n  if (typeof value.message === 'string') return value.message.slice(0, 500);\n  if (typeof value.error_message === 'string') return value.error_message.slice(0, 500);\n  try {\n    return JSON.stringify(value).slice(0, 500);\n  } catch (error) {\n    return '';\n  }\n};\n\nif (plannedItems.length === 0) {\n  return buildFailure(['Missing Twilio dispatch context']);\n}\n\nconst acceptedResponses = [];\nconst errors = [];\nfor (let index = 0; index < plannedItems.length; index += 1) {\n  const plannedItem = plannedItems[index];\n  const responseItem = responseItems[index]?.json || {};\n  const parsedBody = parseBody(responseItem.body);\n  const recipient = plannedItem.recipient || `recipient_${index + 1}`;\n\n  if (responseItem.error) {\n    const detail = typeof responseItem.error === 'string'\n      ? responseItem.error\n      : responseItem.error.message || summarizeBody(responseItem.error) || 'Unknown Twilio error';\n    errors.push(`${recipient}: ${detail}`);\n    continue;\n  }\n\n  const statusCode = Number(responseItem.statusCode);\n  if (!Number.isFinite(statusCode)) {\n    errors.push(`${recipient}: missing Twilio statusCode`);\n    continue;\n  }\n\n  if (statusCode < 200 || statusCode >= 300) {\n    const bodySummary = summarizeBody(parsedBody);\n    errors.push(`${recipient}: HTTP ${statusCode}${bodySummary ? ` ${bodySummary}` : ''}`);\n    continue;\n  }\n\n  const normalizedStatus = normalizeProviderStatus(parsedBody?.status);\n  if (normalizedStatus === 'failed') {\n    const bodySummary = summarizeBody(parsedBody);\n    errors.push(`${recipient}: ${bodySummary || 'Twilio returned a failed delivery status'}`);\n    continue;\n  }\n\n  acceptedResponses.push({\n    sid: typeof parsedBody?.sid === 'string' ? parsedBody.sid : null,\n    status: normalizedStatus\n  });\n}\n\nif (errors.length > 0) {\n  return buildFailure(errors);\n}\n\nconst deliveryStatus = acceptedResponses.some((item) => item.status === 'sent') ? 'sent' : 'queued';\nreturn [{ json: {\n  ...baseResult,\n  delivery: {\n    status: deliveryStatus,\n    provider: 'twilio',\n    recipientCount: acceptedResponses.length,\n    providerMessageId: acceptedResponses.map((item) => item.sid).filter(Boolean).join(',') || null\n  },\n  message: deliveryStatus === 'sent'\n    ? 'Powiadomienie SMS dla recepcji zostalo wyslane.'\n    : 'Powiadomienie SMS dla recepcji zostalo przekazane do wysylki.'\n} }];"
+      }
+    },
+    {
+      "id": "55e2aaeb-58b4-4231-b553-e2b79ab76490",
+      "name": "Dispatch Webhook SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        860,
+        200
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.webhookUrl }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.webhookHeaders) }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.webhookBody) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "autodetect"
+            }
+          },
+          "timeout": "={{ $json.timeoutMs }}"
+        }
+      }
+    },
+    {
+      "id": "ad70336e-ef4e-4c3c-b351-c69d444d01ca",
+      "name": "Finalize Webhook Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        200
+      ],
+      "parameters": {
+        "jsCode": "const responseItems = $input.all();\nconst plannedItem = $('Send SMS').all().map((item) => item.json).find((item) => item.dispatchMode === 'webhook') || {};\nconst baseResult = plannedItem.baseResult || {};\nconst recipients = Array.isArray(plannedItem.recipients)\n  ? plannedItem.recipients.filter((value) => typeof value === 'string' && value.trim())\n  : [];\nconst responseItem = responseItems[0]?.json || {};\n\nconst buildFailure = (details, recipientCount = recipients.length) => [{ json: {\n  toolCallId: baseResult.toolCallId || plannedItem.toolCallId || null,\n  requestId: baseResult.requestId || plannedItem.requestId || null,\n  accepted: false,\n  delivery: {\n    status: 'failed',\n    provider: 'webhook',\n    recipientCount,\n    providerMessageId: null\n  },\n  message: 'Nie mozna wyslac powiadomienia SMS dla recepcji.',\n  error: {\n    code: 'SMS_PROVIDER_REJECTED',\n    details\n  }\n} }];\n\nconst normalizeProviderStatus = (status) => {\n  const normalized = typeof status === 'string' ? status.trim().toLowerCase() : '';\n  if (normalized === 'sent' || normalized === 'delivered') return 'sent';\n  if (normalized === 'queued' || normalized === 'accepted' || normalized === 'scheduled' || normalized === 'sending') return 'queued';\n  if (normalized === 'failed' || normalized === 'undelivered' || normalized === 'canceled') return 'failed';\n  return 'queued';\n};\n\nconst parseBody = (value) => {\n  if (typeof value === 'string') {\n    try {\n      return JSON.parse(value);\n    } catch (error) {\n      return value;\n    }\n  }\n  return value;\n};\n\nconst summarizeBody = (value) => {\n  if (!value) return '';\n  if (typeof value === 'string') return value.slice(0, 500);\n  if (typeof value.message === 'string') return value.message.slice(0, 500);\n  try {\n    return JSON.stringify(value).slice(0, 500);\n  } catch (error) {\n    return '';\n  }\n};\n\nif (!plannedItem.dispatchMode) {\n  return buildFailure(['Missing webhook dispatch context']);\n}\n\nif (responseItem.error) {\n  const detail = typeof responseItem.error === 'string'\n    ? responseItem.error\n    : responseItem.error.message || summarizeBody(responseItem.error) || 'Unknown webhook error';\n  return buildFailure([detail]);\n}\n\nconst statusCode = Number(responseItem.statusCode);\nif (!Number.isFinite(statusCode)) {\n  return buildFailure(['Missing webhook statusCode']);\n}\n\nconst parsedBody = parseBody(responseItem.body);\nif (statusCode < 200 || statusCode >= 300) {\n  const bodySummary = summarizeBody(parsedBody);\n  return buildFailure([`HTTP ${statusCode}${bodySummary ? ` ${bodySummary}` : ''}`]);\n}\n\nconst normalizedStatus = normalizeProviderStatus(parsedBody?.status);\nif (normalizedStatus === 'failed') {\n  return buildFailure([summarizeBody(parsedBody) || 'Webhook returned a failed delivery status']);\n}\n\nreturn [{ json: {\n  ...baseResult,\n  delivery: {\n    status: normalizedStatus,\n    provider: 'webhook',\n    recipientCount: recipients.length,\n    providerMessageId: typeof parsedBody?.messageId === 'string'\n      ? parsedBody.messageId\n      : typeof parsedBody?.id === 'string'\n        ? parsedBody.id\n        : typeof parsedBody?.sid === 'string'\n          ? parsedBody.sid\n          : null\n  },\n  message: normalizedStatus === 'sent'\n    ? 'Powiadomienie SMS dla recepcji zostalo wyslane.'\n    : 'Powiadomienie SMS dla recepcji zostalo przekazane do wysylki.'\n} }];"
       }
     },
     {
@@ -100,7 +246,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        340,
+        1380,
         0
       ],
       "parameters": {
@@ -121,7 +267,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        600,
+        1640,
         -100
       ],
       "parameters": {
@@ -147,7 +293,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        600,
+        1640,
         120
       ],
       "parameters": {
@@ -160,7 +306,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        860,
+        1900,
         -100
       ],
       "parameters": {
@@ -191,7 +337,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        860,
+        1900,
         120
       ],
       "parameters": {
@@ -256,6 +402,86 @@
       ]
     },
     "Send SMS": {
+      "main": [
+        [
+          {
+            "node": "Immediate Result?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Immediate Result?": {
+      "main": [
+        [
+          {
+            "node": "SMS Accepted?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Twilio Delivery?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twilio Delivery?": {
+      "main": [
+        [
+          {
+            "node": "Dispatch Twilio SMS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Dispatch Webhook SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dispatch Twilio SMS": {
+      "main": [
+        [
+          {
+            "node": "Finalize Twilio Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Twilio Response": {
+      "main": [
+        [
+          {
+            "node": "SMS Accepted?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dispatch Webhook SMS": {
+      "main": [
+        [
+          {
+            "node": "Finalize Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Webhook Response": {
       "main": [
         [
           {

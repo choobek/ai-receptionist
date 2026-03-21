@@ -58,11 +58,11 @@ Each scenario contains:
 Current seeded coverage:
 
 - booking flow with real staging `createEvent` plus combined identity capture
-- booking flow with patient-facing confirmation SMS
+- booking flow with patient-facing confirmation SMS, including the SMS workflow result payload
 - availability lookup without booking
 - knowledge-base question
 - reception follow-up task creation
-- reception handoff with internal SMS alert
+- reception handoff with internal SMS alert, including the internal SMS workflow result payload
 - alternative-day ambiguity refresh with a second lookup
 - corrected-day refresh with a second availability lookup
 - urgent first-available lookup

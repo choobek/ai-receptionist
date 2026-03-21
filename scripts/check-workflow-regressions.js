@@ -19,6 +19,7 @@ const {
   createContext: createChatRegressionContext,
   normalizeOutputForTurn,
   evaluateCriterion: evaluateChatCriterion,
+  resolveScenarioTemplates,
   getEnabledToolBindings,
   getMissingRequiredToolBindings
 } = require(path.join(
@@ -30,6 +31,10 @@ const {
 
 function loadJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function loadText(filePath) {
+  return fs.readFileSync(filePath, 'utf8');
 }
 
 function loadEnvironmentBindings(environment) {
@@ -50,6 +55,16 @@ function loadStructuredOutputSchema() {
 
 function loadStagingScenario(filename) {
   return loadJson(path.join(rootDir, 'autonomy', 'scenarios', 'staging', filename));
+}
+
+function getScenarioCriterion(scenario, criterionId) {
+  const criterion = [
+    ...scenario.turns.flatMap((turn) => turn.assertions || []),
+    ...scenario.rubric
+  ].find((item) => item.criterion_id === criterionId);
+
+  assert.ok(criterion, `Missing criterion ${criterionId} in scenario ${scenario.scenario_id}`);
+  return criterion;
 }
 
 function renderAssistantConfig(environment, envOverrides = {}) {
@@ -101,14 +116,22 @@ function executeCode(code, globals) {
   return new Function(...names, `return (function(){\n${code}\n})();`)(...values);
 }
 
+function normalizeNodeItems(nodeResult) {
+  return Array.isArray(nodeResult) ? nodeResult : [nodeResult];
+}
+
 function makeSelector(nodeResults) {
   return function selectNode(nodeName) {
     if (!(nodeName in nodeResults)) {
       throw new Error(`Unexpected node selector: ${nodeName}`);
     }
+    const items = normalizeNodeItems(nodeResults[nodeName]);
     return {
       first() {
-        return { json: nodeResults[nodeName] };
+        return { json: items[0] };
+      },
+      all() {
+        return items.map((json) => ({ json }));
       }
     };
   };
@@ -141,13 +164,17 @@ function runParse(workflowFilename, nodeName, payload, env = {}) {
 }
 
 function runCodeNode(workflowFilename, nodeName, selectorNodes, inputItems = [], env = {}) {
+  return runCodeNodeItems(workflowFilename, nodeName, selectorNodes, inputItems, env)[0];
+}
+
+function runCodeNodeItems(workflowFilename, nodeName, selectorNodes, inputItems = [], env = {}) {
   const workflow = loadWorkflow(workflowFilename);
   const code = getNodeCode(workflow, nodeName);
   return executeCode(code, {
     $: makeSelector(selectorNodes),
     $input: makeInput(inputItems),
     $env: env
-  })[0].json;
+  }).map((item) => item.json);
 }
 
 async function runAsyncCodeNode(
@@ -639,7 +666,7 @@ test('sendSmsToPatient prepares an English booking confirmation SMS', () => {
   assert.match(prepared.messageBody, /Demo Dental Clinic/);
 });
 
-test('sendSmsToReceptionists twilio mode requires Twilio credentials', async () => {
+test('sendSmsToReceptionists twilio mode requires an explicit sender number', () => {
   const parseResult = runParse(
     'tool_send-sms-to-receptionists.json',
     'Parse Request',
@@ -664,7 +691,7 @@ test('sendSmsToReceptionists twilio mode requires Twilio credentials', async () 
     }
   );
 
-  const result = await runAsyncCodeNode(
+  const result = runCodeNode(
     'tool_send-sms-to-receptionists.json',
     'Send SMS',
     { 'Prepare SMS': prepared },
@@ -673,25 +700,16 @@ test('sendSmsToReceptionists twilio mode requires Twilio credentials', async () 
       ...defaultEnv,
       AI_RECEPTIONIST_SMS_PROVIDER: 'twilio',
       AI_RECEPTIONIST_RECEPTION_SMS_RECIPIENTS: '+48793385531'
-    },
-    {
-      fetch: async () => {
-        throw new Error('fetch should not be called when Twilio credentials are missing');
-      },
-      Buffer,
-      URLSearchParams,
-      AbortController,
-      setTimeout,
-      clearTimeout
     }
   );
 
   assert.equal(result.accepted, false);
   assert.equal(result.error?.code, 'SMS_PROVIDER_NOT_CONFIGURED');
   assert.equal(result.delivery?.provider, 'twilio');
+  assert.match(result.error?.details?.[0] || '', /TWILIO_PHONE_NUMBER/);
 });
 
-test('sendSmsToPatient twilio mode auto-discovers the single sender number', async () => {
+test('sendSmsToPatient twilio mode creates a dispatch item when configured', () => {
   const parseResult = runParse(
     'tool_send-sms-to-patient.json',
     'Parse Request',
@@ -718,8 +736,7 @@ test('sendSmsToPatient twilio mode auto-discovers the single sender number', asy
     { ...defaultEnv, CLINIC_NAME: 'Demo Dental Clinic' }
   );
 
-  const fetchCalls = [];
-  const result = await runAsyncCodeNode(
+  const result = runCodeNode(
     'tool_send-sms-to-patient.json',
     'Send SMS',
     { 'Prepare SMS': prepared },
@@ -728,47 +745,192 @@ test('sendSmsToPatient twilio mode auto-discovers the single sender number', asy
       ...defaultEnv,
       AI_RECEPTIONIST_SMS_PROVIDER: 'twilio',
       TWILIO_ACCOUNT_SID: 'AC_test_account',
-      TWILIO_AUTH_TOKEN: 'test_token'
-    },
-    {
-      fetch: async (url, options = {}) => {
-        fetchCalls.push({ url, options });
-        if (url.endsWith('/IncomingPhoneNumbers.json?PageSize=20')) {
-          return {
-            ok: true,
-            status: 200,
-            text: async () => JSON.stringify({
-              incoming_phone_numbers: [{ phone_number: '+18207774711' }]
-            })
-          };
-        }
-        if (url.endsWith('/Messages.json')) {
-          assert.match(options.body, /From=%2B18207774711/);
-          assert.match(options.body, /To=%2B48500100200/);
-          return {
-            ok: true,
-            status: 201,
-            text: async () => JSON.stringify({
-              sid: 'SM123',
-              status: 'queued'
-            })
-          };
-        }
-        throw new Error(`Unexpected fetch URL: ${url}`);
-      },
-      Buffer,
-      URLSearchParams,
-      AbortController,
-      setTimeout,
-      clearTimeout
+      TWILIO_AUTH_TOKEN: 'test_token',
+      TWILIO_PHONE_NUMBER: '+18207774711'
     }
   );
 
-  assert.equal(fetchCalls.length, 2);
+  assert.equal(result.dispatchMode, 'twilio');
+  assert.equal(result.fromNumber, '+18207774711');
+  assert.equal(result.recipient, '+48500100200');
+  assert.match(result.authHeader, /^Basic /);
+});
+
+test('sendSmsToPatient finalizes Twilio HTTP responses', () => {
+  const parseResult = runParse(
+    'tool_send-sms-to-patient.json',
+    'Parse Request',
+    {
+      calendarEventId: 'evt_001',
+      consentConfirmed: true,
+      language: 'en',
+      patient: { fullName: 'Jane Example', phoneE164: '+48500100200' },
+      appointment: {
+        start: '2026-03-20T10:30:00+01:00',
+        timezone: 'Europe/Warsaw',
+        service: { id: 'consultation', name: 'Consultation' }
+      }
+    },
+    { ...defaultEnv, CLINIC_NAME: 'Demo Dental Clinic' }
+  );
+  const prepared = runCodeNode(
+    'tool_send-sms-to-patient.json',
+    'Prepare SMS',
+    { 'Parse Request': parseResult },
+    [],
+    { ...defaultEnv, CLINIC_NAME: 'Demo Dental Clinic' }
+  );
+  const dispatchItems = runCodeNodeItems(
+    'tool_send-sms-to-patient.json',
+    'Send SMS',
+    { 'Prepare SMS': prepared },
+    [],
+    {
+      ...defaultEnv,
+      AI_RECEPTIONIST_SMS_PROVIDER: 'twilio',
+      TWILIO_ACCOUNT_SID: 'AC_test_account',
+      TWILIO_AUTH_TOKEN: 'test_token',
+      TWILIO_PHONE_NUMBER: '+18207774711'
+    }
+  );
+
+  const result = runCodeNode(
+    'tool_send-sms-to-patient.json',
+    'Finalize Twilio Response',
+    { 'Send SMS': dispatchItems },
+    [{ statusCode: 201, body: { sid: 'SM123', status: 'queued' } }]
+  );
+
   assert.equal(result.accepted, true);
   assert.equal(result.delivery?.provider, 'twilio');
   assert.equal(result.delivery?.status, 'queued');
   assert.equal(result.delivery?.providerMessageId, 'SM123');
+});
+
+test('sendSmsToReceptionists finalizes multiple Twilio HTTP responses', () => {
+  const parseResult = runParse(
+    'tool_send-sms-to-receptionists.json',
+    'Parse Request',
+    {
+      taskId: 'task_20260320_001',
+      taskType: 'existing_patient_booking',
+      patient: { fullName: 'Anna Kowalska', phoneE164: '+48500111001' },
+      summary: 'Pacjentka chce umowic kolejna wizyte.'
+    },
+    defaultEnv
+  );
+  const prepared = runCodeNode(
+    'tool_send-sms-to-receptionists.json',
+    'Prepare SMS',
+    { 'Parse Request': parseResult },
+    [],
+    {
+      ...defaultEnv,
+      AI_RECEPTIONIST_RECEPTION_SMS_RECIPIENTS: '+48793385531,+48793385532'
+    }
+  );
+  const dispatchItems = runCodeNodeItems(
+    'tool_send-sms-to-receptionists.json',
+    'Send SMS',
+    { 'Prepare SMS': prepared },
+    [],
+    {
+      ...defaultEnv,
+      AI_RECEPTIONIST_SMS_PROVIDER: 'twilio',
+      AI_RECEPTIONIST_RECEPTION_SMS_RECIPIENTS: '+48793385531,+48793385532',
+      TWILIO_ACCOUNT_SID: 'AC_test_account',
+      TWILIO_AUTH_TOKEN: 'test_token',
+      TWILIO_PHONE_NUMBER: '+18207774711'
+    }
+  );
+
+  const result = runCodeNode(
+    'tool_send-sms-to-receptionists.json',
+    'Finalize Twilio Response',
+    { 'Send SMS': dispatchItems },
+    [
+      { statusCode: 201, body: { sid: 'SM111', status: 'queued' } },
+      { statusCode: 201, body: { sid: 'SM222', status: 'sent' } }
+    ]
+  );
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.delivery?.provider, 'twilio');
+  assert.equal(result.delivery?.status, 'sent');
+  assert.equal(result.delivery?.recipientCount, 2);
+  assert.equal(result.delivery?.providerMessageId, 'SM111,SM222');
+});
+
+test('sendSmsToPatient finalizes webhook HTTP responses', () => {
+  const parseResult = runParse(
+    'tool_send-sms-to-patient.json',
+    'Parse Request',
+    {
+      calendarEventId: 'evt_001',
+      consentConfirmed: true,
+      language: 'pl',
+      patient: { fullName: 'Jan Example', phoneE164: '+48500100200' },
+      appointment: {
+        start: '2026-03-20T10:30:00+01:00',
+        timezone: 'Europe/Warsaw',
+        service: { id: 'consultation', name: 'Konsultacja' }
+      }
+    },
+    defaultEnv
+  );
+  const prepared = runCodeNode(
+    'tool_send-sms-to-patient.json',
+    'Prepare SMS',
+    { 'Parse Request': parseResult },
+    [],
+    defaultEnv
+  );
+  const dispatchItems = runCodeNodeItems(
+    'tool_send-sms-to-patient.json',
+    'Send SMS',
+    { 'Prepare SMS': prepared },
+    [],
+    {
+      ...defaultEnv,
+      AI_RECEPTIONIST_SMS_PROVIDER: 'webhook',
+      AI_RECEPTIONIST_SMS_WEBHOOK_URL: 'https://sms-gateway.example.test/send',
+      AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN: 'token_123',
+      AI_RECEPTIONIST_SMS_WEBHOOK_TIMEOUT_MS: '9000'
+    }
+  );
+
+  const result = runCodeNode(
+    'tool_send-sms-to-patient.json',
+    'Finalize Webhook Response',
+    { 'Send SMS': dispatchItems },
+    [{ statusCode: 202, body: { status: 'accepted', messageId: 'msg_test_001' } }]
+  );
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.delivery?.provider, 'webhook');
+  assert.equal(result.delivery?.status, 'queued');
+  assert.equal(result.delivery?.providerMessageId, 'msg_test_001');
+});
+
+test('SMS workflows use HTTP Request nodes instead of in-code fetch', () => {
+  const workflowFiles = [
+    'tool_send-sms-to-patient.json',
+    'tool_send-sms-to-receptionists.json'
+  ];
+
+  for (const workflowFilename of workflowFiles) {
+    const workflow = loadWorkflow(workflowFilename);
+    assert.equal(getNode(workflow, 'Dispatch Twilio SMS').type, 'n8n-nodes-base.httpRequest');
+    assert.equal(getNode(workflow, 'Dispatch Webhook SMS').type, 'n8n-nodes-base.httpRequest');
+    assert.equal(getNode(workflow, 'Immediate Result?').type, 'n8n-nodes-base.if');
+    assert.equal(getNode(workflow, 'Finalize Twilio Response').type, 'n8n-nodes-base.code');
+    assert.equal(getNode(workflow, 'Finalize Webhook Response').type, 'n8n-nodes-base.code');
+    assert.doesNotMatch(
+      loadText(path.join(workflowsDir, workflowFilename)),
+      /fetch\s*\(/,
+      `${workflowFilename} should not call fetch inside Code nodes`
+    );
+  }
 });
 
 test('searchKnowledgeBase returns English answers for English queries', () => {
@@ -1056,6 +1218,106 @@ test('assistant SMS scenarios resolve required tool bindings against staging and
   );
 });
 
+test('staging chat runner resolves scenario template fallbacks and explicit overrides', () => {
+  const template = {
+    turns: [
+      { user: '{{STAGING_SMS_TEST_PATIENT_IDENTITY_UTTERANCE|fallback utterance}}' }
+    ]
+  };
+
+  const defaultResolved = resolveScenarioTemplates(template, {});
+  assert.equal(defaultResolved.turns[0].user, 'fallback utterance');
+
+  const overrideResolved = resolveScenarioTemplates(template, {
+    STAGING_SMS_TEST_PATIENT_IDENTITY_UTTERANCE: 'override utterance'
+  });
+  assert.equal(overrideResolved.turns[0].user, 'override utterance');
+
+  assert.throws(
+    () => resolveScenarioTemplates({ turns: [{ user: '{{MISSING_REQUIRED_TEMPLATE}}' }] }, {}),
+    /Missing required scenario template variable: MISSING_REQUIRED_TEMPLATE/
+  );
+});
+
+test('assistant SMS staging scenarios require end-to-end workflow result checks', () => {
+  const patientSmsScenario = loadStagingScenario('booking-confirmation-sms.v1.json');
+  const receptionSmsScenario = loadStagingScenario('reschedule-handoff-internal-sms-alert.v1.json');
+
+  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'patient-sms-workflow-accepted').rule, {
+    type: 'tool_result_path_equals',
+    tool_name: 'sendSmsToPatient',
+    path: 'accepted',
+    equals: true
+  });
+  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'patient-sms-targets-single-recipient').rule, {
+    type: 'tool_result_path_equals',
+    tool_name: 'sendSmsToPatient',
+    path: 'delivery.recipientCount',
+    equals: 1
+  });
+  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'patient-sms-produces-booking-confirmation-payload').rule, {
+    type: 'tool_result_path_equals',
+    tool_name: 'sendSmsToPatient',
+    path: 'sms.kind',
+    equals: 'booking_confirmation'
+  });
+  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'patient-sms-result-keeps-polish-language').rule, {
+    type: 'tool_result_path_equals',
+    tool_name: 'sendSmsToPatient',
+    path: 'sms.language',
+    equals: 'pl'
+  });
+
+  assert.deepEqual(getScenarioCriterion(receptionSmsScenario, 'internal-sms-workflow-accepted').rule, {
+    type: 'tool_result_path_equals',
+    tool_name: 'sendSmsToReceptionists',
+    path: 'accepted',
+    equals: true
+  });
+  assert.deepEqual(getScenarioCriterion(receptionSmsScenario, 'internal-sms-targets-single-recipient').rule, {
+    type: 'tool_result_path_equals',
+    tool_name: 'sendSmsToReceptionists',
+    path: 'delivery.recipientCount',
+    equals: 1
+  });
+  assert.deepEqual(getScenarioCriterion(receptionSmsScenario, 'internal-sms-produces-reception-notification').rule, {
+    type: 'tool_result_path_equals',
+    tool_name: 'sendSmsToReceptionists',
+    path: 'notification.kind',
+    equals: 'reception_follow_up'
+  });
+});
+
+test('docker compose files expose SMS runtime variables to n8n', () => {
+  const composeFiles = [
+    'n8n/docker-compose.yml',
+    'deploy/vps/docker-compose.yml',
+    'deploy/vps/docker-compose.n8n-only.yml'
+  ];
+  const requiredLines = [
+    '- AI_RECEPTIONIST_SMS_PROVIDER=${AI_RECEPTIONIST_SMS_PROVIDER}',
+    '- AI_RECEPTIONIST_SMS_WEBHOOK_URL=${AI_RECEPTIONIST_SMS_WEBHOOK_URL}',
+    '- AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN=${AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN}',
+    '- AI_RECEPTIONIST_SMS_WEBHOOK_TIMEOUT_MS=${AI_RECEPTIONIST_SMS_WEBHOOK_TIMEOUT_MS}',
+    '- AI_RECEPTIONIST_SMS_SENDER=${AI_RECEPTIONIST_SMS_SENDER}',
+    '- AI_RECEPTIONIST_RECEPTION_SMS_RECIPIENTS=${AI_RECEPTIONIST_RECEPTION_SMS_RECIPIENTS}',
+    '- TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}',
+    '- TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}',
+    '- TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}'
+  ];
+
+  for (const relativePath of composeFiles) {
+    const composeText = loadText(path.join(rootDir, relativePath));
+    for (const line of requiredLines) {
+      assert.match(
+        composeText,
+        new RegExp(line.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+        `Expected ${relativePath} to include ${line}`
+      );
+    }
+  }
+});
+
 test('assistant chat rubric can verify patient SMS ordering and calendarEventId reuse', () => {
   const context = createChatRegressionContext({
     turns: [{ user: 'synthetic turn' }],
@@ -1107,7 +1369,14 @@ test('assistant chat rubric can verify patient SMS ordering and calendarEventId 
       role: 'tool',
       tool_call_id: 'tool_send_sms_patient_1',
       content: {
-        accepted: true
+        accepted: true,
+        delivery: {
+          recipientCount: 1
+        },
+        sms: {
+          kind: 'booking_confirmation',
+          language: 'pl'
+        }
       }
     }
   ]);
@@ -1137,6 +1406,45 @@ test('assistant chat rubric can verify patient SMS ordering and calendarEventId 
     }
   });
   assert.equal(idReuseResult.passed, true);
+
+  const acceptedResult = evaluateChatCriterion(context, {
+    criterion_id: 'sms-accepted',
+    description: 'sendSmsToPatient should return accepted=true',
+    severity: 'critical',
+    rule: {
+      type: 'tool_result_path_equals',
+      tool_name: 'sendSmsToPatient',
+      path: 'accepted',
+      equals: true
+    }
+  });
+  assert.equal(acceptedResult.passed, true);
+
+  const recipientCountResult = evaluateChatCriterion(context, {
+    criterion_id: 'sms-recipient-count',
+    description: 'sendSmsToPatient should target one recipient',
+    severity: 'high',
+    rule: {
+      type: 'tool_result_path_equals',
+      tool_name: 'sendSmsToPatient',
+      path: 'delivery.recipientCount',
+      equals: 1
+    }
+  });
+  assert.equal(recipientCountResult.passed, true);
+
+  const payloadKindResult = evaluateChatCriterion(context, {
+    criterion_id: 'sms-kind',
+    description: 'sendSmsToPatient should return booking_confirmation payload metadata',
+    severity: 'high',
+    rule: {
+      type: 'tool_result_path_equals',
+      tool_name: 'sendSmsToPatient',
+      path: 'sms.kind',
+      equals: 'booking_confirmation'
+    }
+  });
+  assert.equal(payloadKindResult.passed, true);
 });
 
 test('assistant chat rubric rejects patient SMS calls that happen before createEvent returns', () => {
@@ -1241,6 +1549,19 @@ test('assistant chat rubric can verify internal receptionist SMS ordering and ta
           }
         }
       ]
+    },
+    {
+      role: 'tool',
+      tool_call_id: 'tool_send_sms_reception_1',
+      content: {
+        accepted: true,
+        delivery: {
+          recipientCount: 1
+        },
+        notification: {
+          kind: 'reception_follow_up'
+        }
+      }
     }
   ]);
 
@@ -1269,6 +1590,45 @@ test('assistant chat rubric can verify internal receptionist SMS ordering and ta
     }
   });
   assert.equal(idReuseResult.passed, true);
+
+  const acceptedResult = evaluateChatCriterion(context, {
+    criterion_id: 'internal-sms-accepted',
+    description: 'sendSmsToReceptionists should return accepted=true',
+    severity: 'critical',
+    rule: {
+      type: 'tool_result_path_equals',
+      tool_name: 'sendSmsToReceptionists',
+      path: 'accepted',
+      equals: true
+    }
+  });
+  assert.equal(acceptedResult.passed, true);
+
+  const recipientCountResult = evaluateChatCriterion(context, {
+    criterion_id: 'internal-sms-recipient-count',
+    description: 'sendSmsToReceptionists should target one recipient',
+    severity: 'high',
+    rule: {
+      type: 'tool_result_path_equals',
+      tool_name: 'sendSmsToReceptionists',
+      path: 'delivery.recipientCount',
+      equals: 1
+    }
+  });
+  assert.equal(recipientCountResult.passed, true);
+
+  const notificationKindResult = evaluateChatCriterion(context, {
+    criterion_id: 'internal-sms-kind',
+    description: 'sendSmsToReceptionists should return reception_follow_up notification metadata',
+    severity: 'high',
+    rule: {
+      type: 'tool_result_path_equals',
+      tool_name: 'sendSmsToReceptionists',
+      path: 'notification.kind',
+      equals: 'reception_follow_up'
+    }
+  });
+  assert.equal(notificationKindResult.passed, true);
 });
 
 test('voice smoke recent-call selection prefers the current scenario call', () => {
