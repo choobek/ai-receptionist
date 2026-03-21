@@ -56,6 +56,7 @@
     {
       "criterion_id": "assistant-answer-mentioned-key-terms",
       "description": "The assistant reply should mention both veneers and bonding in the final answer.",
+      "required": false,
       "severity": "medium",
       "root_cause_hint": "assistant failed to surface the knowledge-base result clearly",
       "rule": {

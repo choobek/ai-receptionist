@@ -58,6 +58,7 @@
     {
       "criterion_id": "assistant-answer-mentions-implant-context",
       "description": "The answer should connect the phrase to implant treatment or All on four.",
+      "required": false,
       "severity": "medium",
       "root_cause_hint": "assistant surfaced the KB answer too vaguely",
       "rule": {

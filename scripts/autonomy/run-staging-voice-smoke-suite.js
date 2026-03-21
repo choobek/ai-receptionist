@@ -20,7 +20,6 @@ const CHROME_CANDIDATES = [
   '/usr/bin/chromium',
   '/usr/bin/chromium-browser'
 ].filter(Boolean);
-const ALLOWED_SCENARIO_STATUS = new Set(['active']);
 const LANGUAGE_FILTERS = new Set(['pl', 'en', 'mixed', 'all']);
 
 function usage() {
@@ -29,6 +28,7 @@ function usage() {
 
 Options:
   --scenario <id>       Run only the named voice scenario. Repeat to run multiple scenarios.
+  --include-draft       Also allow draft voice scenarios for explicit experimental runs.
   --language <value>    Filter active scenarios by language: pl, en, mixed, or all. Defaults to pl.
   --output-dir <dir>    Write machine-readable artifacts into this directory.
   --report <path>       Write the Markdown report to this path.
@@ -42,6 +42,7 @@ Options:
 function parseArgs(argv) {
   const options = {
     scenarioIds: [],
+    includeDraft: false,
     languageFilter: 'pl',
     languageExplicit: false,
     outputDir: null,
@@ -67,6 +68,10 @@ function parseArgs(argv) {
     }
     if (arg === '--keep-temp') {
       options.keepTemp = true;
+      continue;
+    }
+    if (arg === '--include-draft') {
+      options.includeDraft = true;
       continue;
     }
     const next = argv[index + 1];
@@ -285,7 +290,11 @@ function buildClientConfig() {
   };
 }
 
-function loadScenarios(selectedIds, languageFilter, languageExplicit) {
+function resolveAllowedScenarioStatuses(includeDraft) {
+  return new Set(includeDraft ? ['active', 'draft'] : ['active']);
+}
+
+function loadScenarios(selectedIds, languageFilter, languageExplicit, includeDraft = false) {
   if (!fs.existsSync(DEFAULT_SCENARIOS_DIR)) {
     return [];
   }
@@ -300,8 +309,9 @@ function loadScenarios(selectedIds, languageFilter, languageExplicit) {
     return scenario;
   });
 
+  const allowedScenarioStatuses = resolveAllowedScenarioStatuses(includeDraft);
   const activeScenarios = scenarios
-    .filter((scenario) => ALLOWED_SCENARIO_STATUS.has(scenario.status))
+    .filter((scenario) => allowedScenarioStatuses.has(scenario.status))
     .sort((left, right) => left.scenario_id.localeCompare(right.scenario_id));
 
   if (selectedIds.length > 0) {
@@ -309,7 +319,7 @@ function loadScenarios(selectedIds, languageFilter, languageExplicit) {
     const found = new Set(selected.map((scenario) => scenario.scenario_id));
     const missing = selectedIds.filter((scenarioId) => !found.has(scenarioId));
     if (missing.length > 0) {
-      throw new Error(`Unknown or inactive voice scenario(s): ${missing.join(', ')}`);
+      throw new Error(`Unknown or ineligible voice scenario(s): ${missing.join(', ')}`);
     }
 
     if (languageExplicit) {
@@ -1772,7 +1782,12 @@ async function executeScenario(scenario, clientConfig, suiteRunId, suiteOutputDi
 async function main() {
   loadRootEnvIfPresent();
   const options = parseArgs(process.argv.slice(2));
-  const scenarios = loadScenarios(options.scenarioIds, options.languageFilter, options.languageExplicit);
+  const scenarios = loadScenarios(
+    options.scenarioIds,
+    options.languageFilter,
+    options.languageExplicit,
+    options.includeDraft
+  );
 
   if (options.listOnly) {
     printScenarioList(scenarios);

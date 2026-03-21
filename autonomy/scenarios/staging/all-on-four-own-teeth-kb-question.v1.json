@@ -57,6 +57,7 @@
     {
       "criterion_id": "assistant-answer-mentions-key-constraints",
       "description": "The assistant reply should mention extraction context and doctor qualification through consultation.",
+      "required": false,
       "severity": "medium",
       "root_cause_hint": "assistant surfaced the KB answer incompletely or skipped the new receptionist guidance",
       "rule": {

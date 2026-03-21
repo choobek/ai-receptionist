@@ -2,6 +2,8 @@
 
 This repo now includes a staging-only synthetic regression loop for the receptionist assistant.
 
+For lane boundaries and promotion rules, see [Testing Strategy](./testing-strategy.md).
+
 ## One-command entrypoint
 
 Run the full active suite:
@@ -14,6 +16,12 @@ Run a single scenario:
 
 ```bash
 ./scripts/run-staging-regression-suite.sh --scenario all-on-four-inquiry-to-booking
+```
+
+Run a draft scenario intentionally:
+
+```bash
+./scripts/run-staging-regression-suite.sh --include-draft --scenario <scenario-id>
 ```
 
 List the active scenarios:
@@ -36,6 +44,19 @@ For each scenario it:
 6. exits non-zero if any required criterion fails
 
 If a scenario declares `required_tool_bindings` that are not present in the current staging Vapi bindings, the runner marks that scenario as `skipped` instead of failing the suite. This keeps future-facing assistant scenarios in the active set without pretending staging can exercise tools that are not enabled there yet.
+
+## Must-pass vs warnings
+
+Active scenarios are the must-pass assistant-invariant lane. Their required criteria should stay focused on durable behavior:
+
+- correct tool choice and ordering
+- no booking or handoff writes before the right confirmation point
+- exact slot reuse and handoff ID reuse
+- no scheduling writes on pure knowledge-base or receptionist-handoff paths
+
+If a check is useful as an observation but too brittle to block releases, set `"required": false` on that criterion. The runner will report it as a warning instead of failing the suite. Use this for wording-sensitive answer checks and other signals that should inform review without forcing prompt changes.
+
+Keep one-off reproductions or recent-failure investigations in `draft` instead of `active`. Run them with `--include-draft` when you want an experimental evaluation pass.
 
 ## Scenario format
 

@@ -218,6 +218,8 @@ Run these when the repo starts to feel improvised:
 git status --short
 ./scripts/check-repo-health.sh
 ./scripts/check-workflow-regressions.js
+# optional quarantined prompt/config/voice checks:
+# ./scripts/check-workflow-regressions.js --include-experimental
 ./scripts/sync-n8n-workflow-data.sh --check
 ./scripts/render-vapi-assistant-config.sh production >/tmp/ai-receptionist-production-assistant.json
 # after staging bindings are filled:
@@ -228,7 +230,7 @@ Interpretation:
 
 - `git status --short` should not show accidental secrets, throwaway scripts, or duplicate env templates.
 - `./scripts/check-repo-health.sh` should pass before deploys and after repo cleanup. It now includes workflow regression checks when `node` is installed.
-- `./scripts/check-workflow-regressions.js` exercises the embedded n8n logic directly and should stay green when tool contracts change.
+- `./scripts/check-workflow-regressions.js` is the default must-pass contract/invariant lane. Use `--include-experimental` only for explicit audits of quarantined prompt/config/voice checks.
 - `./scripts/sync-n8n-workflow-data.sh --check` should pass after proof-of-concept data edits.
 - rendered staging and production assistant configs should build cleanly from repo state plus root `.env`.
 - a clean Vapi update path means assistant changes are reproducible outside the dashboard.

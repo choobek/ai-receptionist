@@ -1,8 +1,10 @@
 # Staging Voice Smoke Suite
 
-Status: the runnable staging voice lane now includes the Phase 4 seeded-scenario slice.
+Status: the default runnable voice lane is limited to broad active smoke scenarios. Narrow booking reproductions stay in `draft` until repeated real-call evidence shows they are durable enough to promote.
 
 This document defines where the automated staging voice lane will live, how its artifacts will be shaped, and how it should fit beside the existing chat regression suite.
+
+For lane boundaries and promotion rules, see [Testing Strategy](./testing-strategy.md).
 
 ## Current status
 
@@ -49,6 +51,12 @@ Current command:
 
 ```bash
 ./scripts/run-staging-voice-smoke-suite.sh
+```
+
+Run a draft voice scenario intentionally:
+
+```bash
+./scripts/run-staging-voice-smoke-suite.sh --include-draft --scenario <scenario-id>
 ```
 
 Generate or refresh caller fixtures explicitly:
@@ -169,6 +177,12 @@ This is meant to capture failures that the final transcript alone cannot explain
 - keep generated raw call artifacts under git-ignored paths
 - use synthetic patient names and phone numbers only
 
+## How to interpret this lane
+
+- Active voice scenarios should stay broad and repeatable: silence handling, pause handling, low-confidence recovery, transport sanity.
+- Draft voice scenarios are experimental reproductions. They are useful for evaluation, but they should not broaden the shared prompt on their own.
+- A failing voice smoke run should lead to artifact review and comparison against real calls before any shared prompt change is made.
+
 ## Current seeded coverage
 
 Active today:
@@ -185,12 +199,12 @@ Draft today:
 
 As of 2026-03-19, the booking scenario passes in isolation on staging, including `createEvent`, selected-slot preservation, and `successfulForAssistantScope=true` in [staging-voice-20260319T231612643Z.md](../autonomy/reports/generated/staging-voice/staging-voice-20260319T231612643Z.md). It still drifts under full-suite conditions in [staging-voice-20260319T232815489Z.md](../autonomy/reports/generated/staging-voice/staging-voice-20260319T232815489Z.md), mainly on doctor-name rendering in the offered slot, so it remains `draft`.
 
-By default, `./scripts/run-staging-voice-smoke-suite.sh` runs only the active Polish scenarios. Use `--language en` for the English companion lane or `--language all` to execute both.
+By default, `./scripts/run-staging-voice-smoke-suite.sh` runs only the active Polish scenarios. Use `--language en` for the English companion lane or `--language all` to execute both. Add `--include-draft` only when you intentionally want experimental booking evals in the run.
 
-## Next implementation step
+## Promotion rule for booking voice cases
 
-The next slice should harden the booking case:
+Before a booking-focused voice scenario moves from `draft` back to `active`, it should clear all of these:
 
-- stabilize doctor-name rendering in the offered slot
-- keep the post-booking summary in one language
-- add follow-up assertions so these booking-quality details stay covered before promoting booking back into the active suite
+- the same issue appears across multiple real calls, not just one synthetic run
+- the required criteria can be expressed as durable invariants instead of wording snapshots
+- the scenario stays useful as a smoke/eval tool without encouraging prompt accretion

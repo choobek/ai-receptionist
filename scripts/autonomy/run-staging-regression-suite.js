@@ -8,7 +8,6 @@ const DEFAULT_SCENARIOS_DIR = path.join(ROOT_DIR, 'autonomy', 'scenarios', 'stag
 const DEFAULT_RUNS_DIR = path.join(ROOT_DIR, 'autonomy', 'runs', 'generated', 'staging');
 const DEFAULT_REPORTS_DIR = path.join(ROOT_DIR, 'autonomy', 'reports', 'generated', 'staging');
 const STAGING_BINDINGS_PATH = path.join(ROOT_DIR, 'configs', 'vapi', 'environments', 'staging.json');
-const ALLOWED_SCENARIO_STATUS = new Set(['active']);
 
 function usage() {
   console.log(`Usage:
@@ -16,6 +15,7 @@ function usage() {
 
 Options:
   --scenario <id>     Run only the named scenario. Repeat to run multiple scenarios.
+  --include-draft     Also allow draft scenarios for explicit experimental runs.
   --output-dir <dir>  Write machine-readable artifacts into this directory.
   --report <path>     Write the Markdown report to this path.
   --list              Print the available active staging scenarios and exit.
@@ -26,6 +26,7 @@ Options:
 function parseArgs(argv) {
   const options = {
     scenarioIds: [],
+    includeDraft: false,
     outputDir: null,
     reportPath: null,
     listOnly: false
@@ -39,6 +40,10 @@ function parseArgs(argv) {
     }
     if (arg === '--list') {
       options.listOnly = true;
+      continue;
+    }
+    if (arg === '--include-draft') {
+      options.includeDraft = true;
       continue;
     }
     const next = argv[index + 1];
@@ -237,7 +242,11 @@ function scenarioSort(left, right) {
   return left.scenario_id.localeCompare(right.scenario_id);
 }
 
-function loadScenarios(selectedIds) {
+function resolveAllowedScenarioStatuses(includeDraft) {
+  return new Set(includeDraft ? ['active', 'draft'] : ['active']);
+}
+
+function loadScenarios(selectedIds, includeDraft = false) {
   const entries = fs.readdirSync(DEFAULT_SCENARIOS_DIR)
     .filter((entry) => entry.endsWith('.json'))
     .map((entry) => path.join(DEFAULT_SCENARIOS_DIR, entry));
@@ -248,8 +257,9 @@ function loadScenarios(selectedIds) {
     return scenario;
   });
 
+  const allowedScenarioStatuses = resolveAllowedScenarioStatuses(includeDraft);
   const activeScenarios = scenarios
-    .filter((scenario) => ALLOWED_SCENARIO_STATUS.has(scenario.status))
+    .filter((scenario) => allowedScenarioStatuses.has(scenario.status))
     .sort(scenarioSort);
 
   if (selectedIds.length === 0) {
@@ -261,7 +271,7 @@ function loadScenarios(selectedIds) {
   if (selected.length !== selectedIds.length) {
     const found = new Set(selected.map((scenario) => scenario.scenario_id));
     const missing = selectedIds.filter((scenarioId) => !found.has(scenarioId));
-    throw new Error(`Scenario not found or not active: ${missing.join(', ')}`);
+    throw new Error(`Scenario not found or not eligible for this run: ${missing.join(', ')}`);
   }
 
   return selected;
@@ -1068,7 +1078,7 @@ function printConsoleSummary(suiteSummary) {
 async function main() {
   loadRootEnvIfPresent();
   const options = parseArgs(process.argv.slice(2));
-  const scenarios = loadScenarios(options.scenarioIds);
+  const scenarios = loadScenarios(options.scenarioIds, options.includeDraft);
 
   if (options.listOnly) {
     printScenarioList(scenarios);

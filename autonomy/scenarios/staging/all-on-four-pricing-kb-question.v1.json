@@ -57,6 +57,7 @@
     {
       "criterion_id": "assistant-answer-mentions-price-and-individual-quote",
       "description": "The assistant reply should mention the starting price and the individual quotation caveat.",
+      "required": false,
       "severity": "medium",
       "root_cause_hint": "assistant surfaced the pricing answer incompletely",
       "rule": {

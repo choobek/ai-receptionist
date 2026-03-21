@@ -1,5 +1,7 @@
 # Manual Test Plan
 
+Automation lane boundaries live in [Testing Strategy](./testing-strategy.md). This file is the manual/direct-tool checklist, not the source of truth for which automated checks should block releases.
+
 This checklist verifies the full flow against the permanent hosted n8n instance:
 
 - `https://vps-2c8bbf65.vps.ovh.net`

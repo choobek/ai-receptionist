@@ -57,6 +57,7 @@
     {
       "criterion_id": "assistant-answer-mentions-fixed-price",
       "description": "The assistant reply should mention the fixed hygiene price.",
+      "required": false,
       "severity": "medium",
       "root_cause_hint": "assistant surfaced the fixed-price answer incompletely",
       "rule": {

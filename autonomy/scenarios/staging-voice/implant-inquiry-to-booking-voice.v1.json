@@ -3,14 +3,15 @@
   "scenario_id": "implant-inquiry-to-booking-voice",
   "title": "Implant inquiry converts into an implant consultation booking",
   "description": "A staging web call asks about All-on-4, then books the first offered implant consultation slot and confirms the reservation.",
-  "status": "active",
+  "status": "draft",
   "environment": "staging",
   "language": "pl",
   "tags": [
     "voice",
     "booking",
     "implantology",
-    "smoke"
+    "smoke",
+    "experimental"
   ],
   "source": {
     "origin": "manual_voice_test",

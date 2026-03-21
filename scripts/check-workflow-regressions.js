@@ -32,6 +32,44 @@ const {
   'run-staging-regression-suite.js'
 ));
 
+function usage() {
+  console.log(`Usage:
+  node scripts/check-workflow-regressions.js [options]
+
+Options:
+  --include-experimental  Also run quarantined prompt/config/voice checks.
+  --help                  Show this help message.
+`);
+}
+
+function parseArgs(argv) {
+  const options = {
+    includeExperimental:
+      process.env.WORKFLOW_REGRESSION_INCLUDE_EXPERIMENTAL === '1'
+      || process.env.WORKFLOW_REGRESSION_INCLUDE_EXPERIMENTAL === 'true'
+  };
+
+  for (const arg of argv) {
+    if (arg === '--help') {
+      usage();
+      process.exit(0);
+    }
+    if (arg === '--include-experimental') {
+      options.includeExperimental = true;
+      continue;
+    }
+    throw new Error(`Unknown argument: ${arg}`);
+  }
+
+  return options;
+}
+
+const options = parseArgs(process.argv.slice(2));
+const enabledLanes = new Set(['contract', 'assistant-invariant']);
+if (options.includeExperimental) {
+  enabledLanes.add('experimental');
+}
+
 function loadJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
@@ -210,10 +248,33 @@ function getResponseCodeOption(workflowFilename, nodeName) {
 }
 
 let testsRun = 0;
+let testsSkipped = 0;
 const pendingTests = [];
+const laneStats = new Map();
 
-function test(name, fn) {
+function noteLane(lane, field) {
+  if (!laneStats.has(lane)) {
+    laneStats.set(lane, {
+      registered: 0,
+      run: 0,
+      skipped: 0
+    });
+  }
+  laneStats.get(lane)[field] += 1;
+}
+
+function test(name, fn, { lane = 'contract' } = {}) {
   testsRun += 1;
+  noteLane(lane, 'registered');
+
+  if (!enabledLanes.has(lane)) {
+    testsSkipped += 1;
+    noteLane(lane, 'skipped');
+    console.log(`skip - ${name} (${lane})`);
+    return;
+  }
+
+  noteLane(lane, 'run');
   pendingTests.push(
     Promise.resolve()
       .then(fn)
@@ -226,6 +287,14 @@ function test(name, fn) {
         process.exitCode = 1;
       })
   );
+}
+
+function assistantInvariantTest(name, fn) {
+  test(name, fn, { lane: 'assistant-invariant' });
+}
+
+function experimentalTest(name, fn) {
+  test(name, fn, { lane: 'experimental' });
 }
 
 const defaultEnv = {
@@ -1154,7 +1223,7 @@ test('searchKnowledgeBase returns other-specialist handoff guidance', () => {
   assert.match(searchResult.answer, /recepcji/i);
 });
 
-test('searchKnowledgeBase returns the clinic address for location questions', () => {
+experimentalTest('searchKnowledgeBase returns the clinic address for location questions', () => {
   const workflow = loadWorkflow('tool_search-knowledge-base.json');
   const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
     $json: {
@@ -1281,7 +1350,7 @@ test('call-ended router maps invalid events to HTTP 400 and unauthorized calls t
   );
 });
 
-test('assistant prompt keeps the March 18 live-call booking guardrails', () => {
+experimentalTest('assistant prompt keeps the March 18 live-call booking guardrails', () => {
   const config = loadAssistantConfig();
   const systemPrompts = (config.assistant?.model?.messages || [])
     .filter((message) => message.role === 'system' && typeof message.content === 'string')
@@ -1312,7 +1381,7 @@ test('assistant prompt keeps the March 18 live-call booking guardrails', () => {
   assert.equal(/po lunchu \/ po obiedzie -> afternoon/i.test(systemPrompts), false);
 });
 
-test('assistant prompt anchors createEvent to the exact selected slot boundary', () => {
+experimentalTest('assistant prompt anchors createEvent to the exact selected slot boundary', () => {
   const config = loadAssistantConfig();
   const systemPrompts = (config.assistant?.model?.messages || [])
     .filter((message) => message.role === 'system' && typeof message.content === 'string')
@@ -1324,7 +1393,7 @@ test('assistant prompt anchors createEvent to the exact selected slot boundary',
   assert.match(systemPrompts, /2026-03-19T10:15:00\+01:00/);
 });
 
-test('assistant prompt keeps the baseline spoken-phone and doctor-name guardrails', () => {
+experimentalTest('assistant prompt keeps the baseline spoken-phone and doctor-name guardrails', () => {
   const config = loadAssistantConfig();
   const systemPrompts = (config.assistant?.model?.messages || [])
     .filter((message) => message.role === 'system' && typeof message.content === 'string')
@@ -1337,7 +1406,7 @@ test('assistant prompt keeps the baseline spoken-phone and doctor-name guardrail
   assert.equal(/customer\.number/.test(systemPrompts), false);
 });
 
-test('assistant config keeps the March 18 endpointing profile', () => {
+experimentalTest('assistant config keeps the March 18 endpointing profile', () => {
   const config = loadAssistantConfig();
   assert.equal(config.assistant?.transcriber?.provider, 'openai');
   assert.equal(config.assistant?.transcriber?.model, 'gpt-4o-transcribe');
@@ -1353,7 +1422,7 @@ test('assistant config keeps the March 18 endpointing profile', () => {
   assert.equal(config.assistant?.stopSpeakingPlan?.backoffSeconds, 1.2);
 });
 
-test('assistant config keeps the March 18 voice model and temperature', () => {
+experimentalTest('assistant config keeps the March 18 voice model and temperature', () => {
   const config = loadAssistantConfig();
   assert.equal(config.assistant?.voice?.model, 'eleven_turbo_v2_5');
   assert.equal(config.assistant?.voice?.chunkPlan?.enabled, true);
@@ -1418,7 +1487,7 @@ test('assistant renderer includes SMS tools in staging when bindings are configu
   assert.ok(patientSmsBinding?.serverUrl?.includes('/send-sms-to-patient?secret='));
 });
 
-test('assistant SMS scenarios resolve required tool bindings against staging and production environments', () => {
+assistantInvariantTest('assistant SMS scenarios resolve required tool bindings against staging and production environments', () => {
   const stagingEnabledBindings = getEnabledToolBindings(loadEnvironmentBindings('staging'));
   const productionEnabledBindings = getEnabledToolBindings(loadEnvironmentBindings('production'));
   const patientSmsScenario = loadStagingScenario('booking-confirmation-sms.v1.json');
@@ -1451,7 +1520,7 @@ test('assistant SMS scenarios resolve required tool bindings against staging and
   );
 });
 
-test('specialist handoff scenario routes other specialists into general follow-up without scheduling', () => {
+assistantInvariantTest('specialist handoff scenario routes other specialists into general follow-up without scheduling', () => {
   const scenario = loadStagingScenario('other-specialist-first-visit-handoff.v1.json');
 
   assert.deepEqual(getScenarioCriterion(scenario, 'reception-task-created').rule, {
@@ -1476,7 +1545,7 @@ test('specialist handoff scenario routes other specialists into general follow-u
   });
 });
 
-test('existing-patient booking handoff scenario routes directly to reception with internal SMS and no scheduling', () => {
+assistantInvariantTest('existing-patient booking handoff scenario routes directly to reception with internal SMS and no scheduling', () => {
   const scenario = loadStagingScenario('existing-patient-booking-handoff-internal-sms-alert.v1.json');
 
   assert.deepEqual(getScenarioCriterion(scenario, 'existing-patient-booking-task-type-used').rule, {
@@ -1508,7 +1577,7 @@ test('existing-patient booking handoff scenario routes directly to reception wit
   });
 });
 
-test('staging chat runner resolves scenario template fallbacks and explicit overrides', () => {
+assistantInvariantTest('staging chat runner resolves scenario template fallbacks and explicit overrides', () => {
   const template = {
     turns: [
       { user: '{{STAGING_SMS_TEST_PATIENT_IDENTITY_UTTERANCE|fallback utterance}}' }
@@ -1529,7 +1598,7 @@ test('staging chat runner resolves scenario template fallbacks and explicit over
   );
 });
 
-test('assistant SMS staging scenarios require end-to-end workflow result checks', () => {
+assistantInvariantTest('assistant SMS staging scenarios require end-to-end workflow result checks', () => {
   const patientSmsScenario = loadStagingScenario('booking-confirmation-sms.v1.json');
   const receptionSmsScenario = loadStagingScenario('reschedule-handoff-internal-sms-alert.v1.json');
   const existingPatientBookingScenario = loadStagingScenario('existing-patient-booking-handoff-internal-sms-alert.v1.json');
@@ -1622,7 +1691,7 @@ test('docker compose files expose SMS runtime variables to n8n', () => {
   }
 });
 
-test('assistant chat rubric can verify patient SMS ordering and calendarEventId reuse', () => {
+assistantInvariantTest('assistant chat rubric can verify patient SMS ordering and calendarEventId reuse', () => {
   const context = createChatRegressionContext({
     turns: [{ user: 'synthetic turn' }],
     rubric: []
@@ -1751,7 +1820,7 @@ test('assistant chat rubric can verify patient SMS ordering and calendarEventId 
   assert.equal(payloadKindResult.passed, true);
 });
 
-test('assistant chat rubric rejects patient SMS calls that happen before createEvent returns', () => {
+assistantInvariantTest('assistant chat rubric rejects patient SMS calls that happen before createEvent returns', () => {
   const context = createChatRegressionContext({
     turns: [{ user: 'synthetic turn' }],
     rubric: []
@@ -1810,7 +1879,7 @@ test('assistant chat rubric rejects patient SMS calls that happen before createE
   assert.match(orderingResult.failure_reason || '', /after the createEvent result/);
 });
 
-test('assistant chat rubric can verify internal receptionist SMS ordering and taskId reuse', () => {
+assistantInvariantTest('assistant chat rubric can verify internal receptionist SMS ordering and taskId reuse', () => {
   const context = createChatRegressionContext({
     turns: [{ user: 'synthetic turn' }],
     rubric: []
@@ -1935,7 +2004,166 @@ test('assistant chat rubric can verify internal receptionist SMS ordering and ta
   assert.equal(notificationKindResult.passed, true);
 });
 
-test('voice smoke recent-call selection prefers the current scenario call', () => {
+assistantInvariantTest('assistant chat rubric can verify createEvent reuses the exact selected slot boundaries', () => {
+  const context = createChatRegressionContext({
+    turns: [{ user: 'synthetic turn' }],
+    rubric: []
+  });
+
+  normalizeOutputForTurn(context, 1, [
+    {
+      role: 'assistant',
+      tool_calls: [
+        {
+          id: 'tool_check_slots_1',
+          function: {
+            name: 'checkAvailability',
+            arguments: JSON.stringify({
+              service: { id: 'consultation' },
+              timePreference: 'morning'
+            })
+          }
+        }
+      ]
+    },
+    {
+      role: 'tool',
+      tool_call_id: 'tool_check_slots_1',
+      content: {
+        available: true,
+        slots: [
+          {
+            start: '2026-03-23T09:00:00+01:00',
+            end: '2026-03-23T09:45:00+01:00'
+          },
+          {
+            start: '2026-03-23T10:15:00+01:00',
+            end: '2026-03-23T11:00:00+01:00'
+          }
+        ]
+      }
+    },
+    {
+      role: 'assistant',
+      tool_calls: [
+        {
+          id: 'tool_create_event_selected_slot',
+          function: {
+            name: 'createEvent',
+            arguments: JSON.stringify({
+              service: { id: 'consultation' },
+              slotStart: '2026-03-23T10:15:00+01:00',
+              slotEnd: '2026-03-23T11:00:00+01:00'
+            })
+          }
+        }
+      ]
+    },
+    {
+      role: 'tool',
+      tool_call_id: 'tool_create_event_selected_slot',
+      content: {
+        created: true,
+        appointment: {
+          start: '2026-03-23T10:15:00+01:00',
+          end: '2026-03-23T11:00:00+01:00'
+        }
+      }
+    }
+  ]);
+
+  const result = evaluateChatCriterion(context, {
+    criterion_id: 'selected-slot-preserved',
+    description: 'createEvent should reuse the exact slot boundaries returned by checkAvailability',
+    severity: 'critical',
+    rule: {
+      type: 'create_event_matches_selected_slot',
+      availability_turn: 1,
+      selected_slot_index: 1
+    }
+  });
+  assert.equal(result.passed, true);
+});
+
+assistantInvariantTest('assistant chat rubric rejects createEvent when slotEnd drifts from the selected slot', () => {
+  const context = createChatRegressionContext({
+    turns: [{ user: 'synthetic turn' }],
+    rubric: []
+  });
+
+  normalizeOutputForTurn(context, 1, [
+    {
+      role: 'assistant',
+      tool_calls: [
+        {
+          id: 'tool_check_slots_drift',
+          function: {
+            name: 'checkAvailability',
+            arguments: JSON.stringify({
+              service: { id: 'consultation' },
+              timePreference: 'morning'
+            })
+          }
+        }
+      ]
+    },
+    {
+      role: 'tool',
+      tool_call_id: 'tool_check_slots_drift',
+      content: {
+        available: true,
+        slots: [
+          {
+            start: '2026-03-23T10:15:00+01:00',
+            end: '2026-03-23T11:00:00+01:00'
+          }
+        ]
+      }
+    },
+    {
+      role: 'assistant',
+      tool_calls: [
+        {
+          id: 'tool_create_event_drift',
+          function: {
+            name: 'createEvent',
+            arguments: JSON.stringify({
+              service: { id: 'consultation' },
+              slotStart: '2026-03-23T10:15:00+01:00',
+              slotEnd: '2026-03-23T10:45:00+01:00'
+            })
+          }
+        }
+      ]
+    },
+    {
+      role: 'tool',
+      tool_call_id: 'tool_create_event_drift',
+      content: {
+        created: true,
+        appointment: {
+          start: '2026-03-23T10:15:00+01:00',
+          end: '2026-03-23T10:45:00+01:00'
+        }
+      }
+    }
+  ]);
+
+  const result = evaluateChatCriterion(context, {
+    criterion_id: 'selected-slot-drift-detected',
+    description: 'createEvent should not shorten the selected slot before booking',
+    severity: 'critical',
+    rule: {
+      type: 'create_event_matches_selected_slot',
+      availability_turn: 1,
+      selected_slot_index: 0
+    }
+  });
+  assert.equal(result.passed, false);
+  assert.match(result.failure_reason || '', /exact selected slot boundaries/);
+});
+
+experimentalTest('voice smoke recent-call selection prefers the current scenario call', () => {
   const selected = selectCompletedRecentCall({
     calls: [
       {
@@ -1959,7 +2187,7 @@ test('voice smoke recent-call selection prefers the current scenario call', () =
   assert.equal(selected?.id, 'current-call');
 });
 
-test('voice smoke evaluator supports numeric call-path latency ceilings', () => {
+experimentalTest('voice smoke evaluator supports numeric call-path latency ceilings', () => {
   const passing = evaluateVoiceCriterion({
     criterion_id: 'endpointing-latency-budget',
     description: 'Average endpointing latency should stay under one second.',
@@ -2011,7 +2239,7 @@ test('voice smoke evaluator supports numeric call-path latency ceilings', () => 
   assert.equal(failing.passed, false);
 });
 
-test('implant booking voice scenario now guards phone readback quality and latency', () => {
+experimentalTest('implant booking voice scenario now guards phone readback quality and latency', () => {
   const scenario = loadStagingVoiceScenario('implant-inquiry-to-booking-voice.v1.json');
   const criteria = new Map(scenario.rubric.map((criterion) => [criterion.criterion_id, criterion]));
 
@@ -2067,5 +2295,13 @@ test('structured output schema exposes QA flags for conversation regressions', (
     process.exit(process.exitCode);
   }
 
-  console.log(`Workflow regression checks passed (${testsRun} tests).`);
+  const laneSummary = Array.from(laneStats.entries())
+    .map(([lane, stats]) => `${lane}: run ${stats.run}/${stats.registered}${stats.skipped ? `, skipped ${stats.skipped}` : ''}`)
+    .join('; ');
+  const experimentalNote = enabledLanes.has('experimental')
+    ? 'including experimental lane'
+    : 'experimental lane skipped';
+  console.log(
+    `Workflow regression checks passed (${testsRun - testsSkipped}/${testsRun} tests run, ${experimentalNote}; ${laneSummary}).`
+  );
 })();

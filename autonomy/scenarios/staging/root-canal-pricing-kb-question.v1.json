@@ -57,6 +57,7 @@
     {
       "criterion_id": "assistant-answer-mentions-individual-quote-and-consultation",
       "description": "The assistant reply should mention individual quotation and the need for consultation.",
+      "required": false,
       "severity": "medium",
       "root_cause_hint": "assistant surfaced the root-canal answer incompletely",
       "rule": {
