@@ -4,7 +4,9 @@ This guide shows how to read the dental assistant structured output after a call
 
 Relevant Vapi paths:
 - webhook event: `body.call.artifact.structuredOutputs`
+- webhook event: `body.call.artifact.scorecards`
 - call API response: `call.artifact.structuredOutputs`
+- call API response: `call.artifact.scorecards`
 - extracted payload for one output: `call.artifact.structuredOutputs[outputId].result`
 
 ## Expected payload shape
@@ -141,6 +143,14 @@ jq -r '
 '
 ```
 
+Extract scorecards:
+
+```bash
+curl -sS "https://api.vapi.ai/call/YOUR_CALL_ID" \
+  -H "Authorization: Bearer $VAPI_API_KEY" | \
+jq '.artifact.scorecards'
+```
+
 ## n8n Code node example
 
 If your Vapi webhook lands in n8n, a Code node can extract the result like this:
@@ -180,6 +190,7 @@ What it does:
 - ignores non-`call.ended` events
 - reads the structured output by `VAPI_STRUCTURED_OUTPUT_ID`
 - falls back to the output named `Dental Call Intake`
+- carries the raw Vapi artifact through, which includes `artifact.scorecards` when scorecards are attached on the assistant
 - routes into:
   - `booked`
   - `needs_reception_follow_up`

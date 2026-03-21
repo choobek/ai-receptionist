@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "key": "toolFailureOccurred",
+  "rank": 40,
+  "name": "QA: Tool Failure",
+  "description": "Boolean QA metric: true only if a tool failure or missing tool result materially affected the call.",
+  "type": "ai",
+  "schema": {
+    "type": "boolean",
+    "description": "True if a tool error, rejection, timeout, or missing tool result materially affected the call."
+  }
+}

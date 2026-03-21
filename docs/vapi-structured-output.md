@@ -2,7 +2,8 @@
 
 This repo now includes a post-call extraction schema for the dental assistant:
 
-- schema file: [`docs/vapi-structured-output.json`](./vapi-structured-output.json)
+- canonical config: [`../configs/vapi/structured-outputs/dental-call-intake.v1.json`](../configs/vapi/structured-outputs/dental-call-intake.v1.json)
+- readable schema mirror: [`docs/vapi-structured-output.json`](./vapi-structured-output.json)
 - consumption guide: [`docs/vapi-structured-output-consumption.md`](./vapi-structured-output-consumption.md)
 
 Use it when you want Vapi to produce a structured JSON record after each call for:
@@ -31,6 +32,26 @@ The schema extracts:
 - short internal Polish summary
 
 ## Recommended Vapi setup
+
+### Repo-backed sync
+
+Preferred path:
+
+```bash
+./scripts/sync-vapi-observability.sh staging
+./scripts/sync-vapi-observability.sh production
+```
+
+This sync path:
+- upserts the canonical call-intake structured output
+- updates the environment binding file with the resulting output IDs
+- keeps the assistant `artifactPlan.structuredOutputIds` aligned through the normal assistant sync path
+
+The readable JSON schema mirror is generated from the canonical config:
+
+```bash
+./scripts/sync-vapi-observability-mirrors.sh
+```
 
 ### Dashboard
 
@@ -86,7 +107,7 @@ export VAPI_API_KEY=your_api_key
 ```
 
 It will:
-- create the structured output from [`docs/vapi-structured-output.json`](./vapi-structured-output.json)
+- create the structured output from the canonical config in [`../configs/vapi/structured-outputs/dental-call-intake.v1.json`](../configs/vapi/structured-outputs/dental-call-intake.v1.json)
 - attach it to the assistant during the `POST /structured-output` call via `assistantIds`
 - print the Vapi error body if creation fails
 
@@ -112,6 +133,7 @@ Use [`docs/vapi-structured-output-consumption.md`](./vapi-structured-output-cons
 - Do not make too many fields required. Extraction quality drops when the schema is over-constrained.
 - This schema intentionally keeps most details optional and requires only the top-level outcome and summary fields.
 - If you want separate outputs for QA and CRM, create two structured outputs instead of one very large schema.
+- This repo already does that split for scorecard-compatible QA booleans under [`../configs/vapi/structured-outputs/`](../configs/vapi/structured-outputs/).
 
 ## Privacy note
 

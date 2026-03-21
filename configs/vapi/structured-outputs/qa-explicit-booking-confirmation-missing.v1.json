@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "key": "explicitBookingConfirmationMissing",
+  "rank": 60,
+  "name": "QA: Booking Confirm Missing",
+  "description": "Boolean QA metric: true only if a booking was created without a clear final confirmation after the summary.",
+  "type": "ai",
+  "schema": {
+    "type": "boolean",
+    "description": "True if the assistant created a booking without a clear final yes or equivalent after the booking summary."
+  }
+}

@@ -8,3 +8,5 @@ autonomy/runs/generated/
 autonomy/reports/generated/
 autonomy/scenarios/generated/
 autonomy/scenarios/staging-voice/fixtures/**/*.wav
+__pycache__/
+*.pyc

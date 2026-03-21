@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "key": "conversationDiscipline",
+  "rank": 20,
+  "name": "Conversation Discipline",
+  "description": "Live-call conversation hygiene score focused on loops, confirmation discipline, and phone handling.",
+  "metrics": [
+    {
+      "structuredOutputKey": "repeatedIdentityRequest",
+      "conditions": [
+        {
+          "type": "comparator",
+          "comparator": "=",
+          "value": false,
+          "points": 30
+        }
+      ]
+    },
+    {
+      "structuredOutputKey": "explicitBookingConfirmationMissing",
+      "conditions": [
+        {
+          "type": "comparator",
+          "comparator": "=",
+          "value": false,
+          "points": 30
+        }
+      ]
+    },
+    {
+      "structuredOutputKey": "phoneNumberRepeatedIncorrectly",
+      "conditions": [
+        {
+          "type": "comparator",
+          "comparator": "=",
+          "value": false,
+          "points": 25
+        }
+      ]
+    },
+    {
+      "structuredOutputKey": "multipleQuestionsInSingleTurn",
+      "conditions": [
+        {
+          "type": "comparator",
+          "comparator": "=",
+          "value": false,
+          "points": 15
+        }
+      ]
+    }
+  ]
+}

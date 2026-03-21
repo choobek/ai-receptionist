@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "key": "multipleQuestionsInSingleTurn",
+  "rank": 80,
+  "name": "QA: Stacked Questions",
+  "description": "Boolean QA metric: true only if the assistant stacked more than one real question in one reply.",
+  "type": "ai",
+  "schema": {
+    "type": "boolean",
+    "description": "True if the assistant stacked more than one real question into a single reply."
+  }
+}

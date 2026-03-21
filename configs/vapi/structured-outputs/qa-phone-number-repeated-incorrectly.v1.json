@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "key": "phoneNumberRepeatedIncorrectly",
+  "rank": 70,
+  "name": "QA: Phone Readback Wrong",
+  "description": "Boolean QA metric: true only if the assistant repeated the caller's phone number with wrong or hallucinated digits.",
+  "type": "ai",
+  "schema": {
+    "type": "boolean",
+    "description": "True if the assistant repeated the caller's phone number with missing, reordered, or hallucinated digits."
+  }
+}

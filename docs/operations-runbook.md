@@ -4,6 +4,9 @@ This repo should be operated from one root `.env` and six source-of-truth areas:
 
 - shared Vapi assistant config: [`configs/vapi/assistant.v1.json`](../configs/vapi/assistant.v1.json)
 - environment-specific Vapi bindings: [`configs/vapi/environments/`](../configs/vapi/environments/)
+- Vapi structured outputs: [`../configs/vapi/structured-outputs/`](../configs/vapi/structured-outputs/)
+- Vapi scorecards: [`../configs/vapi/scorecards/`](../configs/vapi/scorecards/)
+- Vapi eval definitions: [`../configs/vapi/evals/`](../configs/vapi/evals/)
 - service catalog: [`configs/services/catalog.v1.json`](../configs/services/catalog.v1.json)
 - n8n workflows: [`n8n/workflows/`](../n8n/workflows/)
 - mock patient data: [`mock-data/mock-patients.json`](../mock-data/mock-patients.json)
@@ -59,7 +62,7 @@ If both environments share one host, keep production on the full compose file an
 
 Canonical path:
 
-1. Edit the shared assistant behavior in [`configs/vapi/assistant.v1.json`](../configs/vapi/assistant.v1.json) and, when needed, the target binding in [`configs/vapi/environments/`](../configs/vapi/environments/).
+1. Edit the shared assistant behavior in [`configs/vapi/assistant.v1.json`](../configs/vapi/assistant.v1.json), the target binding in [`configs/vapi/environments/`](../configs/vapi/environments/), and any relevant observability configs under [`../configs/vapi/structured-outputs/`](../configs/vapi/structured-outputs/), [`../configs/vapi/scorecards/`](../configs/vapi/scorecards/), or [`../configs/vapi/evals/`](../configs/vapi/evals/).
 2. Sync the readable prompt mirrors:
 
 ```bash
@@ -69,6 +72,7 @@ Canonical path:
 This updates:
 - [`prompts/system-prompt.md`](../prompts/system-prompt.md)
 - [`prompts/first-message.md`](../prompts/first-message.md)
+- [`docs/vapi-structured-output.json`](./vapi-structured-output.json) via the observability sync path
 
 3. Apply the config to a named environment:
 
@@ -77,10 +81,32 @@ This updates:
 ./scripts/sync-vapi-environment.sh production
 ```
 
+Observability-only sync:
+
+```bash
+./scripts/sync-vapi-observability.sh staging
+./scripts/sync-vapi-observability.sh production
+```
+
 Notes:
 
 - If the Vapi API rejects a field, treat the API response as source of truth and update the stored config accordingly.
 - Avoid editing the Vapi dashboard without syncing the repo immediately after.
+
+### Saved Vapi Eval Lane
+
+Run the saved Vapi eval pack against staging:
+
+```bash
+./scripts/run-vapi-eval-suite.sh staging
+```
+
+Artifacts land under:
+
+- `autonomy/runs/generated/vapi-evals/<suite-run-id>/`
+- `autonomy/reports/generated/vapi-evals/<suite-run-id>.md`
+
+As of 2026-03-21, the saved Vapi chat eval lane is configured and repo-backed, but the current staging assistant can still time out before returning the assistant turn inside Vapi's saved eval runner. Treat this lane as a fast diagnostic surface, not the release gate. The repo-local staging regression and staging voice smoke suites remain authoritative.
 
 ## 3. Sync Embedded Workflow Data
 
@@ -230,6 +256,7 @@ Interpretation:
 
 - `git status --short` should not show accidental secrets, throwaway scripts, or duplicate env templates.
 - `./scripts/check-repo-health.sh` should pass before deploys and after repo cleanup. It now includes workflow regression checks when `node` is installed.
+- `./scripts/run-vapi-eval-suite.sh staging` is a useful observability check, but it is not a substitute for the repo-local staging regression or voice smoke lanes.
 - `./scripts/check-workflow-regressions.js` is the default must-pass contract/invariant lane. Use `--include-experimental` only for explicit audits of quarantined prompt/config/voice checks.
 - `./scripts/sync-n8n-workflow-data.sh --check` should pass after proof-of-concept data edits.
 - rendered staging and production assistant configs should build cleanly from repo state plus root `.env`.

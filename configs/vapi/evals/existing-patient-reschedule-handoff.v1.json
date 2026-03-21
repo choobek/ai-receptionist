@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "key": "existingPatientRescheduleHandoff",
+  "rank": 30,
+  "name": "Existing Patient Reschedule Handoff",
+  "description": "Reschedule or cancel requests should stay in the reception-task branch and use the reschedule_or_cancel task type after phone confirmation.",
+  "type": "chat.mockConversation",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Dzien dobry, chce przelozyc istniejaca wizyte. Mam na imie Jan Test Handoff, moj numer to siedem zero dwa, zero zero trzy, zero zero piec."
+    },
+    {
+      "role": "assistant",
+      "judgePlan": {
+        "type": "ai",
+        "model": {
+          "provider": "openai",
+          "model": "gpt-4o",
+          "messages": [
+            {
+              "role": "system",
+              "content": "PASS if, on this first assistant turn, the assistant repeats or confirms the phone number and asks for confirmation, and it does not call createReceptionTask or createEvent yet. Output exactly: pass or fail."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "role": "user",
+      "content": "Tak, zgadza sie."
+    },
+    {
+      "role": "assistant",
+      "judgePlan": {
+        "type": "ai",
+        "model": {
+          "provider": "openai",
+          "model": "gpt-4o",
+          "messages": [
+            {
+              "role": "system",
+              "content": "PASS if, after the phone confirmation, the assistant calls createReceptionTask with taskType reschedule_or_cancel and does not call createEvent anywhere in the conversation. Output exactly: pass or fail."
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

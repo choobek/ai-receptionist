@@ -6,7 +6,11 @@
 - Root `.env` is the only local env file future automation should read by default.
 - Shared Vapi assistant behavior lives in `configs/vapi/assistant.v1.json`.
 - Environment-specific Vapi bindings live in `configs/vapi/environments/staging.json` and `configs/vapi/environments/production.json`.
+- Vapi structured output configs live in `configs/vapi/structured-outputs/`.
+- Vapi scorecard configs live in `configs/vapi/scorecards/`.
+- Vapi eval definitions live in `configs/vapi/evals/`.
 - Service catalog source data lives in `configs/services/catalog.v1.json`.
+- `docs/vapi-structured-output.json` is a generated mirror of `configs/vapi/structured-outputs/dental-call-intake.v1.json`.
 - Prompt mirror files in `prompts/` are generated mirrors for readability. If they drift, the JSON config wins.
 - n8n workflow source files live in `n8n/workflows/`.
 - Mock patient source data lives in `mock-data/mock-patients.json`.
@@ -25,10 +29,13 @@
 
 ### Sync Vapi Environment
 
-1. Edit `configs/vapi/assistant.v1.json` for shared behavior and/or the matching file under `configs/vapi/environments/`.
+1. Edit `configs/vapi/assistant.v1.json` for shared behavior, the matching file under `configs/vapi/environments/`, and any relevant files under `configs/vapi/structured-outputs/`, `configs/vapi/scorecards/`, or `configs/vapi/evals/`.
 2. Run `./scripts/sync-vapi-prompt-mirrors.sh`.
-3. Run `./scripts/sync-vapi-environment.sh staging` or `./scripts/sync-vapi-environment.sh production`.
-4. If the Vapi API rejects a field, remove or adjust that field in the repo config before retrying.
+3. Run `./scripts/sync-vapi-observability-mirrors.sh` if you changed the canonical call-intake schema and want the readable mirror refreshed immediately.
+4. Run `./scripts/sync-vapi-environment.sh staging` or `./scripts/sync-vapi-environment.sh production`.
+5. If you changed only observability resources and do not need a full assistant/tool sync, run `./scripts/sync-vapi-observability.sh staging` or `./scripts/sync-vapi-observability.sh production`.
+6. Use `./scripts/run-vapi-eval-suite.sh staging` for the saved Vapi eval lane. Treat the repo-local staging regression and staging voice smoke suites as the release gate.
+7. If the Vapi API rejects a field, remove or adjust that field in the repo config before retrying.
 
 ### Deploy Repo To VPS
 

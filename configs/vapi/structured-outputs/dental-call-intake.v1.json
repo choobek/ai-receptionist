@@ -1,0 +1,322 @@
+{
+  "version": 1,
+  "key": "dentalCallIntake",
+  "rank": 10,
+  "name": "Dental Call Intake",
+  "description": "Post-call extraction for the Ipokrzyku.pl dental receptionist assistant.",
+  "type": "ai",
+  "schema": {
+    "title": "Dental Assistant Call Extraction",
+    "description": "Post-call structured extraction for the Ipokrzyku.pl dental receptionist assistant in Vapi.",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "callOutcome": {
+        "type": "string",
+        "enum": [
+          "appointment_booked",
+          "availability_shared_no_booking",
+          "general_question_answered",
+          "cancellation_or_reschedule_requested",
+          "urgent_consultation_requested",
+          "needs_reception_follow_up",
+          "wrong_number_or_unrelated",
+          "abandoned_or_incomplete",
+          "other"
+        ],
+        "description": "Primary overall result of the call."
+      },
+      "successfulForAssistantScope": {
+        "type": "boolean",
+        "description": "True if the assistant handled the call appropriately within its actual scope and constraints, even if no booking was created."
+      },
+      "language": {
+        "type": "string",
+        "enum": [
+          "pl",
+          "en",
+          "mixed",
+          "unknown"
+        ],
+        "description": "Main language used by the caller and assistant."
+      },
+      "caller": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "description": "Caller full name if clearly stated."
+          },
+          "phoneRaw": {
+            "type": "string",
+            "description": "Phone number as spoken or repeated in the call, if mentioned."
+          },
+          "phoneE164": {
+            "type": "string",
+            "pattern": "^\\+[1-9]\\d{7,14}$",
+            "description": "Normalized phone number if it can be inferred confidently."
+          },
+          "isExistingPatient": {
+            "type": "boolean",
+            "description": "Whether the caller said they are already a patient of the clinic."
+          },
+          "consentToSms": {
+            "type": "boolean",
+            "description": "True only if the caller explicitly agreed to SMS contact."
+          }
+        }
+      },
+      "intent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "primaryReason": {
+            "type": "string",
+            "enum": [
+              "consultation",
+              "checkup",
+              "aesthetic_dentistry",
+              "implants",
+              "orthodontics",
+              "invisalign",
+              "hygiene",
+              "urgent_problem",
+              "general_question",
+              "cancellation_or_reschedule",
+              "other"
+            ],
+            "description": "Best-fit reason for the call."
+          },
+          "visitType": {
+            "type": "string",
+            "enum": [
+              "first_consultation",
+              "follow_up",
+              "control_visit",
+              "specific_problem",
+              "general_question",
+              "unknown"
+            ],
+            "description": "Visit type inferred from the conversation."
+          },
+          "shortReasonNote": {
+            "type": "string",
+            "maxLength": 240,
+            "description": "Short natural-language note about what the caller needed."
+          }
+        }
+      },
+      "timing": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "requestedDateText": {
+            "type": "string",
+            "description": "Date phrase used by the caller, for example 'next Thursday' or '12 March'."
+          },
+          "requestedDateIso": {
+            "type": "string",
+            "format": "date",
+            "description": "Normalized requested date if it was clarified confidently."
+          },
+          "requestedTimeText": {
+            "type": "string",
+            "description": "Time phrase used by the caller, for example 'in the morning' or 'around 3 PM'."
+          },
+          "timePreference": {
+            "type": "string",
+            "enum": [
+              "specific_time",
+              "morning",
+              "afternoon",
+              "evening",
+              "first_available",
+              "unknown"
+            ],
+            "description": "Normalized time preference inferred from the conversation."
+          },
+          "selectedSlotStart": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Booked or chosen appointment start in ISO 8601 format if a slot was selected."
+          },
+          "selectedSlotEnd": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Booked or chosen appointment end in ISO 8601 format if a slot was selected."
+          },
+          "timezone": {
+            "type": "string",
+            "description": "Timezone relevant to the booked appointment, usually Europe/Warsaw."
+          }
+        }
+      },
+      "booking": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "availabilityChecked": {
+            "type": "boolean",
+            "description": "True if the assistant checked availability through tools during the call."
+          },
+          "slotOptionsOffered": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10,
+            "description": "Approximate count of distinct slot options offered to the caller."
+          },
+          "slotSelected": {
+            "type": "boolean",
+            "description": "True if the caller selected a specific slot."
+          },
+          "bookingCreated": {
+            "type": "boolean",
+            "description": "True only if the booking was actually created successfully."
+          },
+          "serviceId": {
+            "type": "string",
+            "description": "Service identifier used in tooling if visible from the conversation or tool results."
+          },
+          "serviceName": {
+            "type": "string",
+            "description": "Human-readable visit or service name."
+          },
+          "firstVisit": {
+            "type": "boolean",
+            "description": "Whether this was treated as the caller's first visit to the clinic."
+          },
+          "doctorName": {
+            "type": "string",
+            "description": "Doctor name only if explicitly mentioned in the call or surfaced by system context."
+          },
+          "doctorAssignmentConfirmedBySystem": {
+            "type": "boolean",
+            "description": "True only if the doctor assignment was explicitly confirmed rather than assumed."
+          },
+          "firstVisitPriceMentioned": {
+            "type": "boolean",
+            "description": "Whether the assistant mentioned the first-visit pricing policy."
+          }
+        }
+      },
+      "riskFlags": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "urgentSymptomsMentioned": {
+            "type": "boolean",
+            "description": "True if the caller mentioned pain, swelling, bleeding, infection, trauma, or a similarly urgent problem."
+          },
+          "medicalAdviceRequested": {
+            "type": "boolean",
+            "description": "True if the caller asked for diagnosis, treatment advice, or clinical recommendations."
+          },
+          "medicalAdviceGiven": {
+            "type": "boolean",
+            "description": "True only if the assistant appears to have given medical advice."
+          },
+          "cancellationOrRescheduleRequested": {
+            "type": "boolean",
+            "description": "True if the caller wanted to cancel or move an existing appointment."
+          },
+          "toolFailureOccurred": {
+            "type": "boolean",
+            "description": "True if a tool error or inability to confirm data affected the call."
+          },
+          "ambiguousDateClarified": {
+            "type": "boolean",
+            "description": "True if the caller originally gave an ambiguous date/time and the assistant clarified it."
+          },
+          "callerHungUpBeforeCompletion": {
+            "type": "boolean",
+            "description": "True if the call ended before the assistant could complete its process."
+          }
+        }
+      },
+      "qualityFlags": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "repeatedIdentityRequest": {
+            "type": "boolean",
+            "description": "True if the assistant asked again for the caller's name or phone after they had already been provided clearly."
+          },
+          "multipleQuestionsInSingleTurn": {
+            "type": "boolean",
+            "description": "True if the assistant stacked more than one real question into a single reply."
+          },
+          "toolCalledOnIncompleteAnswer": {
+            "type": "boolean",
+            "description": "True if the assistant appears to call availability or booking tools before the caller finished the relevant answer."
+          },
+          "explicitBookingConfirmationMissing": {
+            "type": "boolean",
+            "description": "True if a booking was created without a clear final yes or equivalent after the booking summary."
+          },
+          "phoneNumberRepeatedIncorrectly": {
+            "type": "boolean",
+            "description": "True if the assistant repeated the caller's phone number with missing, reordered, or hallucinated digits."
+          },
+          "postBookingFlowRestarted": {
+            "type": "boolean",
+            "description": "True if the assistant resumed scheduling or another stale flow after a successful booking confirmation."
+          }
+        }
+      },
+      "followUp": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "receptionFollowUpNeeded": {
+            "type": "boolean",
+            "description": "True if a human receptionist should review or continue the case."
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "reschedule_or_cancel",
+              "tool_limitations",
+              "missing_information",
+              "urgent_case",
+              "pricing_or_policy_question",
+              "other",
+              "none"
+            ],
+            "description": "Best-fit reason for receptionist follow-up."
+          },
+          "recommendedNextAction": {
+            "type": "string",
+            "maxLength": 240,
+            "description": "Short internal next-step note for staff."
+          }
+        }
+      },
+      "summary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "shortSummaryPl"
+        ],
+        "properties": {
+          "shortSummaryPl": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Short Polish summary of the call for internal use."
+          },
+          "receptionistNotePl": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Action-oriented Polish note that a receptionist could use immediately."
+          }
+        }
+      }
+    },
+    "required": [
+      "callOutcome",
+      "successfulForAssistantScope",
+      "language",
+      "summary"
+    ]
+  }
+}

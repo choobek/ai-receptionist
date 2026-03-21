@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "key": "repeatedIdentityRequest",
+  "rank": 50,
+  "name": "QA: Repeated Identity",
+  "description": "Boolean QA metric: true only if the assistant asked again for name or phone after they were already provided clearly.",
+  "type": "ai",
+  "schema": {
+    "type": "boolean",
+    "description": "True if the assistant asked again for the caller's name or phone number after those details had already been provided clearly."
+  }
+}

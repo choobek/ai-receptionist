@@ -231,13 +231,13 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "multipleQuestionsInSingleTurn": {
-          "type": "boolean",
-          "description": "True if the assistant stacked more than one real question into a single reply."
-        },
         "repeatedIdentityRequest": {
           "type": "boolean",
           "description": "True if the assistant asked again for the caller's name or phone after they had already been provided clearly."
+        },
+        "multipleQuestionsInSingleTurn": {
+          "type": "boolean",
+          "description": "True if the assistant stacked more than one real question into a single reply."
         },
         "toolCalledOnIncompleteAnswer": {
           "type": "boolean",
@@ -288,6 +288,9 @@
     "summary": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "shortSummaryPl"
+      ],
       "properties": {
         "shortSummaryPl": {
           "type": "string",
@@ -299,10 +302,7 @@
           "maxLength": 500,
           "description": "Action-oriented Polish note that a receptionist could use immediately."
         }
-      },
-      "required": [
-        "shortSummaryPl"
-      ]
+      }
     }
   },
   "required": [

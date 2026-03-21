@@ -6,11 +6,20 @@
   "publicBaseUrlEnv": "PRODUCTION_N8N_PUBLIC_BASE_URL",
   "webhookSecretEnv": "PRODUCTION_AI_RECEPTIONIST_WEBHOOK_SECRET",
   "structuredOutputIds": [
-    "dff8d16d-1f39-4d46-9f3d-370c8ecaeb40"
+    "dff8d16d-1f39-4d46-9f3d-370c8ecaeb40",
+    "be03d05b-f98c-43c6-b535-ace5b581311b",
+    "83000a8c-3837-4a1f-be1e-177afc9b89e2",
+    "eb0b6cf7-bb45-41b0-8d1b-24c3b49e29c1",
+    "11ea2a05-51b8-4f65-81d0-48001c944e67",
+    "7f20f498-0170-4a27-9191-a77626d2af07",
+    "6146cad3-e8ac-4d89-9a98-a80aeb457073",
+    "c8f82e0f-1f36-4ee3-ad3c-6efdc98852c2",
+    "de297d8b-145e-4cb5-87f7-e091e38fe8c8"
   ],
   "phoneNumberSmsEnabled": false,
   "scorecardIds": [
-    "dd70a6ae-75a8-4a32-ab97-e8474ddb10ee"
+    "2219a7a2-d449-4442-a295-23a15726e67d",
+    "37bfacc7-754f-49b1-86a2-c0e5f2e97487"
   ],
   "toolIds": {
     "lookupPatient": "5bf175ee-56a5-4609-a5e4-215344ebaea4",

@@ -17,7 +17,7 @@ if [ -f "$ROOT_DIR/.env" ]; then
   set +a
 fi
 
-SCHEMA_PATH="${PRESET_SCHEMA_PATH:-${VAPI_STRUCTURED_OUTPUT_SCHEMA_PATH:-$ROOT_DIR/docs/vapi-structured-output.json}}"
+SCHEMA_PATH="${PRESET_SCHEMA_PATH:-${VAPI_STRUCTURED_OUTPUT_SCHEMA_PATH:-$ROOT_DIR/configs/vapi/structured-outputs/dental-call-intake.v1.json}}"
 ASSISTANT_ID="${1:-${PRESET_ASSISTANT_ID:-${VAPI_ASSISTANT_ID:-}}}"
 API_KEY="${PRESET_API_KEY:-${VAPI_API_KEY:-}}"
 OUTPUT_NAME="${PRESET_OUTPUT_NAME:-${VAPI_STRUCTURED_OUTPUT_NAME:-Dental Call Intake}}"
@@ -49,18 +49,22 @@ if [ ! -f "$SCHEMA_PATH" ]; then
   exit 1
 fi
 
+SCHEMA_JSON="$(
+  jq -c 'if type == "object" and has("schema") and (.schema | type) == "object" then .schema else . end' "$SCHEMA_PATH"
+)"
+
 CREATE_PAYLOAD="$(
   jq -n \
     --arg name "$OUTPUT_NAME" \
     --arg description "$OUTPUT_DESCRIPTION" \
     --arg assistant_id "$ASSISTANT_ID" \
-    --slurpfile schema "$SCHEMA_PATH" \
+    --argjson schema "$SCHEMA_JSON" \
     '{
       name: $name,
       type: "ai",
       description: $description,
       assistantIds: [$assistant_id],
-      schema: $schema[0]
+      schema: $schema
     }'
 )"
 

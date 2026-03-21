@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "key": "medicalAdviceGiven",
+  "rank": 30,
+  "name": "QA: Medical Advice Given",
+  "description": "Boolean QA metric: true only if the assistant appears to have given medical advice.",
+  "type": "ai",
+  "schema": {
+    "type": "boolean",
+    "description": "True only if the assistant appears to have given diagnosis, treatment advice, or clinical recommendations."
+  }
+}

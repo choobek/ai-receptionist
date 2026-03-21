@@ -15,6 +15,9 @@ configs/
     catalog.v1.json
   vapi/
     assistant.v1.json
+    evals/
+    scorecards/
+    structured-outputs/
     environments/
       production.json
       staging.json
@@ -150,6 +153,7 @@ Operational reference:
 - [`AGENTS.md`](./AGENTS.md) for future Codex sessions
 - [`docs/environment-separation.md`](./docs/environment-separation.md) for staging vs production
 - [`docs/operations-runbook.md`](./docs/operations-runbook.md) for human step-by-step operations
+- [`docs/vapi-observability.md`](./docs/vapi-observability.md) for the repo-backed Vapi observability pack
 - [`docs/staging-regression-suite.md`](./docs/staging-regression-suite.md) for the staging synthetic suite
 - [`docs/staging-voice-smoke-suite.md`](./docs/staging-voice-smoke-suite.md) for the staged voice smoke-lane surface
 - [`docs/voice-e2e-execution-lane.md`](./docs/voice-e2e-execution-lane.md) for the staged plan to add automated voice validation
@@ -343,18 +347,21 @@ $EDITOR .env
 
 The sync path reads shared behavior from [`configs/vapi/assistant.v1.json`](./configs/vapi/assistant.v1.json), environment IDs from [`configs/vapi/environments/`](./configs/vapi/environments/), and the target public base URL plus webhook secret from root `.env`.
 
-Optional post-call setup:
+Repo-backed observability setup:
 
-- add a Structured Output using [`docs/vapi-structured-output.json`](./docs/vapi-structured-output.json)
-- follow the setup notes in [`docs/vapi-structured-output.md`](./docs/vapi-structured-output.md)
-- use [`docs/vapi-structured-output-consumption.md`](./docs/vapi-structured-output-consumption.md) to read outputs from webhooks or the Call API
+- canonical Vapi observability configs live in [`configs/vapi/structured-outputs/`](./configs/vapi/structured-outputs/), [`configs/vapi/scorecards/`](./configs/vapi/scorecards/), and [`configs/vapi/evals/`](./configs/vapi/evals/)
+- the readable call-intake schema mirror lives in [`docs/vapi-structured-output.json`](./docs/vapi-structured-output.json)
+- sync the pack with [`scripts/sync-vapi-observability.sh`](./scripts/sync-vapi-observability.sh) or via the full [`scripts/sync-vapi-environment.sh`](./scripts/sync-vapi-environment.sh) path
+- use [`docs/vapi-observability.md`](./docs/vapi-observability.md) for scorecard and eval workflow notes
+- use [`docs/vapi-structured-output.md`](./docs/vapi-structured-output.md) and [`docs/vapi-structured-output-consumption.md`](./docs/vapi-structured-output-consumption.md) to read outputs and scores from webhooks or the Call API
 - import [`n8n/workflows/webhook_vapi-call-ended-router.json`](./n8n/workflows/webhook_vapi-call-ended-router.json) to route `call.ended` events inside n8n
-- or run [`scripts/create-vapi-structured-output.sh`](./scripts/create-vapi-structured-output.sh) with your Vapi API key and assistant ID
+- run the saved Vapi eval pack with [`scripts/run-vapi-eval-suite.sh`](./scripts/run-vapi-eval-suite.sh)
 
 Before deploys or repo cleanup, run:
 
 ```bash
 ./scripts/check-repo-health.sh
+./scripts/run-vapi-eval-suite.sh staging
 ```
 
 When the Cloudflare tunnel URL changes:

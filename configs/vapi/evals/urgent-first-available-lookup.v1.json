@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "key": "urgentFirstAvailableLookup",
+  "rank": 50,
+  "name": "Urgent First Available Lookup",
+  "description": "Urgent pain and swelling should trigger an immediate first-available urgent consultation lookup without premature booking.",
+  "type": "chat.mockConversation",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Bardzo boli mnie zab i mam opuchlizne. Jaki jest najszybszy mozliwy termin? Musze tylko sprawdzic opcje."
+    },
+    {
+      "role": "assistant",
+      "judgePlan": {
+        "type": "ai",
+        "model": {
+          "provider": "openai",
+          "model": "gpt-4o",
+          "messages": [
+            {
+              "role": "system",
+              "content": "PASS if the assistant immediately calls checkAvailability on this turn with service.id urgent_consultation and timePreference first_available, and does not call createEvent. Output exactly: pass or fail."
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
