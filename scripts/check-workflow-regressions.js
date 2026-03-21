@@ -1042,6 +1042,27 @@ test('searchKnowledgeBase matches generic All on four offer questions', () => {
   assert.match(searchResult.answer, /bezzebiu|bezzebie/i);
 });
 
+test('searchKnowledgeBase matches teeth-in-one-day marketing questions with extra context', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Co oznacza haslo zeby w jeden dzien? Na czym polega leczenie w jeden dzien w klinice?',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.match(searchResult.answer, /All on four|implant/i);
+  assert.match(searchResult.answer, /bezzebiu|mostu|implantach/i);
+});
+
 test('searchKnowledgeBase returns All on four qualification guidance for patients with their own teeth', () => {
   const workflow = loadWorkflow('tool_search-knowledge-base.json');
   const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
@@ -1253,12 +1274,12 @@ test('assistant prompt contains the call-quality guardrails from recent real-cal
   assert.match(systemPrompts, /Jesli w danym srodowisku wlaczone sa narzedzia SMS/);
   assert.match(systemPrompts, /sendSmsToReceptionists/);
   assert.match(systemPrompts, /sendSmsToPatient/);
-  assert.match(systemPrompts, /tylko pierwsze wizyty do doktor Magdaleny Szajnar/i);
+  assert.match(systemPrompts, /jesli chodzi o pierwsza wizyte u innego specjalisty niz dr Magdalena Szajnar/i);
   assert.match(systemPrompts, /nie wchodz w normalny flow rezerwacji/i);
   assert.match(systemPrompts, /taskType general_follow_up/i);
   assert.match(systemPrompts, /Nie odpowiadaj na takie pytania z pamieci/i);
   assert.match(systemPrompts, /nie proponuj terminow przez checkAvailability/i);
-  assert.match(systemPrompts, /Nastepny krok po potwierdzeniu numeru ma byc createReceptionTask/i);
+  assert.match(systemPrompts, /Po potwierdzeniu numeru telefonu od razu uzyj createReceptionTask/i);
 });
 
 test('assistant prompt anchors createEvent to the exact selected slot boundary', () => {
@@ -1267,8 +1288,8 @@ test('assistant prompt anchors createEvent to the exact selected slot boundary',
     .filter((message) => message.role === 'system' && typeof message.content === 'string')
     .map((message) => message.content)
     .join('\n');
-  assert.match(systemPrompts, /slotStart i slotEnd z wybranego slotu/);
-  assert.match(systemPrompts, /Patrz na pola start i end w wybranym slocie/);
+  assert.match(systemPrompts, /skopiuj slotStart z pola start i slotEnd z pola end wybranego slotu/i);
+  assert.match(systemPrompts, /Nie wyliczaj slotEnd z label/i);
   assert.match(systemPrompts, /pierwszy termin/);
   assert.match(systemPrompts, /09:00-09:45/);
   assert.match(systemPrompts, /16:15-17:00/);
@@ -1277,7 +1298,19 @@ test('assistant prompt anchors createEvent to the exact selected slot boundary',
   assert.match(systemPrompts, /18:30 i end 19:15/);
   assert.match(systemPrompts, /2026-03-19T09:30:00\+01:00/);
   assert.match(systemPrompts, /2026-03-19T10:15:00\+01:00/);
-  assert.match(systemPrompts, /Nigdy nie zamieniaj tego na 10:00/);
+  assert.match(systemPrompts, /Nie tworz createEvent z samej godziny startu/i);
+});
+
+test('assistant prompt keeps an inbound caller-id fallback for repeated phone capture failures', () => {
+  const config = loadAssistantConfig();
+  const systemPrompts = (config.assistant?.model?.messages || [])
+    .filter((message) => message.role === 'system' && typeof message.content === 'string')
+    .map((message) => message.content)
+    .join('\n');
+  assert.match(systemPrompts, /customer\.number/);
+  assert.match(systemPrompts, /po dwoch probach nadal nie udalo sie potwierdzic numeru/i);
+  assert.match(systemPrompts, /numeru, z ktorego pacjent dzwoni/i);
+  assert.match(systemPrompts, /Nie zgaduj numeru, jesli customer\.number nie jest dostepny/i);
 });
 
 test('assistant config keeps the post-endpoint wait', () => {

@@ -1,0 +1,103 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "zeby-w-jeden-dzien-kb-question",
+  "title": "Teeth-in-one-day marketing question stays in the knowledge-base branch",
+  "description": "The caller asks what the clinic means by the marketing phrase 'zeby w jeden dzien'. The assistant should answer from the knowledge base, connect it to implant treatment or All on four, and avoid drifting into scheduling or handoff flows.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "knowledge-base",
+    "implantology",
+    "marketing-copy",
+    "non-booking",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "production_call_review",
+    "references": [
+      "knowledge-base/clinic-knowledge.json",
+      "knowledge-base/sources/reception-feedback-2026-03-21.md"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 1
+  },
+  "turns": [
+    {
+      "turn_id": "ask-about-teeth-in-one-day",
+      "user": "Co oznacza haslo zeby w jeden dzien? Na czym polega takie leczenie?"
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "kb-tool-called",
+      "description": "The assistant should consult the knowledge base for the marketing phrase question.",
+      "severity": "critical",
+      "root_cause_hint": "assistant answered the marketing phrase without searchKnowledgeBase",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 1,
+        "tool_name": "searchKnowledgeBase"
+      }
+    },
+    {
+      "criterion_id": "kb-answer-found",
+      "description": "The knowledge base should return a supported answer for the marketing phrase.",
+      "severity": "high",
+      "root_cause_hint": "All on four marketing retrieval drifted",
+      "rule": {
+        "type": "turn_tool_result_path_equals",
+        "turn": 1,
+        "tool_name": "searchKnowledgeBase",
+        "path": "found",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "assistant-answer-mentions-implant-context",
+      "description": "The answer should connect the phrase to implant treatment or All on four.",
+      "severity": "medium",
+      "root_cause_hint": "assistant surfaced the KB answer too vaguely",
+      "rule": {
+        "type": "turn_assistant_text_contains_any",
+        "turn": 1,
+        "contains_any": [
+          "implant",
+          "all on four"
+        ]
+      }
+    },
+    {
+      "criterion_id": "no-availability-check",
+      "description": "A pure explanatory question must not trigger immediate scheduling.",
+      "severity": "high",
+      "root_cause_hint": "assistant pushed the marketing phrase into scheduling",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "A pure explanatory question must not create a booking.",
+      "severity": "critical",
+      "root_cause_hint": "assistant attempted createEvent during a knowledge-base answer",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    },
+    {
+      "criterion_id": "no-reception-task-created",
+      "description": "A supported knowledge-base question must not create a reception handoff task.",
+      "severity": "high",
+      "root_cause_hint": "assistant routed the marketing phrase into handoff",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createReceptionTask"
+      }
+    }
+  ]
+}

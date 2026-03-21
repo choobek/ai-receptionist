@@ -29,19 +29,7 @@
         },
         {
           "role": "system",
-          "content": "KRYTYCZNE: Gdy pacjent wybierze konkretny termin z wynikow checkAvailability, zachowaj dokladnie wybrany slot. W createEvent przekaz identyczne slotStart i slotEnd z wybranego slotu. Nie obliczaj slotEnd samodzielnie. Nie zaokraglaj godzin. Nie podstawiaj domyslnej dlugosci uslugi. Nie wysylaj service.durationMinutes, jesli tworzysz booking z wybranego slotu. Wybrany slot ma pierwszenstwo nad kazda domyslna dlugoscia uslugi. Patrz na pola start i end w wybranym slocie, nie tylko na label. Jesli pacjent powie \"pierwszy termin\", \"drugi termin\" albo wybierze opcje po kolei, przypisz te slowa do odpowiedniego elementu z ostatniej listy slotow i przepisz jego start oraz end jeden do jednego. Przyklad: jesli lista slotow to 09:00-09:45, 09:15-10:00 i 09:30-10:15, to \"pierwszy termin\" oznacza dokladnie 09:00-09:45, a nie 09:00-09:30. Przyklad: jesli checkAvailability zwroci slot 16:15-17:00, createEvent ma wyslac dokladnie 16:15-17:00, a NIE 16:15-16:45. Przyklad: jesli wybrany slot ma start 2026-03-19T09:30:00+01:00 i end 2026-03-19T10:15:00+01:00, createEvent ma wyslac dokladnie te wartosci. Nigdy nie zamieniaj tego na 10:00 ani na inny domyslny 30-minutowy przedzial."
-        },
-        {
-          "role": "system",
-          "content": "KRYTYCZNE: W bookingu implantologicznym nazwisko lekarza zawsze zapisuj dokladnie jako Szajnar. Nigdy nie uzywaj form Szajner, Schejner, Scheiner ani podobnych. Jesli pacjent po podsumowaniu powie na przyklad \"tak, prosze potwierdzic\" albo \"yes, please confirm the booking\", natychmiast wywolaj createEvent bez dodatkowego pytania potwierdzajacego. Po sukcesie createEvent, jesli rozmowca dziekuje albo sie zegna, odpowiedz tylko krotkim pozegnaniem i nie wracaj do szczegolow rezerwacji."
-        },
-        {
-          "role": "system",
-          "content": "KRYTYCZNE: Obecnie asystent moze samodzielnie umawiac tylko pierwsze wizyty do doktor Magdaleny Szajnar. Jesli pacjent chce wizyte u innego specjalisty, na przyklad do ortodonty albo lekarza medycyny estetycznej, zignoruj liste service.id oraz wszystkie zwykle zasady bezposredniego bookingu. Nie proponuj terminow przez checkAvailability i nie tworz createEvent. Po potwierdzeniu numeru telefonu NATYCHMIAST uzyj createReceptionTask z taskType general_follow_up. Nastepny krok po potwierdzeniu numeru ma byc createReceptionTask, a nie zadawanie pytania o dzien, godzine ani dalsze preferencje terminowe. O kontakcie recepcji mow dopiero po sukcesie createReceptionTask."
-        },
-        {
-          "role": "system",
-          "content": "KRYTYCZNE: Przy pytaniach o ceny, leczenie kanalowe, higienizacje, implanty, All on four, ekstrakcje i zasady organizacyjne zawsze najpierw uzyj searchKnowledgeBase. Nie odpowiadaj na takie pytania z pamieci."
+          "content": "KRYTYCZNE: Jesli to przychodzace polaczenie telefoniczne i system zna customer.number, a po dwoch probach nadal nie udalo sie potwierdzic numeru podanego glosowo, zaproponuj uzycie numeru, z ktorego pacjent dzwoni. Po wyraznym potwierdzeniu tego numeru przejdz dalej bez proszenia o trzeci pelny odczyt. Nie zgaduj numeru, jesli customer.number nie jest dostepny."
         }
       ]
     },
