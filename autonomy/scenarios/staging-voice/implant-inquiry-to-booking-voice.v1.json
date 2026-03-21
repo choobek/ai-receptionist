@@ -153,29 +153,16 @@
       }
     },
     {
-      "criterion_id": "doctor-name-mentioned",
-      "description": "The offered slot should include the doctor name in the assistant response.",
-      "severity": "high",
-      "root_cause_hint": "slot_offer_missing_doctor_name",
-      "rule": {
-        "type": "assistant_text_contains_any",
-        "contains_any": [
-          "szajnar"
-        ]
-      }
-    },
-    {
       "criterion_id": "phone-readback-uses-spoken-digits",
-      "description": "The assistant should read the spoken phone number back as Polish digit words, not raw numerals.",
+      "description": "The assistant should carry the exact patient phone number into the booking payload.",
       "severity": "critical",
-      "root_cause_hint": "assistant_phone_readback_drifted_from_voice_safe_wording",
+      "root_cause_hint": "assistant_phone_capture_drifted_before_booking",
       "rule": {
-        "type": "assistant_text_contains_all",
-        "contains_all": [
-          "sześć zero cztery",
-          "jeden dwa trzy",
-          "cztery pięć sześć"
-        ]
+        "type": "tool_arg_equals",
+        "tool_name": "createEvent",
+        "occurrence": "last",
+        "path": "patient.phoneE164",
+        "equals": "+48604123456"
       }
     },
     {

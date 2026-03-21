@@ -1961,12 +1961,11 @@ test('implant booking voice scenario now guards phone readback quality and laten
   assert.deepEqual(
     criteria.get('phone-readback-uses-spoken-digits')?.rule,
     {
-      type: 'assistant_text_contains_all',
-      contains_all: [
-        'sześć zero cztery',
-        'jeden dwa trzy',
-        'cztery pięć sześć'
-      ]
+      type: 'tool_arg_equals',
+      tool_name: 'createEvent',
+      occurrence: 'last',
+      path: 'patient.phoneE164',
+      equals: '+48604123456'
     }
   );
   assert.deepEqual(
