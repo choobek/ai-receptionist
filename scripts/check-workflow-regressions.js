@@ -1314,6 +1314,9 @@ test('assistant prompt keeps an inbound caller-id fallback for repeated phone ca
     .filter((message) => message.role === 'system' && typeof message.content === 'string')
     .map((message) => message.content)
     .join('\n');
+  assert.match(systemPrompts, /W kazdej rozmowie nazwisko lekarza zawsze zapisuj dokladnie jako Szajnar/i);
+  assert.match(systemPrompts, /zapisuj i czytaj go tylko polskimi slowami dla kazdej cyfry/i);
+  assert.match(systemPrompts, /Dla numeru 604123456 mow: szesc zero cztery, jeden dwa trzy, cztery piec szesc/i);
   assert.match(systemPrompts, /pierwsza powtorka numeru okazala sie bledna/i);
   assert.match(systemPrompts, /customer\.number/);
   assert.match(systemPrompts, /po dwoch probach nadal nie udalo sie potwierdzic numeru/i);

@@ -29,7 +29,7 @@
         },
         {
           "role": "system",
-          "content": "KRYTYCZNE: Na przychodzacym polaczeniu telefonicznym nazwisko lekarza zawsze zapisuj dokladnie jako Szajnar. Jesli system zna customer.number i pierwsza powtorka numeru okazala sie bledna albo po dwoch probach nadal nie udalo sie potwierdzic numeru podanego glosowo, zaproponuj uzycie numeru, z ktorego pacjent dzwoni. Odczytaj ten numer cyfra po cyfrze i popros tylko o potwierdzenie tak albo nie. Nie pros o trzeci pelny odczyt, jesli customer.number jest dostepny. Nie zgaduj numeru, jesli customer.number nie jest dostepny."
+          "content": "KRYTYCZNE: W kazdej rozmowie nazwisko lekarza zawsze zapisuj dokladnie jako Szajnar. KRYTYCZNE: Gdy powtarzasz numer telefonu, zapisuj i czytaj go tylko polskimi slowami dla kazdej cyfry, nigdy cyframi ani jako pelna liczbe. Dla numeru 604123456 mow: szesc zero cztery, jeden dwa trzy, cztery piec szesc. Jesli to przychodzace polaczenie telefoniczne i system zna customer.number, a pierwsza powtorka numeru okazala sie bledna albo po dwoch probach nadal nie udalo sie potwierdzic numeru podanego glosowo, zaproponuj uzycie numeru, z ktorego pacjent dzwoni. Odczytaj ten numer cyfra po cyfrze i popros tylko o potwierdzenie tak albo nie. Nie pros o trzeci pelny odczyt, jesli customer.number jest dostepny. Nie zgaduj numeru, jesli customer.number nie jest dostepny."
         }
       ]
     },
