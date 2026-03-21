@@ -457,6 +457,52 @@ test('checkAvailability prefers slots adjacent to existing appointments and spli
   );
 });
 
+test('checkAvailability keeps morning searches inside the morning window across multiple days', () => {
+  const parseResult = {
+    requestId: 'req_morning_window',
+    toolCallId: null,
+    calendarId: 'primary',
+    timezone: 'Europe/Warsaw',
+    service: { id: 'implant_consultation' },
+    requestedDate: '2026-03-23',
+    requestedTime: null,
+    timePreference: 'morning',
+    durationMinutes: 45,
+    limit: 3,
+    incrementMinutes: 15,
+    slotSearchIncrementMinutes: 15,
+    searchDays: 3,
+    workingStart: '09:00',
+    workingEnd: '21:00',
+    openWeekdays: [1, 2, 3, 4, 5],
+    windowStart: '2026-03-23T08:00:00.000Z',
+    windowEnd: '2026-03-25T12:00:00.000Z'
+  };
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    [
+      {
+        start: { dateTime: '2026-03-23T09:00:00+01:00' },
+        end: { dateTime: '2026-03-23T20:15:00+01:00' }
+      }
+    ],
+    defaultEnv
+  );
+  assert.equal(result.available, true);
+  assert.deepEqual(
+    result.slots.map((slot) => slot.start),
+    [
+      '2026-03-24T09:00:00+01:00',
+      '2026-03-24T09:15:00+01:00',
+      '2026-03-24T09:30:00+01:00'
+    ]
+  );
+  assert.ok(result.slots.every((slot) => slot.start.slice(11, 16) < '13:00'));
+  assert.ok(result.slots.every((slot) => slot.end.slice(11, 16) <= '13:00'));
+});
+
 test('createEvent rejects reversed slots', () => {
   const result = runParse(
     'tool_create-event.json',
@@ -973,6 +1019,69 @@ test('searchKnowledgeBase returns supported fixed pricing answers', () => {
   assert.equal(searchResult.found, true);
   assert.match(searchResult.answer, /450/);
   assert.match(searchResult.answer, /Higienizacja kosztuje/i);
+});
+
+test('searchKnowledgeBase matches generic All on four offer questions', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Czy wykonujecie All on four?',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.match(searchResult.answer, /All on four/i);
+  assert.match(searchResult.answer, /bezzebiu|bezzebie/i);
+});
+
+test('searchKnowledgeBase returns All on four qualification guidance for patients with their own teeth', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Czy all on 4 mozna zrobic, jesli mam swoje zeby?',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.match(searchResult.answer, /usunac/i);
+  assert.match(searchResult.answer, /pojedyncze implanty/i);
+});
+
+test('searchKnowledgeBase keeps branded All on four pricing queries retrievable', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Ile kosztuje All on four? Cena All on four w klinice ipokrzyku.pl.',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.match(searchResult.answer, /30 000/);
+  assert.match(searchResult.answer, /indywidualnie/i);
 });
 
 test('searchKnowledgeBase returns individualized pricing guidance for root canal treatment', () => {
