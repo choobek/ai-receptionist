@@ -1344,7 +1344,7 @@ test('assistant config keeps the post-endpoint wait', () => {
     },
     {
       type: 'customer',
-      regex: '^(?:(?:(?:m[oó]j\\s+)?(?:numer|telefon)(?:\\s+(?:to|jest))?.*)|(?:.*\\d{6,}.*)|(?:(?:zero|jeden|dwa|trzy|cztery|piec|pi[eę]c|szesc|sze(?:s|ś)c|siedem|osiem|dziewiec|dziewi(?:e|ę)c)(?:[\\s,.-]+|$)){6,}))$',
+      regex: '^(?:(?:m[oó]j\\s+)?(?:numer|telefon)(?:\\s+(?:to|jest))?.*|.*\\d{6,}.*|(?:(?:zero|jeden|dwa|trzy|cztery|piec|pi[eę]c|szesc|sze(?:s|ś)c|siedem|osiem|dziewiec|dziewi(?:e|ę)c)(?:[\\s,.-]+|$)){6,})$',
       timeoutSeconds: 2.4
     }
   ]);
