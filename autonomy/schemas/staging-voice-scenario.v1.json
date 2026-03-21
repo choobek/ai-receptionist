@@ -307,6 +307,7 @@
             "assistant_text_contains_all",
             "structured_output_path_equals",
             "call_path_equals",
+            "call_path_lte",
             "assistant_did_not_speak_during_window",
             "assistant_spoke_after_window",
             "ended_reason_equals",
@@ -340,6 +341,9 @@
             "boolean",
             "null"
           ]
+        },
+        "lte": {
+          "type": "number"
         },
         "contains_any": {
           "type": "array",

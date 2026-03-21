@@ -3,7 +3,7 @@
   "scenario_id": "implant-inquiry-to-booking-voice",
   "title": "Implant inquiry converts into an implant consultation booking",
   "description": "A staging web call asks about All-on-4, then books the first offered implant consultation slot and confirms the reservation.",
-  "status": "draft",
+  "status": "active",
   "environment": "staging",
   "language": "pl",
   "tags": [
@@ -162,6 +162,42 @@
         "contains_any": [
           "szajnar"
         ]
+      }
+    },
+    {
+      "criterion_id": "phone-readback-uses-spoken-digits",
+      "description": "The assistant should read the spoken phone number back as Polish digit words, not raw numerals.",
+      "severity": "critical",
+      "root_cause_hint": "assistant_phone_readback_drifted_from_voice_safe_wording",
+      "rule": {
+        "type": "assistant_text_contains_all",
+        "contains_all": [
+          "sześć zero cztery",
+          "jeden dwa trzy",
+          "cztery pięć sześć"
+        ]
+      }
+    },
+    {
+      "criterion_id": "phone-quality-flag-clear",
+      "description": "Structured output should not mark the phone number as repeated incorrectly.",
+      "severity": "critical",
+      "root_cause_hint": "assistant_phone_readback_was_incorrect",
+      "rule": {
+        "type": "structured_output_path_equals",
+        "path": "qualityFlags.phoneNumberRepeatedIncorrectly",
+        "equals": false
+      }
+    },
+    {
+      "criterion_id": "endpointing-latency-budget",
+      "description": "Average endpointing latency should stay under one second so the voice flow does not feel disconnected.",
+      "severity": "high",
+      "root_cause_hint": "voice_endpointing_became_too_slow",
+      "rule": {
+        "type": "call_path_lte",
+        "path": "artifact.performanceMetrics.endpointingLatencyAverage",
+        "lte": 900
       }
     },
     {

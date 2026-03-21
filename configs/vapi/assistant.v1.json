@@ -29,7 +29,7 @@
         },
         {
           "role": "system",
-          "content": "KRYTYCZNE: Jesli to przychodzace polaczenie telefoniczne i system zna customer.number, a po dwoch probach nadal nie udalo sie potwierdzic numeru podanego glosowo, zaproponuj uzycie numeru, z ktorego pacjent dzwoni. Po wyraznym potwierdzeniu tego numeru przejdz dalej bez proszenia o trzeci pelny odczyt. Nie zgaduj numeru, jesli customer.number nie jest dostepny."
+          "content": "KRYTYCZNE: Na przychodzacym polaczeniu telefonicznym nazwisko lekarza zawsze zapisuj dokladnie jako Szajnar. Jesli system zna customer.number i pierwsza powtorka numeru okazala sie bledna albo po dwoch probach nadal nie udalo sie potwierdzic numeru podanego glosowo, zaproponuj uzycie numeru, z ktorego pacjent dzwoni. Odczytaj ten numer cyfra po cyfrze i popros tylko o potwierdzenie tak albo nie. Nie pros o trzeci pelny odczyt, jesli customer.number jest dostepny. Nie zgaduj numeru, jesli customer.number nie jest dostepny."
         }
       ]
     },
@@ -84,7 +84,10 @@
     },
     "artifactPlan": {},
     "startSpeakingPlan": {
-      "waitSeconds": 0.6,
+      "waitSeconds": 0.4,
+      "smartEndpointingPlan": {
+        "provider": "vapi"
+      },
       "customEndpointingRules": [
         {
           "type": "customer",
@@ -95,17 +98,22 @@
           "type": "customer",
           "regex": "^[Ww]hat\\s+[Ii]f(?:\\s*[.?!…]+)?\\s*$",
           "timeoutSeconds": 3.2
+        },
+        {
+          "type": "customer",
+          "regex": "^(?:(?:(?:m[oó]j\\s+)?(?:numer|telefon)(?:\\s+(?:to|jest))?.*)|(?:.*\\d{6,}.*)|(?:(?:zero|jeden|dwa|trzy|cztery|piec|pi[eę]c|szesc|sze(?:s|ś)c|siedem|osiem|dziewiec|dziewi(?:e|ę)c)(?:[\\s,.-]+|$)){6,}))$",
+          "timeoutSeconds": 2.4
         }
       ],
       "transcriptionEndpointingPlan": {
-        "onPunctuationSeconds": 0.5,
-        "onNoPunctuationSeconds": 3,
-        "onNumberSeconds": 1.5
+        "onPunctuationSeconds": 0.2,
+        "onNoPunctuationSeconds": 2,
+        "onNumberSeconds": 1.2
       }
     },
     "stopSpeakingPlan": {
       "numWords": 2,
-      "backoffSeconds": 1.2,
+      "backoffSeconds": 1,
       "acknowledgementPhrases": [
         "tak",
         "mhm",

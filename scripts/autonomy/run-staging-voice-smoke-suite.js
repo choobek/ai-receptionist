@@ -1239,6 +1239,13 @@ function evaluateCriterion(criterion, context) {
         ? pass()
         : fail(`Expected call field ${rule.path} to equal ${JSON.stringify(rule.equals)}`);
     }
+    case 'call_path_lte': {
+      const actual = getByPath(context.callArtifact, rule.path);
+      evidence.push(`${rule.path}=${JSON.stringify(actual)}`);
+      return typeof actual === 'number' && actual <= rule.lte
+        ? pass()
+        : fail(`Expected call field ${rule.path} to be <= ${JSON.stringify(rule.lte)}`);
+    }
     case 'ended_reason_equals': {
       const actual = context.callArtifact?.endedReason ?? null;
       evidence.push(`endedReason=${JSON.stringify(actual)}`);
@@ -1843,5 +1850,6 @@ if (require.main === module) {
 }
 
 module.exports = {
+  evaluateCriterion,
   selectCompletedRecentCall
 };

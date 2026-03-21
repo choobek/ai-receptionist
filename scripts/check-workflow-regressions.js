@@ -9,7 +9,10 @@ const rootDir = path.resolve(__dirname, '..');
 const workflowsDir = path.join(rootDir, 'n8n', 'workflows');
 const assistantConfigPath = path.join(rootDir, 'configs', 'vapi', 'assistant.v1.json');
 const structuredOutputSchemaPath = path.join(rootDir, 'docs', 'vapi-structured-output.json');
-const { selectCompletedRecentCall } = require(path.join(
+const {
+  evaluateCriterion: evaluateVoiceCriterion,
+  selectCompletedRecentCall
+} = require(path.join(
   rootDir,
   'scripts',
   'autonomy',
@@ -55,6 +58,10 @@ function loadStructuredOutputSchema() {
 
 function loadStagingScenario(filename) {
   return loadJson(path.join(rootDir, 'autonomy', 'scenarios', 'staging', filename));
+}
+
+function loadStagingVoiceScenario(filename) {
+  return loadJson(path.join(rootDir, 'autonomy', 'scenarios', 'staging-voice', filename));
 }
 
 function getScenarioCriterion(scenario, criterionId) {
@@ -1307,9 +1314,11 @@ test('assistant prompt keeps an inbound caller-id fallback for repeated phone ca
     .filter((message) => message.role === 'system' && typeof message.content === 'string')
     .map((message) => message.content)
     .join('\n');
+  assert.match(systemPrompts, /pierwsza powtorka numeru okazala sie bledna/i);
   assert.match(systemPrompts, /customer\.number/);
   assert.match(systemPrompts, /po dwoch probach nadal nie udalo sie potwierdzic numeru/i);
   assert.match(systemPrompts, /numeru, z ktorego pacjent dzwoni/i);
+  assert.match(systemPrompts, /Nie pros o trzeci pelny odczyt/i);
   assert.match(systemPrompts, /Nie zgaduj numeru, jesli customer\.number nie jest dostepny/i);
 });
 
@@ -1318,8 +1327,10 @@ test('assistant config keeps the post-endpoint wait', () => {
   assert.equal(config.assistant?.transcriber?.provider, 'openai');
   assert.equal(config.assistant?.transcriber?.model, 'gpt-4o-transcribe');
   assert.equal(config.assistant?.transcriber?.language, 'pl');
-  assert.equal(config.assistant?.startSpeakingPlan?.waitSeconds, 0.6);
-  assert.equal(config.assistant?.startSpeakingPlan?.smartEndpointingPlan, undefined);
+  assert.equal(config.assistant?.startSpeakingPlan?.waitSeconds, 0.4);
+  assert.deepEqual(config.assistant?.startSpeakingPlan?.smartEndpointingPlan, {
+    provider: 'vapi'
+  });
   assert.deepEqual(config.assistant?.startSpeakingPlan?.customEndpointingRules, [
     {
       type: 'customer',
@@ -1330,9 +1341,17 @@ test('assistant config keeps the post-endpoint wait', () => {
       type: 'customer',
       regex: '^[Ww]hat\\s+[Ii]f(?:\\s*[.?!…]+)?\\s*$',
       timeoutSeconds: 3.2
+    },
+    {
+      type: 'customer',
+      regex: '^(?:(?:(?:m[oó]j\\s+)?(?:numer|telefon)(?:\\s+(?:to|jest))?.*)|(?:.*\\d{6,}.*)|(?:(?:zero|jeden|dwa|trzy|cztery|piec|pi[eę]c|szesc|sze(?:s|ś)c|siedem|osiem|dziewiec|dziewi(?:e|ę)c)(?:[\\s,.-]+|$)){6,}))$',
+      timeoutSeconds: 2.4
     }
   ]);
-  assert.equal(config.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 3);
+  assert.equal(config.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.2);
+  assert.equal(config.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 2);
+  assert.equal(config.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 1.2);
+  assert.equal(config.assistant?.stopSpeakingPlan?.backoffSeconds, 1);
 });
 
 test('assistant renderer includes SMS tools in production when bindings are configured', () => {
@@ -1877,6 +1896,91 @@ test('voice smoke recent-call selection prefers the current scenario call', () =
   });
 
   assert.equal(selected?.id, 'current-call');
+});
+
+test('voice smoke evaluator supports numeric call-path latency ceilings', () => {
+  const passing = evaluateVoiceCriterion({
+    criterion_id: 'endpointing-latency-budget',
+    description: 'Average endpointing latency should stay under one second.',
+    severity: 'high',
+    rule: {
+      type: 'call_path_lte',
+      path: 'artifact.performanceMetrics.endpointingLatencyAverage',
+      lte: 900
+    }
+  }, {
+    callArtifact: {
+      artifact: {
+        performanceMetrics: {
+          endpointingLatencyAverage: 820
+        }
+      }
+    },
+    normalizedRun: null,
+    toolTrace: [],
+    structuredOutput: { found: false, result: {} },
+    eventTrace: [],
+    scenarioStepTimings: {}
+  });
+  assert.equal(passing.passed, true);
+
+  const failing = evaluateVoiceCriterion({
+    criterion_id: 'endpointing-latency-budget',
+    description: 'Average endpointing latency should stay under one second.',
+    severity: 'high',
+    rule: {
+      type: 'call_path_lte',
+      path: 'artifact.performanceMetrics.endpointingLatencyAverage',
+      lte: 900
+    }
+  }, {
+    callArtifact: {
+      artifact: {
+        performanceMetrics: {
+          endpointingLatencyAverage: 1200
+        }
+      }
+    },
+    normalizedRun: null,
+    toolTrace: [],
+    structuredOutput: { found: false, result: {} },
+    eventTrace: [],
+    scenarioStepTimings: {}
+  });
+  assert.equal(failing.passed, false);
+});
+
+test('implant booking voice scenario now guards phone readback quality and latency', () => {
+  const scenario = loadStagingVoiceScenario('implant-inquiry-to-booking-voice.v1.json');
+  const criteria = new Map(scenario.rubric.map((criterion) => [criterion.criterion_id, criterion]));
+
+  assert.deepEqual(
+    criteria.get('phone-readback-uses-spoken-digits')?.rule,
+    {
+      type: 'assistant_text_contains_all',
+      contains_all: [
+        'sześć zero cztery',
+        'jeden dwa trzy',
+        'cztery pięć sześć'
+      ]
+    }
+  );
+  assert.deepEqual(
+    criteria.get('phone-quality-flag-clear')?.rule,
+    {
+      type: 'structured_output_path_equals',
+      path: 'qualityFlags.phoneNumberRepeatedIncorrectly',
+      equals: false
+    }
+  );
+  assert.deepEqual(
+    criteria.get('endpointing-latency-budget')?.rule,
+    {
+      type: 'call_path_lte',
+      path: 'artifact.performanceMetrics.endpointingLatencyAverage',
+      lte: 900
+    }
+  );
 });
 
 test('structured output schema exposes QA flags for conversation regressions', () => {
