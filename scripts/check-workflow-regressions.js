@@ -954,11 +954,11 @@ test('searchKnowledgeBase returns English answers for English queries', () => {
   assert.equal(searchResult.message, 'I found an answer in the local knowledge base.');
 });
 
-test('searchKnowledgeBase refuses unsupported pricing questions', () => {
+test('searchKnowledgeBase returns supported fixed pricing answers', () => {
   const workflow = loadWorkflow('tool_search-knowledge-base.json');
   const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
     $json: {
-      query: 'Ile kosztuje konsultacja?',
+      query: 'Ile kosztuje higienizacja?',
       language: 'pl',
       limit: 1
     },
@@ -970,8 +970,51 @@ test('searchKnowledgeBase refuses unsupported pricing questions', () => {
     $: makeSelector({ 'Parse Request': parseResult })
   })[0].json;
 
-  assert.equal(searchResult.found, false);
-  assert.equal(searchResult.answer, null);
+  assert.equal(searchResult.found, true);
+  assert.match(searchResult.answer, /450/);
+  assert.match(searchResult.answer, /Higienizacja kosztuje/i);
+});
+
+test('searchKnowledgeBase returns individualized pricing guidance for root canal treatment', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Ile kosztuje leczenie kanalowe?',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.match(searchResult.answer, /ustalany indywidualnie/i);
+  assert.match(searchResult.answer, /konsultacja/i);
+});
+
+test('searchKnowledgeBase returns other-specialist handoff guidance', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Czy moge umowic sie do innego specjalisty?',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.match(searchResult.answer, /tylko pierwsze wizyty/i);
+  assert.match(searchResult.answer, /recepcji/i);
 });
 
 test('searchKnowledgeBase refuses partial-overlap medical questions', () => {
@@ -1081,22 +1124,29 @@ test('call-ended router maps invalid events to HTTP 400 and unauthorized calls t
 });
 
 test('assistant prompt contains the call-quality guardrails from recent real-call regressions', () => {
-  const prompt = getAssistantSystemPrompt();
-  assert.match(prompt, /Nigdy nie lacz w jednej wypowiedzi dwoch pytan/);
-  assert.match(prompt, /Nie wywoluj narzedzi na urwanych fragmentach wypowiedzi/);
-  assert.match(prompt, /Jesli imie i nazwisko oraz numer telefonu zostaly juz jasno zebrane wczesniej/);
-  assert.match(prompt, /Nie wywoluj createEvent bez wyraznej zgody na finalne podsumowanie rezerwacji/);
-  assert.match(prompt, /Nie wymieniaj numeru telefonu/);
-  assert.match(prompt, /nie mow potem "prosze chwile poczekac"/i);
-  assert.match(prompt, /od poniedzialku do piatku w godzinach 09:00-21:00/i);
-  assert.match(prompt, /dwie opcje: jedna rano lub w okolicy poludnia, a druga po poludniu/i);
-  assert.match(prompt, /bez luk miedzy wizytami/i);
-  assert.match(prompt, /po lunchu \/ po obiedzie -> afternoon/i);
-  assert.match(prompt, /ustaw requestedDate na najwczesniejszy pasujacy otwarty dzien i searchDays/i);
-  assert.match(prompt, /mimo szumu slyszysz kluczowe slowa pytania ogolnego/i);
-  assert.match(prompt, /Jesli w danym srodowisku wlaczone sa narzedzia SMS/);
-  assert.match(prompt, /sendSmsToReceptionists/);
-  assert.match(prompt, /sendSmsToPatient/);
+  const config = loadAssistantConfig();
+  const systemPrompts = (config.assistant?.model?.messages || [])
+    .filter((message) => message.role === 'system' && typeof message.content === 'string')
+    .map((message) => message.content)
+    .join('\n');
+  assert.match(systemPrompts, /Nigdy nie lacz w jednej wypowiedzi dwoch pytan/);
+  assert.match(systemPrompts, /Nie wywoluj narzedzi na urwanych fragmentach wypowiedzi/);
+  assert.match(systemPrompts, /Jesli imie i nazwisko oraz numer telefonu zostaly juz jasno zebrane wczesniej/);
+  assert.match(systemPrompts, /Nie wywoluj createEvent bez wyraznej zgody na finalne podsumowanie rezerwacji/);
+  assert.match(systemPrompts, /Nie wymieniaj numeru telefonu/);
+  assert.match(systemPrompts, /nie mow potem "prosze chwile poczekac"/i);
+  assert.match(systemPrompts, /od poniedzialku do piatku w godzinach 09:00-21:00/i);
+  assert.match(systemPrompts, /dwie opcje: jedna rano lub w okolicy poludnia, a druga po poludniu/i);
+  assert.match(systemPrompts, /bez luk miedzy wizytami/i);
+  assert.match(systemPrompts, /po lunchu \/ po obiedzie -> afternoon/i);
+  assert.match(systemPrompts, /ustaw requestedDate na najwczesniejszy pasujacy otwarty dzien i searchDays/i);
+  assert.match(systemPrompts, /mimo szumu slyszysz kluczowe slowa pytania ogolnego/i);
+  assert.match(systemPrompts, /Jesli w danym srodowisku wlaczone sa narzedzia SMS/);
+  assert.match(systemPrompts, /sendSmsToReceptionists/);
+  assert.match(systemPrompts, /sendSmsToPatient/);
+  assert.match(systemPrompts, /tylko pierwsze wizyty do doktor Magdaleny Szajnar/i);
+  assert.match(systemPrompts, /taskType general_follow_up/i);
+  assert.match(systemPrompts, /nie proponuj terminow przez checkAvailability/i);
 });
 
 test('assistant prompt anchors createEvent to the exact selected slot boundary', () => {
@@ -1216,6 +1266,31 @@ test('assistant SMS scenarios resolve required tool bindings against staging and
     getMissingRequiredToolBindings(receptionSmsScenario, productionEnabledBindings),
     []
   );
+});
+
+test('specialist handoff scenario routes other specialists into general follow-up without scheduling', () => {
+  const scenario = loadStagingScenario('other-specialist-first-visit-handoff.v1.json');
+
+  assert.deepEqual(getScenarioCriterion(scenario, 'reception-task-created').rule, {
+    type: 'tool_result_path_equals',
+    tool_name: 'createReceptionTask',
+    path: 'accepted',
+    equals: true
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'general-follow-up-task-type-used').rule, {
+    type: 'tool_arg_equals',
+    tool_name: 'createReceptionTask',
+    path: 'taskType',
+    equals: 'general_follow_up'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-availability-check').rule, {
+    type: 'tool_not_called',
+    tool_name: 'checkAvailability'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-booking-created').rule, {
+    type: 'tool_not_called',
+    tool_name: 'createEvent'
+  });
 });
 
 test('staging chat runner resolves scenario template fallbacks and explicit overrides', () => {

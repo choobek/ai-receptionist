@@ -1,0 +1,92 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "all-on-four-pricing-kb-question",
+  "title": "All on four pricing question stays in the knowledge-base branch",
+  "description": "The caller asks about the approximate price of All on four. The assistant should answer from the knowledge base, mention the starting price and individual quotation, and avoid drifting into booking or handoff flows.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "knowledge-base",
+    "pricing",
+    "implantology",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "manual_regression",
+    "references": [
+      "knowledge-base/clinic-knowledge.json",
+      "knowledge-base/sources/reception-feedback-2026-03-21.md"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 1
+  },
+  "turns": [
+    {
+      "turn_id": "ask-about-all-on-four-pricing",
+      "user": "Ile mniej wiecej kosztuje All on four?"
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "kb-tool-called",
+      "description": "The assistant should consult the knowledge base for the All on four pricing question.",
+      "severity": "critical",
+      "root_cause_hint": "pricing question branch stopped using searchKnowledgeBase",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 1,
+        "tool_name": "searchKnowledgeBase"
+      }
+    },
+    {
+      "criterion_id": "kb-answer-found",
+      "description": "The knowledge base should return a supported price answer for All on four.",
+      "severity": "high",
+      "root_cause_hint": "All on four pricing entry or retrieval scoring drifted",
+      "rule": {
+        "type": "turn_tool_result_path_equals",
+        "turn": 1,
+        "tool_name": "searchKnowledgeBase",
+        "path": "found",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "assistant-answer-mentions-price-and-individual-quote",
+      "description": "The assistant reply should mention the starting price and the individual quotation caveat.",
+      "severity": "medium",
+      "root_cause_hint": "assistant surfaced the pricing answer incompletely",
+      "rule": {
+        "type": "turn_assistant_text_contains_all",
+        "turn": 1,
+        "contains_all": [
+          "30",
+          "indywidual"
+        ]
+      }
+    },
+    {
+      "criterion_id": "no-availability-check",
+      "description": "A pricing question must not trigger scheduling immediately.",
+      "severity": "high",
+      "root_cause_hint": "assistant pushed the pricing question into the booking branch",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "A pricing-only question must not create a booking.",
+      "severity": "critical",
+      "root_cause_hint": "assistant attempted to createEvent during a pricing question",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    }
+  ]
+}

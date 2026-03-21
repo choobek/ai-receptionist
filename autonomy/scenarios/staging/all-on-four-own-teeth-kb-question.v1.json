@@ -1,0 +1,102 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "all-on-four-own-teeth-kb-question",
+  "title": "All on four own-teeth question stays in the knowledge-base branch",
+  "description": "The caller asks whether All on four still applies when they still have their own teeth. The assistant should answer from the knowledge base, mention the extraction and consultation qualification context, and avoid drifting into scheduling or handoff flows.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "knowledge-base",
+    "implantology",
+    "non-booking",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "manual_regression",
+    "references": [
+      "knowledge-base/clinic-knowledge.json",
+      "knowledge-base/sources/reception-feedback-2026-03-21.md"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 1
+  },
+  "turns": [
+    {
+      "turn_id": "ask-about-all-on-four-with-own-teeth",
+      "user": "Mam jeszcze swoje zeby. Czy All on four ma wtedy zastosowanie i czy trzeba je usuwac?"
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "kb-tool-called",
+      "description": "The assistant should consult the knowledge base for the All on four own-teeth question.",
+      "severity": "critical",
+      "root_cause_hint": "general implant explanation branch stopped using searchKnowledgeBase",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 1,
+        "tool_name": "searchKnowledgeBase"
+      }
+    },
+    {
+      "criterion_id": "kb-answer-found",
+      "description": "The knowledge base should return a supported answer for the All on four own-teeth question.",
+      "severity": "high",
+      "root_cause_hint": "All on four qualification content or retrieval scoring drifted",
+      "rule": {
+        "type": "turn_tool_result_path_equals",
+        "turn": 1,
+        "tool_name": "searchKnowledgeBase",
+        "path": "found",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "assistant-answer-mentions-key-constraints",
+      "description": "The assistant reply should mention extraction context and doctor qualification through consultation.",
+      "severity": "medium",
+      "root_cause_hint": "assistant surfaced the KB answer incompletely or skipped the new receptionist guidance",
+      "rule": {
+        "type": "turn_assistant_text_contains_all",
+        "turn": 1,
+        "contains_all": [
+          "usun",
+          "konsult"
+        ]
+      }
+    },
+    {
+      "criterion_id": "no-availability-check",
+      "description": "A pure knowledge-base question must not trigger scheduling immediately.",
+      "severity": "high",
+      "root_cause_hint": "assistant pushed a general implant question into the booking branch",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "A pure knowledge-base question must not create a booking.",
+      "severity": "critical",
+      "root_cause_hint": "assistant attempted to createEvent during an explanatory question",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    },
+    {
+      "criterion_id": "no-reception-task-created",
+      "description": "A pure knowledge-base question must not create a reception handoff task.",
+      "severity": "high",
+      "root_cause_hint": "assistant routed a supported KB question into the handoff flow",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createReceptionTask"
+      }
+    }
+  ]
+}

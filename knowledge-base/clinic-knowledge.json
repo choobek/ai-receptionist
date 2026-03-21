@@ -204,36 +204,262 @@
   },
   {
     "id": "kb_all_on_4",
-    "title": "System All-on-4",
+    "title": "System All on four",
     "category": "implantology",
-    "sourceDocument": "all-on-4.odt",
+    "sourceDocument": "reception-feedback-2026-03-21.md",
     "tags": [
       "all-on-4",
+      "all on 4",
+      "all on four",
       "bezzebie",
       "zeby w 1 dzien",
       "cztery implanty",
-      "pelny luk"
+      "pelny luk",
+      "wlasne zeby",
+      "usuniecie zebow",
+      "pojedyncze implanty"
     ],
     "queryExamples": [
       "Na czym polega all on 4?",
-      "Jakie sa zalety all-on-4?",
-      "Czy zeby w jeden dzien to all on 4?"
+      "Czy all on 4 mozna zrobic, jesli mam swoje zeby?",
+      "Czy przy all on 4 trzeba usuwac zeby?",
+      "Jakie sa zalety all on 4?"
     ],
-    "answerPl": "All-on-4 to metoda leczenia bezzebia, w ktorej staly most opiera sie na czterech strategicznie rozmieszczonych implantach. Jej glowne zalety to mniejsza inwazyjnosc niz przy wiekszej liczbie implantow, mozliwosc szybkiego efektu, czasem nawet tego samego dnia, czesto brak koniecznosci przeszczepu kosci oraz dobra stabilnosc i estetyka.",
-    "titleEn": "All-on-4 system",
+    "answerPl": "All on four to metoda leczenia stosowana przede wszystkim przy calkowitym bezzebiu. Jesli pacjent ma jeszcze swoje zeby, zwykle trzeba je usunac podczas zabiegu, ale do takiego leczenia kwalifikuje lekarz na pierwszej konsultacji. Jesli pacjent nie chce usuwac swoich zebow, mozna rozwazyc pojedyncze implanty. Samo leczenie polega na osadzeniu stalego mostu na czterech strategicznie rozmieszczonych implantach i moze dac szybki efekt oraz dobra stabilnosc i estetyke.",
+    "titleEn": "All on four system",
     "tagsEn": [
       "all-on-4",
+      "all on 4",
+      "all on four",
       "full arch",
       "edentulism",
       "teeth in one day",
-      "four implants"
+      "four implants",
+      "existing teeth",
+      "tooth removal",
+      "single implants"
     ],
     "queryExamplesEn": [
-      "How does All-on-4 work?",
-      "What are the benefits of All-on-4?",
-      "Is teeth in one day the same as All-on-4?"
+      "How does All on four work?",
+      "Can I have All on four if I still have my own teeth?",
+      "Do teeth need to be removed for All on four?",
+      "What are the benefits of All on four?"
     ],
-    "answerEn": "All-on-4 is a treatment method for full tooth loss in which a fixed bridge is supported by four strategically placed implants. Its main advantages are lower invasiveness than solutions with more implants, the possibility of a fast result, sometimes even on the same day, often no need for bone grafting, and good stability and aesthetics."
+    "answerEn": "All on four is a treatment method used mainly for complete tooth loss. If the patient still has their own teeth, they usually need to be removed during the procedure, but the doctor decides qualification for this treatment at the first consultation. If the patient does not want their teeth removed, single implants may be considered instead. The treatment itself places a fixed bridge on four strategically positioned implants and can offer a fast result, good stability, and good aesthetics."
+  },
+  {
+    "id": "kb_all_on_4_pricing",
+    "title": "Koszt leczenia All on four",
+    "category": "pricing",
+    "sourceDocument": "reception-feedback-2026-03-21.md",
+    "tags": [
+      "all-on-4",
+      "all on 4",
+      "all on four",
+      "cena",
+      "koszt",
+      "wycena",
+      "implanty caly luk"
+    ],
+    "queryExamples": [
+      "Ile kosztuje all on 4?",
+      "Jaki jest koszt all on four?",
+      "Od jakiej kwoty zaczyna sie leczenie all on 4?"
+    ],
+    "answerPl": "Leczenie All on four zaczyna sie od 30 000 zl, ale ostateczna wycena jest ustalana indywidualnie po konsultacji.",
+    "titleEn": "Cost of All on four treatment",
+    "tagsEn": [
+      "all-on-4",
+      "all on 4",
+      "all on four",
+      "price",
+      "cost",
+      "quote",
+      "full arch implants"
+    ],
+    "queryExamplesEn": [
+      "How much does All on four cost?",
+      "What is the price of All on four?",
+      "What does All on four treatment start from?"
+    ],
+    "answerEn": "All on four treatment starts from PLN 30,000, but the final price is quoted individually after a consultation."
+  },
+  {
+    "id": "kb_root_canal_pricing",
+    "title": "Koszt leczenia kanalowego",
+    "category": "pricing",
+    "sourceDocument": "reception-feedback-2026-03-21.md",
+    "tags": [
+      "leczenie kanalowe",
+      "endodoncja",
+      "kanaly",
+      "reendo",
+      "koszt",
+      "cena"
+    ],
+    "queryExamples": [
+      "Ile kosztuje leczenie kanalowe?",
+      "Od czego zalezy cena leczenia kanalowego?",
+      "Czy leczenie kanalowe jest wyceniane indywidualnie?"
+    ],
+    "answerPl": "Koszt leczenia kanalowego jest ustalany indywidualnie. Zalezy miedzy innymi od liczby kanalow w zebie oraz od tego, czy jest to leczenie pierwotne czy wtorne. Przed rozpoczeciem leczenia zawsze potrzebna jest konsultacja.",
+    "titleEn": "Cost of root canal treatment",
+    "tagsEn": [
+      "root canal",
+      "endodontics",
+      "canals",
+      "retreatment",
+      "cost",
+      "price"
+    ],
+    "queryExamplesEn": [
+      "How much does root canal treatment cost?",
+      "What does the price of root canal treatment depend on?",
+      "Is root canal treatment priced individually?"
+    ],
+    "answerEn": "The cost of root canal treatment is quoted individually. It depends, among other things, on how many canals the tooth has and whether it is primary treatment or retreatment. A consultation is always needed before treatment begins."
+  },
+  {
+    "id": "kb_first_consultation_price",
+    "title": "Koszt pierwszej konsultacji",
+    "category": "pricing",
+    "sourceDocument": "reception-feedback-2026-03-21.md",
+    "tags": [
+      "pierwsza konsultacja",
+      "konsultacja",
+      "pierwsza wizyta",
+      "cena",
+      "koszt"
+    ],
+    "queryExamples": [
+      "Ile kosztuje pierwsza konsultacja?",
+      "Jaki jest koszt konsultacji?",
+      "Ile kosztuje pierwsza wizyta?"
+    ],
+    "answerPl": "Pierwsza konsultacja kosztuje 200 zl.",
+    "titleEn": "Cost of the first consultation",
+    "tagsEn": [
+      "first consultation",
+      "consultation",
+      "first visit",
+      "price",
+      "cost"
+    ],
+    "queryExamplesEn": [
+      "How much is the first consultation?",
+      "What is the consultation fee?",
+      "How much does the first visit cost?"
+    ],
+    "answerEn": "The first consultation costs PLN 200."
+  },
+  {
+    "id": "kb_hygiene_price",
+    "title": "Koszt higienizacji",
+    "category": "pricing",
+    "sourceDocument": "reception-feedback-2026-03-21.md",
+    "tags": [
+      "higienizacja",
+      "skaling",
+      "piaskowanie",
+      "czyszczenie zebow",
+      "cena",
+      "koszt"
+    ],
+    "queryExamples": [
+      "Ile kosztuje higienizacja?",
+      "Jaka jest cena higienizacji?",
+      "Ile kosztuje czyszczenie zebow?"
+    ],
+    "answerPl": "Higienizacja kosztuje 450 zl.",
+    "titleEn": "Cost of hygiene treatment",
+    "tagsEn": [
+      "hygiene",
+      "scaling",
+      "air polishing",
+      "teeth cleaning",
+      "price",
+      "cost"
+    ],
+    "queryExamplesEn": [
+      "How much does hygiene treatment cost?",
+      "What is the price of hygiene treatment?",
+      "How much does teeth cleaning cost?"
+    ],
+    "answerEn": "Hygiene treatment costs PLN 450."
+  },
+  {
+    "id": "kb_extraction_price",
+    "title": "Koszt ekstrakcji zeba i osemki",
+    "category": "pricing",
+    "sourceDocument": "reception-feedback-2026-03-21.md",
+    "tags": [
+      "ekstrakcja",
+      "usuniecie zeba",
+      "wyrwanie zeba",
+      "osemka",
+      "ekstrakcja 8",
+      "usuniecie osemki",
+      "cena",
+      "koszt"
+    ],
+    "queryExamples": [
+      "Ile kosztuje usuniecie zeba?",
+      "Ile kosztuje ekstrakcja osemki?",
+      "Jaka jest cena wyrwania zeba?"
+    ],
+    "answerPl": "Ekstrakcja zeba kosztuje 700 zl. Ekstrakcja osemki zaczyna sie od 1000 zl.",
+    "titleEn": "Cost of tooth extraction and wisdom tooth extraction",
+    "tagsEn": [
+      "extraction",
+      "tooth removal",
+      "tooth extraction",
+      "wisdom tooth",
+      "wisdom tooth extraction",
+      "price",
+      "cost"
+    ],
+    "queryExamplesEn": [
+      "How much does tooth extraction cost?",
+      "How much does wisdom tooth extraction cost?",
+      "What is the price of removing a tooth?"
+    ],
+    "answerEn": "A tooth extraction costs PLN 700. Wisdom tooth extraction starts from PLN 1,000."
+  },
+  {
+    "id": "kb_specialist_booking_policy",
+    "title": "Umawianie pierwszych wizyt i innych specjalistow",
+    "category": "organization",
+    "sourceDocument": "reception-feedback-2026-03-21.md",
+    "tags": [
+      "dr szajnar",
+      "pierwsza wizyta",
+      "inny specjalista",
+      "specjalista",
+      "recepcja",
+      "kontakt z recepcja",
+      "oddzwoni"
+    ],
+    "queryExamples": [
+      "Czy moge umowic sie do innego specjalisty?",
+      "Czy pierwsza wizyta jest tylko do dr Szajnar?",
+      "Co jesli chce wizyte u innego lekarza?"
+    ],
+    "answerPl": "Obecnie przez asystenta umawiane sa tylko pierwsze wizyty do doktor Magdaleny Szajnar. Jesli pacjent chce wizyte u innego specjalisty, informacja trafia do recepcji, ktora kontaktuje sie z pacjentem w pierwszej wolnej chwili.",
+    "titleEn": "Booking first visits and other specialists",
+    "tagsEn": [
+      "doctor Szajnar",
+      "first visit",
+      "other specialist",
+      "specialist",
+      "reception",
+      "reception callback"
+    ],
+    "queryExamplesEn": [
+      "Can I book with another specialist?",
+      "Are first visits booked only with doctor Szajnar?",
+      "What happens if I want an appointment with a different doctor?"
+    ],
+    "answerEn": "At the moment, the assistant books only first visits with doctor Magdalena Szajnar. If a patient wants an appointment with another specialist, the information is passed to reception, which contacts the patient as soon as possible."
   },
   {
     "id": "kb_veneers_vs_bonding",

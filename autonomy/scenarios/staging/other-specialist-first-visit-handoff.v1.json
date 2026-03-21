@@ -1,0 +1,106 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "other-specialist-first-visit-handoff",
+  "title": "First visit request for another specialist becomes a reception handoff",
+  "description": "The caller wants a first visit with an orthodontist, provides synthetic identity details in the first turn, confirms the repeated phone number, and should end in the reception-task branch with no direct scheduling attempt.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "handoff",
+    "specialist",
+    "first-visit",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "manual_regression",
+    "references": [
+      "configs/vapi/assistant.v1.json",
+      "knowledge-base/sources/reception-feedback-2026-03-21.md"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 2
+  },
+  "turns": [
+    {
+      "turn_id": "request-other-specialist-first-visit",
+      "user": "Chcialbym umowic pierwsza wizyte do ortodonty. Mam na imie Test Inny Specjalista, moj numer to siedem zero dwa, zero zero trzy, zero zero osiem.",
+      "assertions": [
+        {
+          "criterion_id": "no-handoff-before-number-confirmation",
+          "description": "The assistant should not create the reception task before the caller confirms the repeated phone number.",
+          "severity": "high",
+          "root_cause_hint": "assistant skipped the phone confirmation step before createReceptionTask",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 1,
+            "tool_name": "createReceptionTask"
+          }
+        },
+        {
+          "criterion_id": "no-availability-check-before-handoff",
+          "description": "The assistant should not try direct scheduling for another specialist.",
+          "severity": "critical",
+          "root_cause_hint": "assistant ignored the specialist handoff policy and tried scheduling anyway",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 1,
+            "tool_name": "checkAvailability"
+          }
+        }
+      ]
+    },
+    {
+      "turn_id": "confirm-phone",
+      "user": "Tak, zgadza sie."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "reception-task-created",
+      "description": "The assistant should create a reception task for the other-specialist request.",
+      "severity": "critical",
+      "root_cause_hint": "assistant did not hand the other-specialist request to reception after confirmation",
+      "rule": {
+        "type": "tool_result_path_equals",
+        "tool_name": "createReceptionTask",
+        "path": "accepted",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "general-follow-up-task-type-used",
+      "description": "The assistant should use general_follow_up for the other-specialist handoff.",
+      "severity": "high",
+      "root_cause_hint": "assistant used the wrong handoff task type for another-specialist routing",
+      "rule": {
+        "type": "tool_arg_equals",
+        "tool_name": "createReceptionTask",
+        "path": "taskType",
+        "equals": "general_follow_up"
+      }
+    },
+    {
+      "criterion_id": "no-availability-check",
+      "description": "The assistant should not call checkAvailability for another-specialist requests.",
+      "severity": "critical",
+      "root_cause_hint": "assistant tried to schedule another specialist directly",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "The assistant must not create a booking for another-specialist requests in this flow.",
+      "severity": "critical",
+      "root_cause_hint": "assistant created a booking instead of routing the caller to reception",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    }
+  ]
+}

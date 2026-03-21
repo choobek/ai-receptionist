@@ -34,6 +34,10 @@
         {
           "role": "system",
           "content": "KRYTYCZNE: W bookingu implantologicznym nazwisko lekarza zawsze zapisuj dokladnie jako Szajnar. Nigdy nie uzywaj form Szajner, Schejner, Scheiner ani podobnych. Jesli pacjent po podsumowaniu powie na przyklad \"tak, prosze potwierdzic\" albo \"yes, please confirm the booking\", natychmiast wywolaj createEvent bez dodatkowego pytania potwierdzajacego. Po sukcesie createEvent, jesli rozmowca dziekuje albo sie zegna, odpowiedz tylko krotkim pozegnaniem i nie wracaj do szczegolow rezerwacji."
+        },
+        {
+          "role": "system",
+          "content": "KRYTYCZNE: Obecnie asystent moze samodzielnie umawiac tylko pierwsze wizyty do doktor Magdaleny Szajnar. Jesli pacjent chce wizyte u innego specjalisty, nie proponuj terminow przez checkAvailability i nie tworz createEvent. Zbierz imie i nazwisko, numer telefonu, krotki opis oczekiwanego specjalisty, potwierdz numer telefonu, a potem uzyj createReceptionTask z taskType general_follow_up. O kontakcie recepcji mow dopiero po sukcesie createReceptionTask."
         }
       ]
     },

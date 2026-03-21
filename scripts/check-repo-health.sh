@@ -69,6 +69,9 @@ root = Path(sys.argv[1]).resolve()
 missing = []
 
 for path in root.rglob("*.md"):
+    relative_parts = path.relative_to(root).parts
+    if relative_parts and relative_parts[0] in {"node_modules", ".git"}:
+        continue
     text = path.read_text(encoding="utf-8")
     for match in re.finditer(r"\[[^\]]+\]\(([^)]+)\)", text):
         target = match.group(1)
