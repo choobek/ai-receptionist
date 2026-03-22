@@ -9,6 +9,7 @@
   ],
   "reviewFailureCategories": {
     "structured_output_missing": "high",
+    "conversation_start_failure": "high",
     "wrong_tool_usage": "high",
     "missing_required_data": "high",
     "repeated_question": "medium",

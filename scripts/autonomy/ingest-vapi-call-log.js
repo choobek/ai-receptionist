@@ -589,12 +589,34 @@ function truthy(value) {
   return value === true;
 }
 
-function deriveEvaluation(record, structuredOutput, toolTrace, observability = null) {
+function deriveEvaluation(record, structuredOutput, toolTrace, observability = null, conversation = null) {
   const result = safeObject(structuredOutput.result) || {};
   const qualityFlags = safeObject(result.qualityFlags) || {};
   const riskFlags = safeObject(result.riskFlags) || {};
   const followUp = safeObject(result.followUp) || {};
   const booking = safeObject(result.booking) || {};
+  const conversationMessages = safeArray(conversation?.messages);
+  const utteranceMessages = conversationMessages.filter(
+    (message) => message.role === 'assistant' || message.role === 'user'
+  );
+  const userMessages = utteranceMessages.filter((message) => message.role === 'user');
+  const artifactMetrics = safeObject(record?.artifact?.performanceMetrics) || safeObject(record?.performanceMetrics) || {};
+  const turnLatencies = safeArray(artifactMetrics.turnLatencies);
+  const transcriptText =
+    typeof record?.artifact?.transcript === 'string'
+      ? record.artifact.transcript.trim()
+      : typeof record?.transcript === 'string'
+        ? record.transcript.trim()
+        : '';
+  const durationSeconds = computeDurationSeconds(record, conversationMessages);
+  const likelyConversationStartFailure =
+    transcriptText === '' &&
+    utteranceMessages.length === 0 &&
+    userMessages.length === 0 &&
+    turnLatencies.length === 0 &&
+    typeof durationSeconds === 'number' &&
+    durationSeconds >= 10 &&
+    ['silence-timed-out', 'customer-ended-call'].includes(record?.endedReason);
 
   const observedRepeatedIdentity = getObservedBoolean(observability, 'QA: Repeated Identity');
   const observedPrematureToolCall = getObservedBoolean(observability, 'QA: Premature Tool Call');
@@ -658,6 +680,8 @@ function deriveEvaluation(record, structuredOutput, toolTrace, observability = n
   let failureCategory = 'other';
   if (!structuredOutput.found || !isNonEmptyObject(result)) {
     failureCategory = 'structured_output_missing';
+  } else if (likelyConversationStartFailure) {
+    failureCategory = 'conversation_start_failure';
   } else if (truthy(wrongToolUsage)) {
     failureCategory = 'wrong_tool_usage';
   } else if (truthy(missingRequiredData)) {
@@ -706,6 +730,9 @@ function deriveEvaluation(record, structuredOutput, toolTrace, observability = n
   if (failureCategory === 'structured_output_missing') {
     evidence.push('structured output missing or empty');
   }
+  if (likelyConversationStartFailure) {
+    evidence.push('call artifact captured no assistant/user turns, no transcript text, and zero turn latencies');
+  }
 
   let summary = null;
   if (typeof result?.summary?.shortSummaryPl === 'string' && result.summary.shortSummaryPl.trim()) {
@@ -736,6 +763,8 @@ function deriveEvaluation(record, structuredOutput, toolTrace, observability = n
       : 'Archive as a passing regression baseline.';
   } else if (failureCategory === 'structured_output_missing') {
     recommendedNextAction = 'Review the raw transcript and structured-output attachment before making repo changes.';
+  } else if (failureCategory === 'conversation_start_failure') {
+    recommendedNextAction = 'Review the raw call log and caller-side audio because the conversation never started even though the call connected.';
   } else if (failureCategory === 'needs_human_handoff') {
     recommendedNextAction = 'Confirm the handoff path stayed within scope and that no unsupported promise was made before tool success.';
   }
@@ -814,7 +843,7 @@ function buildRun(entry, options, inputPath) {
     tool_trace,
     observability,
     structured_output: structuredOutput,
-    evaluation: deriveEvaluation(entry.record, structuredOutput, tool_trace, observability)
+    evaluation: deriveEvaluation(entry.record, structuredOutput, tool_trace, observability, conversation)
   };
 }
 
