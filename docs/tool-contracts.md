@@ -193,6 +193,7 @@ Key fields:
 - `slotStart`
 - `slotEnd`
 - `timezone`
+- optional `language`
 - `patient.fullName`
 - `patient.phoneE164`
 - optional `telephony.callerPhoneE164` when Vapi exposes the live caller number
@@ -207,7 +208,8 @@ Key fields:
 5. Re-check availability for the requested slot.
 6. Create the Google Calendar event only if the slot is still free.
 7. Store both the declared callback number and the live caller number in the calendar description when available.
-8. Return confirmation data plus `phoneContext`.
+8. Deterministically attempt the booking-confirmation SMS to the live caller number from telephony metadata.
+9. Return confirmation data plus `phoneContext` and `bookingConfirmationSms`.
 
 ### Success response
 
@@ -219,6 +221,7 @@ Important fields:
 - `calendarEventId`
 - `appointment`
 - `phoneContext`
+- `bookingConfirmationSms`
 - `message`
 
 ## Tool: `createReceptionTask`
@@ -305,7 +308,7 @@ Important fields:
 
 ### Intent
 
-Send a booking confirmation SMS only after `createEvent` already succeeded and the caller explicitly agreed to receive the SMS.
+Send a booking confirmation SMS only for direct/manual probes after `createEvent` already succeeded. Normal assistant-driven bookings should rely on the SMS step embedded inside `createEvent`.
 
 ### Input shape
 
@@ -328,9 +331,10 @@ Key fields:
 2. Capture caller-number ground truth from Vapi telephony metadata when available.
 3. Validate patient fields, booking context, consent, language, and timezone.
 4. Build a concise SMS body in Polish or English.
-5. Carry `phoneContext` through the result metadata so SMS delivery can be audited against the live caller number.
-6. In `mock` mode, return a simulated delivery result.
-7. In `webhook` mode, POST the SMS payload to the configured downstream SMS gateway or clinic webhook.
+5. Prefer the live caller number as the actual SMS recipient when telephony metadata is available, even if the declared callback number differs.
+6. Carry `phoneContext` through the result metadata so SMS delivery can be audited against the live caller number.
+7. In `mock` mode, return a simulated delivery result.
+8. In `webhook` mode, POST the SMS payload to the configured downstream SMS gateway or clinic webhook.
 
 ### Success response
 
@@ -339,6 +343,7 @@ Defined in [`schemas/sendSmsToPatient.response.json`](../schemas/sendSmsToPatien
 Important fields:
 
 - `accepted`
+- `recipientPhoneE164`
 - `delivery.status`
 - `delivery.provider`
 - `sms`

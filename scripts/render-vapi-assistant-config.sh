@@ -45,7 +45,6 @@ TOOL_ORDER = [
     "createEvent",
     "createReceptionTask",
     "sendSmsToReceptionists",
-    "sendSmsToPatient",
 ]
 
 TOOL_ENDPOINTS = {
@@ -60,7 +59,6 @@ TOOL_ENDPOINTS = {
 
 OPTIONAL_TOOLS = {
     "sendSmsToReceptionists",
-    "sendSmsToPatient",
 }
 
 CALL_ENDED_ENDPOINT = "/webhook/ai-receptionist/vapi-call-ended"

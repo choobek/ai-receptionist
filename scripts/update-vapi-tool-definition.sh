@@ -50,7 +50,7 @@ case "$TOOL_NAME" in
     SCHEMA_PATH="$ROOT_DIR/schemas/checkAvailability.vapi.request.json"
     ;;
   createEvent)
-    TOOL_DESCRIPTION="Use this tool to create a booking only after the caller chose one specific slot and confirmed the final summary. The clinic books visits only Monday-Friday between 09:00 and 21:00 in Europe/Warsaw. Required details include service, slotStart, slotEnd, timezone, patient full name, and patient phone number. If the caller confirmed using the number they are calling from, pass that exact confirmed number as patient.phoneE164 and never invent placeholder or test numbers. When the slot came from checkAvailability, copy slotStart and slotEnd exactly from that selected slot. Do not compute slotEnd from duration, label, or default service length. Never say the appointment is booked until this tool returns success."
+    TOOL_DESCRIPTION="Use this tool to create a booking only after the caller chose one specific slot and confirmed the final summary. The clinic books visits only Monday-Friday between 09:00 and 21:00 in Europe/Warsaw. Required details include service, slotStart, slotEnd, timezone, language, patient full name, and patient phone number. If the caller confirmed using the number they are calling from, pass that exact confirmed number as patient.phoneE164 and never invent placeholder or test numbers. When the slot came from checkAvailability, copy slotStart and slotEnd exactly from that selected slot. Do not compute slotEnd from duration, label, or default service length. After booking, n8n automatically attempts the booking-confirmation SMS to the live caller number from telephony metadata when available, so do not call any separate patient-SMS tool. Never say the appointment is booked until this tool returns success."
     SCHEMA_PATH="$ROOT_DIR/schemas/createEvent.vapi.request.json"
     ;;
   sendSmsToReceptionists)
@@ -58,7 +58,7 @@ case "$TOOL_NAME" in
     SCHEMA_PATH="$ROOT_DIR/schemas/sendSmsToReceptionists.request.json"
     ;;
   sendSmsToPatient)
-    TOOL_DESCRIPTION="Use this tool only after createEvent has already returned success and only if the caller explicitly agreed to receive an SMS confirmation. Required details include the calendarEventId returned by createEvent, patient name and phone, appointment start/timezone, and the booked service. If the caller confirmed using the number they are calling from, reuse that same confirmed number as patient.phoneE164 and never invent placeholder or test numbers. If this tool fails, the booking still exists."
+    TOOL_DESCRIPTION="Use this tool only for direct/manual booking-confirmation SMS probes after createEvent has already returned success. Required details include the calendarEventId returned by createEvent, patient name and phone, appointment start/timezone, and the booked service. When live caller metadata is available, the SMS must target that caller number rather than any separately declared callback number. If this tool fails, the booking still exists."
     SCHEMA_PATH="$ROOT_DIR/schemas/sendSmsToPatient.request.json"
     ;;
   *)

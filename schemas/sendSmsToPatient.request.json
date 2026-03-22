@@ -43,7 +43,7 @@
         "phoneE164": {
           "type": "string",
           "pattern": "^\\+[1-9]\\d{7,14}$",
-          "description": "Confirmed SMS destination in E.164 format. If the caller confirmed using the number they are calling from, reuse that live caller number here."
+          "description": "Confirmed callback number for the booking context. When live caller metadata is available, the workflow sends the SMS to that caller number instead."
         }
       }
     },

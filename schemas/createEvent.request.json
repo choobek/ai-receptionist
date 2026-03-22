@@ -58,6 +58,14 @@
       "type": "string",
       "default": "Europe/Warsaw"
     },
+    "language": {
+      "type": "string",
+      "enum": [
+        "pl",
+        "en"
+      ],
+      "default": "pl"
+    },
     "locationId": {
       "type": "string",
       "default": "main-clinic"
@@ -76,7 +84,7 @@
         "phoneE164": {
           "type": "string",
           "pattern": "^\\+[1-9]\\d{7,14}$",
-          "description": "Confirmed callback number in E.164 format. If the caller confirmed using the number they are calling from, reuse that live caller number here."
+          "description": "Confirmed callback number stored on the booking. If the caller confirmed using the number they are calling from, reuse that live caller number here."
         },
         "email": {
           "type": "string",
@@ -90,10 +98,6 @@
     "notes": {
       "type": "string",
       "maxLength": 1000
-    },
-    "consentToSms": {
-      "type": "boolean",
-      "default": false
     },
     "source": {
       "type": "string",
@@ -132,13 +136,13 @@
       "slotStart": "2026-03-12T09:00:00+01:00",
       "slotEnd": "2026-03-12T09:45:00+01:00",
       "timezone": "Europe/Warsaw",
+      "language": "pl",
       "patient": {
         "fullName": "Jan Kowalski",
         "phoneE164": "+48500100200",
         "email": "jan@example.com"
       },
       "notes": "Pierwsza wizyta",
-      "consentToSms": true,
       "source": "phone",
       "telephony": {
         "callerPhoneE164": "+48500100200",

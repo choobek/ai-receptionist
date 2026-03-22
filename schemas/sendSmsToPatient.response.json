@@ -15,6 +15,12 @@
     "accepted": {
       "type": "boolean"
     },
+    "recipientPhoneE164": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "delivery": {
       "type": "object",
       "additionalProperties": false,
@@ -96,6 +102,12 @@
             "boolean",
             "null"
           ]
+        },
+        "smsRecipientPhoneE164": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     },
@@ -122,6 +134,7 @@
     {
       "requestId": "req_sms_patient_001",
       "accepted": true,
+      "recipientPhoneE164": "+48500100200",
       "delivery": {
         "status": "simulated",
         "provider": "mock",
@@ -137,7 +150,8 @@
         "declaredPhoneE164": "+48500100200",
         "callerPhoneE164": "+48500100200",
         "callerPhoneSource": "customer.number",
-        "callerMatchesDeclaredPhone": true
+        "callerMatchesDeclaredPhone": true,
+        "smsRecipientPhoneE164": "+48500100200"
       },
       "message": "Potwierdzenie SMS dla pacjenta zostalo przygotowane."
     }

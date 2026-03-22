@@ -722,17 +722,54 @@ test('createEvent captures caller phone metadata from Vapi tool payloads', () =>
     callerPhoneSource: 'customer.number',
     callerMatchesPatientPhone: true
   });
+  assert.equal(parseResult.language, 'pl');
 
   const formatResult = executeCode(getNodeCode(loadWorkflow('tool_create-event.json'), 'Format Success'), {
-    $: makeSelector({ 'Slot Available?': parseResult }),
-    $json: { id: 'evt_booking_001' }
+    $: makeSelector({
+      'Slot Available?': parseResult,
+      'Create Calendar Event': { id: 'evt_booking_001' }
+    }),
+    $json: {
+      accepted: true,
+      recipientPhoneE164: '+48500111001',
+      delivery: {
+        status: 'simulated',
+        provider: 'mock',
+        recipientCount: 1,
+        providerMessageId: null
+      },
+      sms: {
+        kind: 'booking_confirmation',
+        language: 'pl',
+        body: 'ipokrzyku.pl: potwierdzenie wizyty dla Anna Kowalska.'
+      },
+      message: 'Potwierdzenie SMS po rezerwacji zostalo przygotowane.'
+    }
   })[0].json;
   const bookedResult = formatResult.results?.[0]?.result || formatResult;
   assert.deepEqual(bookedResult.phoneContext, {
     declaredPhoneE164: '+48500111001',
     callerPhoneE164: '+48500111001',
     callerPhoneSource: 'customer.number',
-    callerMatchesDeclaredPhone: true
+    callerMatchesDeclaredPhone: true,
+    smsRecipientPhoneE164: '+48500111001'
+  });
+  assert.deepEqual(bookedResult.bookingConfirmationSms, {
+    accepted: true,
+    recipientPhoneE164: '+48500111001',
+    delivery: {
+      status: 'simulated',
+      provider: 'mock',
+      recipientCount: 1,
+      providerMessageId: null
+    },
+    sms: {
+      kind: 'booking_confirmation',
+      language: 'pl',
+      body: 'ipokrzyku.pl: potwierdzenie wizyty dla Anna Kowalska.'
+    },
+    message: 'Potwierdzenie SMS po rezerwacji zostalo przygotowane.',
+    error: null
   });
 });
 
@@ -742,7 +779,99 @@ test('createEvent calendar description includes callback and caller phone contex
 
   assert.match(description, /Callback phone:/);
   assert.match(description, /Caller phone:/);
+  assert.match(description, /Booking SMS target:/);
   assert.match(description, /caller number (matches|differs)/i);
+});
+
+test('createEvent booking SMS uses the live caller number even when the declared phone differs', () => {
+  const parseResult = runParse(
+    'tool_create-event.json',
+    'Parse Request',
+    {
+      message: {
+        type: 'tool-calls',
+        customer: {
+          number: '+48500111001'
+        },
+        call: {
+          id: 'call_booking_sms_001',
+          from: {
+            phoneNumber: '+48500111001'
+          }
+        },
+        toolCallList: [
+          {
+            id: 'tool_call_booking_sms_001',
+            name: 'createEvent',
+            parameters: {
+              service: {
+                id: 'consultation'
+              },
+              slotStart: '2026-03-24T10:00:00+01:00',
+              slotEnd: '2026-03-24T10:45:00+01:00',
+              timezone: 'Europe/Warsaw',
+              language: 'en',
+              patient: {
+                fullName: 'Anna Kowalska',
+                phoneE164: '+48500999888'
+              }
+            }
+          }
+        ]
+      }
+    },
+    defaultEnv
+  );
+  const prepared = runCodeNode(
+    'tool_create-event.json',
+    'Prepare Booking SMS',
+    {
+      'Slot Available?': parseResult,
+      'Create Calendar Event': { id: 'evt_booking_sms_001' }
+    },
+    [],
+    { ...defaultEnv, CLINIC_NAME: 'Demo Dental Clinic' }
+  );
+
+  assert.equal(prepared.language, 'en');
+  assert.equal(prepared.recipientPhoneE164, '+48500111001');
+  assert.deepEqual(prepared.phoneContext, {
+    declaredPhoneE164: '+48500999888',
+    callerPhoneE164: '+48500111001',
+    callerPhoneSource: 'customer.number',
+    callerMatchesDeclaredPhone: false,
+    smsRecipientPhoneE164: '+48500111001'
+  });
+
+  const dispatched = runCodeNode(
+    'tool_create-event.json',
+    'Send Booking SMS',
+    { 'Prepare Booking SMS': prepared },
+    [],
+    {
+      ...defaultEnv,
+      AI_RECEPTIONIST_SMS_PROVIDER: 'webhook',
+      AI_RECEPTIONIST_SMS_WEBHOOK_URL: 'https://sms-gateway.example.test/send',
+      AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN: 'token_123',
+      AI_RECEPTIONIST_SMS_WEBHOOK_TIMEOUT_MS: '9000'
+    }
+  );
+
+  assert.equal(dispatched.recipientPhoneE164, '+48500111001');
+  assert.deepEqual(dispatched.webhookBody?.metadata, {
+    requestId: parseResult.requestId,
+    calendarEventId: 'evt_booking_sms_001',
+    appointmentStart: '2026-03-24T10:00:00+01:00',
+    appointmentEnd: '2026-03-24T10:45:00+01:00',
+    timezone: 'Europe/Warsaw',
+    sourceCallId: 'call_booking_sms_001',
+    language: 'en',
+    declaredPhoneE164: '+48500999888',
+    callerPhoneE164: '+48500111001',
+    callerPhoneSource: 'customer.number',
+    callerMatchesDeclaredPhone: false,
+    recipientPhoneE164: '+48500111001'
+  });
 });
 
 test('createReceptionTask rejects unknown taskType', () => {
@@ -922,6 +1051,7 @@ test('sendSmsToPatient prepares an English booking confirmation SMS', () => {
   );
 
   assert.equal(prepared.kind, 'booking_confirmation');
+  assert.equal(prepared.recipientPhoneE164, '+48500100200');
   assert.deepEqual(prepared.recipients, ['+48500100200']);
   assert.match(prepared.messageBody, /appointment confirmed/i);
   assert.match(prepared.messageBody, /Demo Dental Clinic/);
@@ -990,8 +1120,11 @@ test('sendSmsToPatient captures caller phone metadata and carries it into webhoo
     declaredPhoneE164: '+48500999888',
     callerPhoneE164: '+48500111001',
     callerPhoneSource: 'customer.number',
-    callerMatchesDeclaredPhone: false
+    callerMatchesDeclaredPhone: false,
+    smsRecipientPhoneE164: '+48500111001'
   });
+  assert.equal(prepared.recipientPhoneE164, '+48500111001');
+  assert.deepEqual(prepared.recipients, ['+48500111001']);
 
   const dispatch = runCodeNode(
     'tool_send-sms-to-patient.json',
@@ -1008,6 +1141,7 @@ test('sendSmsToPatient captures caller phone metadata and carries it into webhoo
   );
 
   assert.deepEqual(dispatch.baseResult?.phoneContext, prepared.phoneContext);
+  assert.equal(dispatch.baseResult?.recipientPhoneE164, '+48500111001');
   assert.deepEqual(dispatch.webhookBody?.metadata, {
     requestId: parseResult.requestId,
     calendarEventId: 'evt_001',
@@ -1018,7 +1152,8 @@ test('sendSmsToPatient captures caller phone metadata and carries it into webhoo
     declaredPhoneE164: '+48500999888',
     callerPhoneE164: '+48500111001',
     callerPhoneSource: 'customer.number',
-    callerMatchesDeclaredPhone: false
+    callerMatchesDeclaredPhone: false,
+    recipientPhoneE164: '+48500111001'
   });
 
   const formatted = executeCode(getNodeCode(loadWorkflow('tool_send-sms-to-patient.json'), 'Format Success'), {
@@ -1036,11 +1171,13 @@ test('sendSmsToPatient captures caller phone metadata and carries it into webhoo
         language: 'pl',
         body: prepared.messageBody
       },
+      recipientPhoneE164: '+48500111001',
       phoneContext: prepared.phoneContext,
       message: 'Potwierdzenie SMS dla pacjenta zostalo przekazane do wysylki.'
     }
   })[0].json;
   const formattedResult = formatted.results?.[0]?.result || formatted;
+  assert.equal(formattedResult.recipientPhoneE164, '+48500111001');
   assert.deepEqual(formattedResult.phoneContext, prepared.phoneContext);
 });
 
@@ -1697,7 +1834,11 @@ experimentalTest('assistant prompt keeps the March 18 live-call booking guardrai
   assert.match(systemPrompts, /Nie zostawiaj w wypowiedzi ani jednej cyfry/i);
   assert.match(systemPrompts, /nie wypowiadaj juz zadnego dodatkowego pytania ani komentarza przed tym wywolaniem/i);
   assert.match(systemPrompts, /wywolaj sendSmsToReceptionists od razu w tej samej sciezce/i);
+  assert.match(systemPrompts, /workflow n8n automatycznie probuje wyslac techniczne potwierdzenie SMS/i);
+  assert.match(systemPrompts, /Nie pytaj o osobna zgode na ten krok/i);
+  assert.match(systemPrompts, /language ustawiaj na `pl` albo `en`/i);
   assert.equal(/sendSmsToPatient/.test(systemPrompts), false);
+  assert.equal(/consentToSms/i.test(systemPrompts), false);
   assert.equal(/taskType general_follow_up/i.test(systemPrompts), false);
   assert.equal(/po lunchu \/ po obiedzie -> afternoon/i.test(systemPrompts), false);
 });
@@ -1754,7 +1895,7 @@ experimentalTest('assistant config keeps the March 18 voice model and temperatur
   assert.equal(config.assistant?.model?.temperature, 0.2);
 });
 
-test('assistant renderer includes SMS tools in production when bindings are configured', () => {
+test('assistant renderer excludes the direct patient SMS tool from production bindings', () => {
   const rendered = renderAssistantConfig('production', {
     PRODUCTION_N8N_PUBLIC_BASE_URL: 'https://prod.example.test',
     PRODUCTION_AI_RECEPTIONIST_WEBHOOK_SECRET: 'prod-secret'
@@ -1762,9 +1903,6 @@ test('assistant renderer includes SMS tools in production when bindings are conf
   const receptionSmsBinding = rendered.toolBindings.find(
     (binding) => binding.name === 'sendSmsToReceptionists'
   );
-  const patientSmsBinding = rendered.toolBindings.find(
-    (binding) => binding.name === 'sendSmsToPatient'
-  );
 
   assert.deepEqual(
     rendered.toolBindings.map((binding) => binding.name),
@@ -1774,16 +1912,15 @@ test('assistant renderer includes SMS tools in production when bindings are conf
       'searchKnowledgeBase',
       'createEvent',
       'createReceptionTask',
-      'sendSmsToReceptionists',
-      'sendSmsToPatient'
+      'sendSmsToReceptionists'
     ]
   );
-  assert.equal(rendered.assistant?.model?.toolIds?.length, 7);
+  assert.equal(rendered.assistant?.model?.toolIds?.length, 6);
   assert.ok(receptionSmsBinding?.serverUrl?.includes('/send-sms-to-receptionists?secret='));
-  assert.ok(patientSmsBinding?.serverUrl?.includes('/send-sms-to-patient?secret='));
+  assert.equal(rendered.toolBindings.some((binding) => binding.name === 'sendSmsToPatient'), false);
 });
 
-test('assistant renderer includes SMS tools in staging when bindings are configured', () => {
+test('assistant renderer excludes the direct patient SMS tool from staging bindings', () => {
   const rendered = renderAssistantConfig('staging', {
     STAGING_N8N_PUBLIC_BASE_URL: 'https://staging.example.test',
     STAGING_AI_RECEPTIONIST_WEBHOOK_SECRET: 'stage-secret'
@@ -1791,9 +1928,6 @@ test('assistant renderer includes SMS tools in staging when bindings are configu
   const receptionSmsBinding = rendered.toolBindings.find(
     (binding) => binding.name === 'sendSmsToReceptionists'
   );
-  const patientSmsBinding = rendered.toolBindings.find(
-    (binding) => binding.name === 'sendSmsToPatient'
-  );
 
   assert.deepEqual(
     rendered.toolBindings.map((binding) => binding.name),
@@ -1803,13 +1937,12 @@ test('assistant renderer includes SMS tools in staging when bindings are configu
       'searchKnowledgeBase',
       'createEvent',
       'createReceptionTask',
-      'sendSmsToReceptionists',
-      'sendSmsToPatient'
+      'sendSmsToReceptionists'
     ]
   );
-  assert.equal(rendered.assistant?.model?.toolIds?.length, 7);
+  assert.equal(rendered.assistant?.model?.toolIds?.length, 6);
   assert.ok(receptionSmsBinding?.serverUrl?.includes('/send-sms-to-receptionists?secret='));
-  assert.ok(patientSmsBinding?.serverUrl?.includes('/send-sms-to-patient?secret='));
+  assert.equal(rendered.toolBindings.some((binding) => binding.name === 'sendSmsToPatient'), false);
 });
 
 test('assistant renderer applies staging assistant overrides without changing the shared config', () => {
@@ -1947,29 +2080,33 @@ assistantInvariantTest('assistant SMS staging scenarios require end-to-end workf
   const receptionSmsScenario = loadStagingScenario('reschedule-handoff-internal-sms-alert.v1.json');
   const existingPatientBookingScenario = loadStagingScenario('existing-patient-booking-handoff-internal-sms-alert.v1.json');
 
-  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'patient-sms-workflow-accepted').rule, {
+  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'booking-sms-workflow-accepted').rule, {
     type: 'tool_result_path_equals',
-    tool_name: 'sendSmsToPatient',
-    path: 'accepted',
+    tool_name: 'createEvent',
+    path: 'bookingConfirmationSms.accepted',
     equals: true
   });
-  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'patient-sms-targets-single-recipient').rule, {
+  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'booking-sms-targets-single-recipient').rule, {
     type: 'tool_result_path_equals',
-    tool_name: 'sendSmsToPatient',
-    path: 'delivery.recipientCount',
+    tool_name: 'createEvent',
+    path: 'bookingConfirmationSms.delivery.recipientCount',
     equals: 1
   });
-  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'patient-sms-produces-booking-confirmation-payload').rule, {
+  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'booking-sms-produces-booking-confirmation-payload').rule, {
     type: 'tool_result_path_equals',
-    tool_name: 'sendSmsToPatient',
-    path: 'sms.kind',
+    tool_name: 'createEvent',
+    path: 'bookingConfirmationSms.sms.kind',
     equals: 'booking_confirmation'
   });
-  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'patient-sms-result-keeps-polish-language').rule, {
+  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'booking-sms-result-keeps-polish-language').rule, {
     type: 'tool_result_path_equals',
-    tool_name: 'sendSmsToPatient',
-    path: 'sms.language',
+    tool_name: 'createEvent',
+    path: 'bookingConfirmationSms.sms.language',
     equals: 'pl'
+  });
+  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'no-separate-patient-sms-tool').rule, {
+    type: 'tool_not_called',
+    tool_name: 'sendSmsToPatient'
   });
 
   assert.deepEqual(getScenarioCriterion(receptionSmsScenario, 'internal-sms-workflow-accepted').rule, {
@@ -2035,7 +2172,7 @@ test('docker compose files expose SMS runtime variables to n8n', () => {
   }
 });
 
-assistantInvariantTest('assistant chat rubric can verify patient SMS ordering and calendarEventId reuse', () => {
+assistantInvariantTest('assistant chat rubric can verify booking SMS metadata returned inside createEvent', () => {
   const context = createChatRegressionContext({
     turns: [{ user: 'synthetic turn' }],
     rubric: []
@@ -2063,108 +2200,77 @@ assistantInvariantTest('assistant chat rubric can verify patient SMS ordering an
       tool_call_id: 'tool_create_event_1',
       content: {
         created: true,
-        calendarEventId: 'evt_sms_patient_001'
-      }
-    },
-    {
-      role: 'assistant',
-      tool_calls: [
-        {
-          id: 'tool_send_sms_patient_1',
-          function: {
-            name: 'sendSmsToPatient',
-            arguments: JSON.stringify({
-              calendarEventId: 'evt_sms_patient_001',
-              consentConfirmed: true,
-              language: 'pl'
-            })
+        calendarEventId: 'evt_sms_patient_001',
+        bookingConfirmationSms: {
+          accepted: true,
+          recipientPhoneE164: '+48500111001',
+          delivery: {
+            recipientCount: 1
+          },
+          sms: {
+            kind: 'booking_confirmation',
+            language: 'pl'
           }
-        }
-      ]
-    },
-    {
-      role: 'tool',
-      tool_call_id: 'tool_send_sms_patient_1',
-      content: {
-        accepted: true,
-        delivery: {
-          recipientCount: 1
         },
-        sms: {
-          kind: 'booking_confirmation',
-          language: 'pl'
+        phoneContext: {
+          smsRecipientPhoneE164: '+48500111001'
         }
       }
     }
   ]);
 
-  const orderingResult = evaluateChatCriterion(context, {
-    criterion_id: 'sms-after-booking',
-    description: 'sendSmsToPatient should happen after createEvent returned',
-    severity: 'critical',
-    rule: {
-      type: 'tool_called_after_tool_result',
-      tool_name: 'sendSmsToPatient',
-      source_tool_name: 'createEvent'
-    }
-  });
-  assert.equal(orderingResult.passed, true);
-
-  const idReuseResult = evaluateChatCriterion(context, {
-    criterion_id: 'sms-reuses-event-id',
-    description: 'sendSmsToPatient should reuse calendarEventId from createEvent',
-    severity: 'critical',
-    rule: {
-      type: 'tool_arg_matches_tool_result_path',
-      tool_name: 'sendSmsToPatient',
-      path: 'calendarEventId',
-      source_tool_name: 'createEvent',
-      source_path: 'calendarEventId'
-    }
-  });
-  assert.equal(idReuseResult.passed, true);
-
   const acceptedResult = evaluateChatCriterion(context, {
-    criterion_id: 'sms-accepted',
-    description: 'sendSmsToPatient should return accepted=true',
+    criterion_id: 'booking-sms-accepted',
+    description: 'createEvent should carry accepted booking SMS metadata',
     severity: 'critical',
     rule: {
       type: 'tool_result_path_equals',
-      tool_name: 'sendSmsToPatient',
-      path: 'accepted',
+      tool_name: 'createEvent',
+      path: 'bookingConfirmationSms.accepted',
       equals: true
     }
   });
   assert.equal(acceptedResult.passed, true);
 
   const recipientCountResult = evaluateChatCriterion(context, {
-    criterion_id: 'sms-recipient-count',
-    description: 'sendSmsToPatient should target one recipient',
+    criterion_id: 'booking-sms-recipient-count',
+    description: 'createEvent should carry a single-recipient booking SMS result',
     severity: 'high',
     rule: {
       type: 'tool_result_path_equals',
-      tool_name: 'sendSmsToPatient',
-      path: 'delivery.recipientCount',
+      tool_name: 'createEvent',
+      path: 'bookingConfirmationSms.delivery.recipientCount',
       equals: 1
     }
   });
   assert.equal(recipientCountResult.passed, true);
 
   const payloadKindResult = evaluateChatCriterion(context, {
-    criterion_id: 'sms-kind',
-    description: 'sendSmsToPatient should return booking_confirmation payload metadata',
+    criterion_id: 'booking-sms-kind',
+    description: 'createEvent should carry booking_confirmation SMS metadata',
     severity: 'high',
     rule: {
       type: 'tool_result_path_equals',
-      tool_name: 'sendSmsToPatient',
-      path: 'sms.kind',
+      tool_name: 'createEvent',
+      path: 'bookingConfirmationSms.sms.kind',
       equals: 'booking_confirmation'
     }
   });
   assert.equal(payloadKindResult.passed, true);
+
+  const noSeparateToolResult = evaluateChatCriterion(context, {
+    criterion_id: 'no-separate-patient-sms-tool',
+    description: 'the assistant should not call sendSmsToPatient separately',
+    severity: 'high',
+    rule: {
+      type: 'tool_not_called',
+      tool_name: 'sendSmsToPatient',
+    }
+  });
+  assert.equal(noSeparateToolResult.passed, true);
 });
 
-assistantInvariantTest('assistant chat rubric rejects patient SMS calls that happen before createEvent returns', () => {
+assistantInvariantTest('assistant chat rubric rejects direct patient SMS tool calls in booking flows', () => {
   const context = createChatRegressionContext({
     turns: [{ user: 'synthetic turn' }],
     rubric: []
@@ -2189,7 +2295,7 @@ assistantInvariantTest('assistant chat rubric rejects patient SMS calls that hap
       role: 'assistant',
       tool_calls: [
         {
-          id: 'tool_send_sms_patient_early',
+          id: 'tool_send_sms_patient_unexpected',
           function: {
             name: 'sendSmsToPatient',
             arguments: JSON.stringify({
@@ -2209,18 +2315,17 @@ assistantInvariantTest('assistant chat rubric rejects patient SMS calls that hap
     }
   ]);
 
-  const orderingResult = evaluateChatCriterion(context, {
-    criterion_id: 'sms-before-booking',
-    description: 'sendSmsToPatient should not happen before createEvent returned',
+  const noSeparateToolResult = evaluateChatCriterion(context, {
+    criterion_id: 'no-separate-patient-sms-tool',
+    description: 'sendSmsToPatient should not be called separately',
     severity: 'critical',
     rule: {
-      type: 'tool_called_after_tool_result',
-      tool_name: 'sendSmsToPatient',
-      source_tool_name: 'createEvent'
+      type: 'tool_not_called',
+      tool_name: 'sendSmsToPatient'
     }
   });
-  assert.equal(orderingResult.passed, false);
-  assert.match(orderingResult.failure_reason || '', /after the createEvent result/);
+  assert.equal(noSeparateToolResult.passed, false);
+  assert.match(noSeparateToolResult.failure_reason || '', /sendSmsToPatient/);
 });
 
 assistantInvariantTest('assistant chat rubric can verify internal receptionist SMS ordering and taskId reuse', () => {

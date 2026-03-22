@@ -46,6 +46,14 @@
       "type": "string",
       "description": "Always use Europe/Warsaw."
     },
+    "language": {
+      "type": "string",
+      "enum": [
+        "pl",
+        "en"
+      ],
+      "description": "Conversation language for the automatic booking confirmation SMS."
+    },
     "patient": {
       "type": "object",
       "additionalProperties": false,
@@ -60,7 +68,7 @@
         },
         "phoneE164": {
           "type": "string",
-          "description": "Confirmed callback number in E.164 format. If the caller confirmed using the number they are calling from, reuse that live caller number here."
+          "description": "Confirmed callback number stored on the booking. If the caller confirmed using the number they are calling from, reuse that live caller number here."
         },
         "isExistingPatient": {
           "type": "boolean",
@@ -75,10 +83,6 @@
         "manual"
       ],
       "description": "Booking source."
-    },
-    "consentToSms": {
-      "type": "boolean",
-      "description": "True only if the caller explicitly agreed to SMS."
     },
     "telephony": {
       "type": "object",

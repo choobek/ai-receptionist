@@ -14,7 +14,7 @@
         "color": 5,
         "width": 340,
         "height": 240,
-        "content": "Purpose: book an appointment after Vapi has confirmed the slot and patient details.\n\nFlow:\n- Parse direct JSON or Vapi tool wrapper\n- Validate patient fields\n- Re-check the slot in Google Calendar\n- Create the event\n- Return Vapi-compatible confirmation"
+        "content": "Purpose: book an appointment after Vapi has confirmed the slot and patient details.\n\nFlow:\n- Parse direct JSON or Vapi tool wrapper\n- Validate patient fields\n- Re-check the slot in Google Calendar\n- Create the event\n- Deterministically dispatch the booking SMS to the live caller number\n- Return Vapi-compatible confirmation with SMS audit data"
       }
     },
     {
@@ -44,7 +44,7 @@
         60
       ],
       "parameters": {
-        "jsCode": "const headers = $json.headers && typeof $json.headers === 'object' ? $json.headers : {};\nconst queryParams = $json.query && typeof $json.query === 'object' ? $json.query : {};\nconst configuredWebhookSecret = typeof $env.AI_RECEPTIONIST_WEBHOOK_SECRET === 'string' ? $env.AI_RECEPTIONIST_WEBHOOK_SECRET.trim() : '';\nconst headerSecret = typeof headers['x-ai-receptionist-secret'] === 'string' ? headers['x-ai-receptionist-secret'].trim() : typeof headers['X-AI-Receptionist-Secret'] === 'string' ? headers['X-AI-Receptionist-Secret'].trim() : '';\nconst authorizationHeader = typeof headers.authorization === 'string' ? headers.authorization.trim() : typeof headers.Authorization === 'string' ? headers.Authorization.trim() : '';\nconst authorizationMatch = authorizationHeader.match(/^Bearer\\s+(.+)$/i);\nconst bearerSecret = authorizationMatch ? authorizationMatch[1].trim() : '';\nconst querySecret = typeof queryParams.secret === 'string' ? queryParams.secret.trim() : '';\nconst providedWebhookSecret = headerSecret || bearerSecret || querySecret;\nconst payload = $json.body ?? $json;\nconst message = payload.message && typeof payload.message === 'object' ? payload.message : null;\nconst call = message?.call && typeof message.call === 'object'\n  ? message.call\n  : payload.call && typeof payload.call === 'object'\n    ? payload.call\n    : null;\nconst customer = message?.customer && typeof message.customer === 'object'\n  ? message.customer\n  : payload.customer && typeof payload.customer === 'object'\n    ? payload.customer\n    : call?.customer && typeof call.customer === 'object'\n      ? call.customer\n      : null;\nconst toolCall = payload.message?.toolCallList?.[0] ?? payload.message?.toolCalls?.[0] ?? payload.toolCall ?? null;\nconst wrappedToolCall = payload.message?.toolWithToolCallList?.[0]?.toolCall ?? null;\nconst rawArgs = toolCall?.parameters ?? toolCall?.arguments ?? wrappedToolCall?.function?.parameters ?? wrappedToolCall?.function?.arguments ?? toolCall?.function?.arguments ?? payload.arguments ?? payload;\nconst details = [];\nlet args = rawArgs;\nif (typeof rawArgs === 'string') {\n  const trimmedArgs = rawArgs.trim();\n  if (!trimmedArgs) {\n    args = {};\n  } else {\n    try {\n      args = JSON.parse(trimmedArgs);\n    } catch (error) {\n      details.push('Invalid JSON arguments: ' + error.message);\n      args = {};\n    }\n  }\n}\nif (!args || typeof args !== 'object' || Array.isArray(args)) {\n  details.push('Request arguments must be a JSON object');\n  args = {};\n}\nif (configuredWebhookSecret && providedWebhookSecret !== configuredWebhookSecret) details.push('webhook request is unauthorized');\nconst services = [\n  {\n    \"id\": \"consultation\",\n    \"name\": \"Konsultacja\",\n    \"durationMinutes\": 45\n  },\n  {\n    \"id\": \"urgent_consultation\",\n    \"name\": \"Pilna konsultacja\",\n    \"durationMinutes\": 45\n  },\n  {\n    \"id\": \"implant_consultation\",\n    \"name\": \"Konsultacja implantologiczna\",\n    \"durationMinutes\": 45\n  },\n  {\n    \"id\": \"orthodontic_consultation\",\n    \"name\": \"Konsultacja ortodontyczna\",\n    \"durationMinutes\": 45\n  },\n  {\n    \"id\": \"aesthetic_consultation\",\n    \"name\": \"Konsultacja estetyczna\",\n    \"durationMinutes\": 45\n  },\n  {\n    \"id\": \"hygiene\",\n    \"name\": \"Higienizacja\",\n    \"durationMinutes\": 45\n  }\n];\nconst parseWeekdayList = (value, fallback) => {\n  const rawValues = Array.isArray(value)\n    ? value\n    : typeof value === 'string'\n      ? value.split(',')\n      : fallback;\n  const parsed = rawValues\n    .map((item) => Number(String(item).trim()))\n    .filter((item) => Number.isInteger(item) && item >= 0 && item <= 6);\n  return parsed.length > 0 ? [...new Set(parsed)].sort((a, b) => a - b) : [...fallback];\n};\nconst isValidTimeZone = (value) => {\n  if (!value) return false;\n  try {\n    new Intl.DateTimeFormat('en-US', { timeZone: value }).format(new Date());\n    return true;\n  } catch (error) {\n    return false;\n  }\n};\nconst isValidTimeText = (value) => /^(?:[01]\\d|2[0-3]):[0-5]\\d$/.test(value);\nconst timeToMinutes = (timeText) => {\n  const [hour, minute] = timeText.split(':').map(Number);\n  return (hour * 60) + minute;\n};\nconst getZonedParts = (date, timeZone) => Object.fromEntries(new Intl.DateTimeFormat('sv-SE', {\n  timeZone,\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit',\n  hour: '2-digit',\n  minute: '2-digit',\n  second: '2-digit',\n  hourCycle: 'h23'\n}).formatToParts(date).filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]));\nconst getWeekday = (date, timeZone) => {\n  const parts = getZonedParts(date, timeZone);\n  return new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), 12, 0, 0)).getUTCDay();\n};\nconst minuteOfDay = (date, timeZone) => {\n  const parts = getZonedParts(date, timeZone);\n  return timeToMinutes(parts.hour + ':' + parts.minute);\n};\nconst dateKey = (date, timeZone) => {\n  const parts = getZonedParts(date, timeZone);\n  return [parts.year, parts.month, parts.day].join('-');\n};\nconst serviceCatalog = new Map(services.map((service) => [service.id, service]));\nconst fallbackTimezone = isValidTimeZone($env.CLINIC_TIMEZONE) ? $env.CLINIC_TIMEZONE : 'Europe/Warsaw';\nconst rawTimezone = typeof args.timezone === 'string' ? args.timezone.trim() : '';\nconst timezone = rawTimezone || fallbackTimezone;\nconst rawService = args.service && typeof args.service === 'object' && !Array.isArray(args.service) ? args.service : null;\nconst serviceId = typeof rawService?.id === 'string' ? rawService.id.trim() : '';\nconst serviceDefinition = serviceCatalog.get(serviceId) || null;\nconst durationFromServiceArgs = Number(rawService?.durationMinutes);\nconst durationFromCatalog = Number(serviceDefinition?.durationMinutes);\nconst resolvedDurationMinutes = Number.isFinite(durationFromServiceArgs)\n  ? Math.trunc(durationFromServiceArgs)\n  : Number.isFinite(durationFromCatalog)\n    ? Math.trunc(durationFromCatalog)\n    : Number($env.DEFAULT_APPOINTMENT_DURATION_MINUTES || 45);\nconst service = rawService ? {\n  ...rawService,\n  id: serviceId || rawService.id,\n  name: serviceDefinition ? serviceDefinition.name : (typeof rawService.name === 'string' ? rawService.name.trim() || null : rawService.name ?? null),\n  durationMinutes: resolvedDurationMinutes\n} : null;\nconst patient = args.patient && typeof args.patient === 'object' && !Array.isArray(args.patient) ? args.patient : null;\nconst telephonyArg = args.telephony && typeof args.telephony === 'object' && !Array.isArray(args.telephony) ? args.telephony : null;\nconst slotStart = typeof args.slotStart === 'string' ? args.slotStart.trim() : '';\nconst requestedSlotEnd = typeof args.slotEnd === 'string' ? args.slotEnd.trim() : '';\nconst parsedSlotStart = slotStart ? new Date(slotStart) : null;\nconst computedSlotEnd = parsedSlotStart && !Number.isNaN(parsedSlotStart.getTime())\n  ? new Date(parsedSlotStart.getTime() + resolvedDurationMinutes * 60000).toISOString()\n  : '';\nconst slotEnd = (requestedSlotEnd || computedSlotEnd || '').trim();\nconst parsedRequestedSlotEnd = requestedSlotEnd ? new Date(requestedSlotEnd) : null;\nconst parsedSlotEnd = slotEnd ? new Date(slotEnd) : null;\nconst e164Pattern = /^\\+[1-9]\\d{7,14}$/;\nconst normalizePhoneCandidate = (value) => {\n  if (typeof value !== 'string') return null;\n  const trimmed = value.trim();\n  if (!trimmed) return null;\n  const compact = trimmed.replace(/[^\\d+]/g, '');\n  if (e164Pattern.test(compact)) return compact;\n  const digits = trimmed.replace(/\\D/g, '');\n  if (digits.length === 9) return '+48' + digits;\n  return null;\n};\nconst callerCandidates = [\n  {\n    source: typeof telephonyArg?.callerPhoneSource === 'string' && telephonyArg.callerPhoneSource.trim()\n      ? telephonyArg.callerPhoneSource.trim()\n      : 'telephony.callerPhoneE164',\n    raw: typeof telephonyArg?.callerPhoneRaw === 'string' ? telephonyArg.callerPhoneRaw.trim() : null,\n    value: telephonyArg?.callerPhoneE164 ?? telephonyArg?.callerPhoneRaw ?? null\n  },\n  {\n    source: 'customer.number',\n    raw: typeof customer?.number === 'string' ? customer.number.trim() : null,\n    value: customer?.number ?? null\n  },\n  {\n    source: 'call.customer.number',\n    raw: typeof call?.customer?.number === 'string' ? call.customer.number.trim() : null,\n    value: call?.customer?.number ?? null\n  },\n  {\n    source: 'call.from.phoneNumber',\n    raw: typeof call?.from?.phoneNumber === 'string' ? call.from.phoneNumber.trim() : null,\n    value: call?.from?.phoneNumber ?? null\n  },\n  {\n    source: 'call.from.number',\n    raw: typeof call?.from?.number === 'string' ? call.from.number.trim() : null,\n    value: call?.from?.number ?? null\n  },\n  {\n    source: 'call.phoneNumber',\n    raw: typeof call?.phoneNumber === 'string' ? call.phoneNumber.trim() : null,\n    value: call?.phoneNumber ?? null\n  }\n];\nconst callerMatch = callerCandidates\n  .map((candidate) => {\n    const normalized = normalizePhoneCandidate(candidate.value);\n    if (!normalized) return null;\n    return {\n      callerPhoneE164: normalized,\n      callerPhoneRaw: candidate.raw || normalized,\n      callerPhoneSource: candidate.source\n    };\n  })\n  .find(Boolean) || null;\nconst telephony = {\n  callerPhoneE164: callerMatch?.callerPhoneE164 || null,\n  callerPhoneRaw: callerMatch?.callerPhoneRaw || null,\n  callerPhoneSource: callerMatch?.callerPhoneSource || null,\n  callerMatchesPatientPhone: callerMatch && patient?.phoneE164\n    ? callerMatch.callerPhoneE164 === patient.phoneE164\n    : null\n};\nconst allowedSources = new Set(['phone', 'manual']);\nconst source = typeof args.source === 'string' ? args.source.trim() : '';\nconst workingStart = isValidTimeText($env.CLINIC_WORKING_HOURS_START || '') ? $env.CLINIC_WORKING_HOURS_START : '09:00';\nconst workingEnd = isValidTimeText($env.CLINIC_WORKING_HOURS_END || '') ? $env.CLINIC_WORKING_HOURS_END : '21:00';\nconst workingStartMinutes = timeToMinutes(workingStart);\nconst workingEndMinutes = timeToMinutes(workingEnd);\nconst openWeekdays = parseWeekdayList($env.CLINIC_OPEN_WEEKDAYS || '1,2,3,4,5', [1, 2, 3, 4, 5]);\nif (!serviceId) details.push('service.id is required');\nelse if (!serviceDefinition) details.push('service.id is unsupported');\nif (!slotStart) details.push('slotStart is required');\nif (!slotEnd) details.push('slotEnd is required');\nif (slotStart && Number.isNaN(parsedSlotStart?.getTime())) details.push('slotStart is invalid');\nif (requestedSlotEnd && Number.isNaN(parsedRequestedSlotEnd?.getTime())) details.push('slotEnd is invalid');\nif (parsedSlotStart && parsedRequestedSlotEnd && !Number.isNaN(parsedSlotStart.getTime()) && !Number.isNaN(parsedRequestedSlotEnd.getTime()) && parsedRequestedSlotEnd <= parsedSlotStart) {\n  details.push('slotEnd must be after slotStart');\n}\nif (parsedSlotStart && parsedSlotEnd && !Number.isNaN(parsedSlotStart.getTime()) && !Number.isNaN(parsedSlotEnd.getTime()) && parsedSlotEnd <= parsedSlotStart) {\n  details.push('slotEnd must be after slotStart');\n}\nif (rawTimezone && !isValidTimeZone(rawTimezone)) details.push('timezone is invalid');\nif (!patient?.fullName) details.push('patient.fullName is required');\nif (!patient?.phoneE164) {\n  details.push('patient.phoneE164 is required');\n} else if (!e164Pattern.test(patient.phoneE164)) {\n  details.push('patient.phoneE164 must use E.164 format');\n}\nif (source && !allowedSources.has(source)) details.push('source is invalid');\nif (parsedSlotStart && parsedSlotEnd && !Number.isNaN(parsedSlotStart.getTime()) && !Number.isNaN(parsedSlotEnd.getTime())) {\n  const startDateKey = dateKey(parsedSlotStart, timezone);\n  const endDateKey = dateKey(parsedSlotEnd, timezone);\n  if (startDateKey !== endDateKey) {\n    details.push('slot must start and end on the same clinic day');\n  }\n  if (!openWeekdays.includes(getWeekday(parsedSlotStart, timezone))) {\n    details.push('slot must fall on an open clinic day');\n  }\n  const slotStartMinutes = minuteOfDay(parsedSlotStart, timezone);\n  const slotEndMinutes = minuteOfDay(parsedSlotEnd, timezone);\n  if (slotStartMinutes < workingStartMinutes || slotEndMinutes > workingEndMinutes) {\n    details.push('slot must be within clinic working hours');\n  }\n}\nreturn [{ json: {\n  ok: details.length === 0,\n  toolCallId: toolCall?.id || wrappedToolCall?.id || payload.toolCallId || null,\n  requestId: args.requestId || payload.requestId || null,\n  calendarId: args.calendarId || $env.GOOGLE_CALENDAR_ID || 'primary',\n  timezone,\n  service,\n  slotStart: slotStart || null,\n  slotEnd: slotEnd || null,\n  patient,\n  notes: typeof args.notes === 'string' ? args.notes : '',\n  consentToSms: Boolean(args.consentToSms),\n  source: source || 'phone',\n  telephony,\n  validationErrors: details\n} }];"
+        "jsCode": "const headers = $json.headers && typeof $json.headers === 'object' ? $json.headers : {};\nconst queryParams = $json.query && typeof $json.query === 'object' ? $json.query : {};\nconst configuredWebhookSecret = typeof $env.AI_RECEPTIONIST_WEBHOOK_SECRET === 'string' ? $env.AI_RECEPTIONIST_WEBHOOK_SECRET.trim() : '';\nconst headerSecret = typeof headers['x-ai-receptionist-secret'] === 'string' ? headers['x-ai-receptionist-secret'].trim() : typeof headers['X-AI-Receptionist-Secret'] === 'string' ? headers['X-AI-Receptionist-Secret'].trim() : '';\nconst authorizationHeader = typeof headers.authorization === 'string' ? headers.authorization.trim() : typeof headers.Authorization === 'string' ? headers.Authorization.trim() : '';\nconst authorizationMatch = authorizationHeader.match(/^Bearer\\s+(.+)$/i);\nconst bearerSecret = authorizationMatch ? authorizationMatch[1].trim() : '';\nconst querySecret = typeof queryParams.secret === 'string' ? queryParams.secret.trim() : '';\nconst providedWebhookSecret = headerSecret || bearerSecret || querySecret;\nconst payload = $json.body ?? $json;\nconst message = payload.message && typeof payload.message === 'object' ? payload.message : null;\nconst call = message?.call && typeof message.call === 'object'\n  ? message.call\n  : payload.call && typeof payload.call === 'object'\n    ? payload.call\n    : null;\nconst customer = message?.customer && typeof message.customer === 'object'\n  ? message.customer\n  : payload.customer && typeof payload.customer === 'object'\n    ? payload.customer\n    : call?.customer && typeof call.customer === 'object'\n      ? call.customer\n      : null;\nconst toolCall = payload.message?.toolCallList?.[0] ?? payload.message?.toolCalls?.[0] ?? payload.toolCall ?? null;\nconst wrappedToolCall = payload.message?.toolWithToolCallList?.[0]?.toolCall ?? null;\nconst rawArgs = toolCall?.parameters ?? toolCall?.arguments ?? wrappedToolCall?.function?.parameters ?? wrappedToolCall?.function?.arguments ?? toolCall?.function?.arguments ?? payload.arguments ?? payload;\nconst details = [];\nlet args = rawArgs;\nif (typeof rawArgs === 'string') {\n  const trimmedArgs = rawArgs.trim();\n  if (!trimmedArgs) {\n    args = {};\n  } else {\n    try {\n      args = JSON.parse(trimmedArgs);\n    } catch (error) {\n      details.push('Invalid JSON arguments: ' + error.message);\n      args = {};\n    }\n  }\n}\nif (!args || typeof args !== 'object' || Array.isArray(args)) {\n  details.push('Request arguments must be a JSON object');\n  args = {};\n}\nif (configuredWebhookSecret && providedWebhookSecret !== configuredWebhookSecret) details.push('webhook request is unauthorized');\nconst services = [\n  {\n    \"id\": \"consultation\",\n    \"name\": \"Konsultacja\",\n    \"durationMinutes\": 45\n  },\n  {\n    \"id\": \"urgent_consultation\",\n    \"name\": \"Pilna konsultacja\",\n    \"durationMinutes\": 45\n  },\n  {\n    \"id\": \"implant_consultation\",\n    \"name\": \"Konsultacja implantologiczna\",\n    \"durationMinutes\": 45\n  },\n  {\n    \"id\": \"orthodontic_consultation\",\n    \"name\": \"Konsultacja ortodontyczna\",\n    \"durationMinutes\": 45\n  },\n  {\n    \"id\": \"aesthetic_consultation\",\n    \"name\": \"Konsultacja estetyczna\",\n    \"durationMinutes\": 45\n  },\n  {\n    \"id\": \"hygiene\",\n    \"name\": \"Higienizacja\",\n    \"durationMinutes\": 45\n  }\n];\nconst parseWeekdayList = (value, fallback) => {\n  const rawValues = Array.isArray(value)\n    ? value\n    : typeof value === 'string'\n      ? value.split(',')\n      : fallback;\n  const parsed = rawValues\n    .map((item) => Number(String(item).trim()))\n    .filter((item) => Number.isInteger(item) && item >= 0 && item <= 6);\n  return parsed.length > 0 ? [...new Set(parsed)].sort((a, b) => a - b) : [...fallback];\n};\nconst isValidTimeZone = (value) => {\n  if (!value) return false;\n  try {\n    new Intl.DateTimeFormat('en-US', { timeZone: value }).format(new Date());\n    return true;\n  } catch (error) {\n    return false;\n  }\n};\nconst isValidTimeText = (value) => /^(?:[01]\\d|2[0-3]):[0-5]\\d$/.test(value);\nconst timeToMinutes = (timeText) => {\n  const [hour, minute] = timeText.split(':').map(Number);\n  return (hour * 60) + minute;\n};\nconst getZonedParts = (date, timeZone) => Object.fromEntries(new Intl.DateTimeFormat('sv-SE', {\n  timeZone,\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit',\n  hour: '2-digit',\n  minute: '2-digit',\n  second: '2-digit',\n  hourCycle: 'h23'\n}).formatToParts(date).filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]));\nconst getWeekday = (date, timeZone) => {\n  const parts = getZonedParts(date, timeZone);\n  return new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), 12, 0, 0)).getUTCDay();\n};\nconst minuteOfDay = (date, timeZone) => {\n  const parts = getZonedParts(date, timeZone);\n  return timeToMinutes(parts.hour + ':' + parts.minute);\n};\nconst dateKey = (date, timeZone) => {\n  const parts = getZonedParts(date, timeZone);\n  return [parts.year, parts.month, parts.day].join('-');\n};\nconst serviceCatalog = new Map(services.map((service) => [service.id, service]));\nconst fallbackTimezone = isValidTimeZone($env.CLINIC_TIMEZONE) ? $env.CLINIC_TIMEZONE : 'Europe/Warsaw';\nconst rawTimezone = typeof args.timezone === 'string' ? args.timezone.trim() : '';\nconst timezone = rawTimezone || fallbackTimezone;\nconst rawService = args.service && typeof args.service === 'object' && !Array.isArray(args.service) ? args.service : null;\nconst serviceId = typeof rawService?.id === 'string' ? rawService.id.trim() : '';\nconst serviceDefinition = serviceCatalog.get(serviceId) || null;\nconst durationFromServiceArgs = Number(rawService?.durationMinutes);\nconst durationFromCatalog = Number(serviceDefinition?.durationMinutes);\nconst resolvedDurationMinutes = Number.isFinite(durationFromServiceArgs)\n  ? Math.trunc(durationFromServiceArgs)\n  : Number.isFinite(durationFromCatalog)\n    ? Math.trunc(durationFromCatalog)\n    : Number($env.DEFAULT_APPOINTMENT_DURATION_MINUTES || 45);\nconst service = rawService ? {\n  ...rawService,\n  id: serviceId || rawService.id,\n  name: serviceDefinition ? serviceDefinition.name : (typeof rawService.name === 'string' ? rawService.name.trim() || null : rawService.name ?? null),\n  durationMinutes: resolvedDurationMinutes\n} : null;\nconst patient = args.patient && typeof args.patient === 'object' && !Array.isArray(args.patient) ? args.patient : null;\nconst telephonyArg = args.telephony && typeof args.telephony === 'object' && !Array.isArray(args.telephony) ? args.telephony : null;\nconst rawLanguage = typeof args.language === 'string' ? args.language.trim().toLowerCase() : '';\nconst language = rawLanguage || 'pl';\nconst slotStart = typeof args.slotStart === 'string' ? args.slotStart.trim() : '';\nconst requestedSlotEnd = typeof args.slotEnd === 'string' ? args.slotEnd.trim() : '';\nconst parsedSlotStart = slotStart ? new Date(slotStart) : null;\nconst computedSlotEnd = parsedSlotStart && !Number.isNaN(parsedSlotStart.getTime())\n  ? new Date(parsedSlotStart.getTime() + resolvedDurationMinutes * 60000).toISOString()\n  : '';\nconst slotEnd = (requestedSlotEnd || computedSlotEnd || '').trim();\nconst parsedRequestedSlotEnd = requestedSlotEnd ? new Date(requestedSlotEnd) : null;\nconst parsedSlotEnd = slotEnd ? new Date(slotEnd) : null;\nconst e164Pattern = /^\\+[1-9]\\d{7,14}$/;\nconst normalizePhoneCandidate = (value) => {\n  if (typeof value !== 'string') return null;\n  const trimmed = value.trim();\n  if (!trimmed) return null;\n  const compact = trimmed.replace(/[^\\d+]/g, '');\n  if (e164Pattern.test(compact)) return compact;\n  const digits = trimmed.replace(/\\D/g, '');\n  if (digits.length === 9) return '+48' + digits;\n  return null;\n};\nconst callerCandidates = [\n  {\n    source: typeof telephonyArg?.callerPhoneSource === 'string' && telephonyArg.callerPhoneSource.trim()\n      ? telephonyArg.callerPhoneSource.trim()\n      : 'telephony.callerPhoneE164',\n    raw: typeof telephonyArg?.callerPhoneRaw === 'string' ? telephonyArg.callerPhoneRaw.trim() : null,\n    value: telephonyArg?.callerPhoneE164 ?? telephonyArg?.callerPhoneRaw ?? null\n  },\n  {\n    source: 'customer.number',\n    raw: typeof customer?.number === 'string' ? customer.number.trim() : null,\n    value: customer?.number ?? null\n  },\n  {\n    source: 'call.customer.number',\n    raw: typeof call?.customer?.number === 'string' ? call.customer.number.trim() : null,\n    value: call?.customer?.number ?? null\n  },\n  {\n    source: 'call.from.phoneNumber',\n    raw: typeof call?.from?.phoneNumber === 'string' ? call.from.phoneNumber.trim() : null,\n    value: call?.from?.phoneNumber ?? null\n  },\n  {\n    source: 'call.from.number',\n    raw: typeof call?.from?.number === 'string' ? call.from.number.trim() : null,\n    value: call?.from?.number ?? null\n  },\n  {\n    source: 'call.phoneNumber',\n    raw: typeof call?.phoneNumber === 'string' ? call.phoneNumber.trim() : null,\n    value: call?.phoneNumber ?? null\n  }\n];\nconst callerMatch = callerCandidates\n  .map((candidate) => {\n    const normalized = normalizePhoneCandidate(candidate.value);\n    if (!normalized) return null;\n    return {\n      callerPhoneE164: normalized,\n      callerPhoneRaw: candidate.raw || normalized,\n      callerPhoneSource: candidate.source\n    };\n  })\n  .find(Boolean) || null;\nconst telephony = {\n  callerPhoneE164: callerMatch?.callerPhoneE164 || null,\n  callerPhoneRaw: callerMatch?.callerPhoneRaw || null,\n  callerPhoneSource: callerMatch?.callerPhoneSource || null,\n  callerMatchesPatientPhone: callerMatch && patient?.phoneE164\n    ? callerMatch.callerPhoneE164 === patient.phoneE164\n    : null\n};\nconst allowedSources = new Set(['phone', 'manual']);\nconst source = typeof args.source === 'string' ? args.source.trim() : '';\nconst workingStart = isValidTimeText($env.CLINIC_WORKING_HOURS_START || '') ? $env.CLINIC_WORKING_HOURS_START : '09:00';\nconst workingEnd = isValidTimeText($env.CLINIC_WORKING_HOURS_END || '') ? $env.CLINIC_WORKING_HOURS_END : '21:00';\nconst workingStartMinutes = timeToMinutes(workingStart);\nconst workingEndMinutes = timeToMinutes(workingEnd);\nconst openWeekdays = parseWeekdayList($env.CLINIC_OPEN_WEEKDAYS || '1,2,3,4,5', [1, 2, 3, 4, 5]);\nif (!serviceId) details.push('service.id is required');\nelse if (!serviceDefinition) details.push('service.id is unsupported');\nif (!slotStart) details.push('slotStart is required');\nif (!slotEnd) details.push('slotEnd is required');\nif (slotStart && Number.isNaN(parsedSlotStart?.getTime())) details.push('slotStart is invalid');\nif (requestedSlotEnd && Number.isNaN(parsedRequestedSlotEnd?.getTime())) details.push('slotEnd is invalid');\nif (parsedSlotStart && parsedRequestedSlotEnd && !Number.isNaN(parsedSlotStart.getTime()) && !Number.isNaN(parsedRequestedSlotEnd.getTime()) && parsedRequestedSlotEnd <= parsedSlotStart) {\n  details.push('slotEnd must be after slotStart');\n}\nif (parsedSlotStart && parsedSlotEnd && !Number.isNaN(parsedSlotStart.getTime()) && !Number.isNaN(parsedSlotEnd.getTime()) && parsedSlotEnd <= parsedSlotStart) {\n  details.push('slotEnd must be after slotStart');\n}\nif (rawTimezone && !isValidTimeZone(rawTimezone)) details.push('timezone is invalid');\nif (rawLanguage && !['pl', 'en'].includes(rawLanguage)) details.push('language is invalid');\nif (!patient?.fullName) details.push('patient.fullName is required');\nif (!patient?.phoneE164) {\n  details.push('patient.phoneE164 is required');\n} else if (!e164Pattern.test(patient.phoneE164)) {\n  details.push('patient.phoneE164 must use E.164 format');\n}\nif (source && !allowedSources.has(source)) details.push('source is invalid');\nif (parsedSlotStart && parsedSlotEnd && !Number.isNaN(parsedSlotStart.getTime()) && !Number.isNaN(parsedSlotEnd.getTime())) {\n  const startDateKey = dateKey(parsedSlotStart, timezone);\n  const endDateKey = dateKey(parsedSlotEnd, timezone);\n  if (startDateKey !== endDateKey) {\n    details.push('slot must start and end on the same clinic day');\n  }\n  if (!openWeekdays.includes(getWeekday(parsedSlotStart, timezone))) {\n    details.push('slot must fall on an open clinic day');\n  }\n  const slotStartMinutes = minuteOfDay(parsedSlotStart, timezone);\n  const slotEndMinutes = minuteOfDay(parsedSlotEnd, timezone);\n  if (slotStartMinutes < workingStartMinutes || slotEndMinutes > workingEndMinutes) {\n    details.push('slot must be within clinic working hours');\n  }\n}\nreturn [{ json: {\n  ok: details.length === 0,\n  toolCallId: toolCall?.id || wrappedToolCall?.id || payload.toolCallId || null,\n  requestId: args.requestId || payload.requestId || null,\n  calendarId: args.calendarId || $env.GOOGLE_CALENDAR_ID || 'primary',\n  timezone,\n  language,\n  service,\n  slotStart: slotStart || null,\n  slotEnd: slotEnd || null,\n  patient,\n  notes: typeof args.notes === 'string' ? args.notes : '',\n  source: source || 'phone',\n  sourceCallId: args.sourceCallId || call?.id || payload.callId || null,\n  telephony,\n  validationErrors: details\n} }];"
       }
     },
     {
@@ -149,8 +149,180 @@
         "end": "={{ $json.slotEnd }}",
         "additionalFields": {
           "summary": "={{ `${$json.service.name || $json.service.id} - ${$json.patient.fullName}` }}",
-          "description": "={{ 'Service: ' + ($json.service.name || $json.service.id) + '\\nPatient: ' + $json.patient.fullName + '\\nCallback phone: ' + $json.patient.phoneE164 + '\\nCaller phone: ' + ($json.telephony?.callerPhoneE164 || '-') + '\\nPhone note: ' + (!$json.telephony?.callerPhoneE164 ? '-' : $json.telephony?.callerMatchesPatientPhone === true ? 'caller number matches confirmed callback number' : 'caller number differs from confirmed callback number') + '\\nEmail: ' + ($json.patient.email || '-') + '\\nNotes: ' + ($json.notes || '-') + '\\nSource: ' + $json.source }}"
+          "description": "={{ 'Service: ' + ($json.service.name || $json.service.id) + '\\nPatient: ' + $json.patient.fullName + '\\nCallback phone: ' + $json.patient.phoneE164 + '\\nCaller phone: ' + ($json.telephony?.callerPhoneE164 || '-') + '\\nBooking SMS target: ' + ($json.telephony?.callerPhoneE164 || '-') + '\\nPhone note: ' + (!$json.telephony?.callerPhoneE164 ? '-' : $json.telephony?.callerMatchesPatientPhone === true ? 'caller number matches confirmed callback number' : 'caller number differs from confirmed callback number') + '\\nEmail: ' + ($json.patient.email || '-') + '\\nNotes: ' + ($json.notes || '-') + '\\nSource: ' + $json.source }}"
         }
+      }
+    },
+    {
+      "id": "4b426af5-3743-47d2-a29a-e5d8e7cd9dbd",
+      "name": "Prepare Booking SMS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -240
+      ],
+      "parameters": {
+        "jsCode": "const request = $('Slot Available?').first().json;\nconst event = $('Create Calendar Event').first().json;\nconst clinicName = typeof $env.CLINIC_NAME === 'string' && $env.CLINIC_NAME.trim() ? $env.CLINIC_NAME.trim() : 'ipokrzyku.pl';\nconst sender = typeof $env.AI_RECEPTIONIST_SMS_SENDER === 'string' ? $env.AI_RECEPTIONIST_SMS_SENDER.trim() : '';\nconst language = request.language === 'en' ? 'en' : 'pl';\nconst locale = language === 'en' ? 'en-GB' : 'pl-PL';\nconst start = new Date(request.slotStart);\nconst timeText = new Intl.DateTimeFormat(locale, {\n  timeZone: request.timezone,\n  weekday: 'long',\n  day: 'numeric',\n  month: 'long',\n  hour: '2-digit',\n  minute: '2-digit'\n}).format(start);\nconst serviceName = request.service.name || request.service.id;\nconst callerPhoneE164 = request.telephony?.callerPhoneE164 || null;\nconst callerMatchesDeclaredPhone = typeof request.telephony?.callerMatchesPatientPhone === 'boolean'\n  ? request.telephony.callerMatchesPatientPhone\n  : callerPhoneE164\n    ? callerPhoneE164 === request.patient.phoneE164\n    : null;\nconst recipientPhoneE164 = callerPhoneE164 || null;\nconst phoneContext = {\n  declaredPhoneE164: request.patient.phoneE164,\n  callerPhoneE164,\n  callerPhoneSource: request.telephony?.callerPhoneSource || null,\n  callerMatchesDeclaredPhone,\n  smsRecipientPhoneE164: recipientPhoneE164\n};\nconst body = language === 'en'\n  ? clinicName + ': appointment confirmed for ' + request.patient.fullName + '. ' + serviceName + ', ' + timeText + '. If you need to change it, please contact reception.'\n  : clinicName + ': potwierdzenie wizyty dla ' + request.patient.fullName + '. ' + serviceName + ', ' + timeText + '. W razie zmian prosimy o kontakt z recepcja.';\nreturn [{ json: {\n  requestId: request.requestId,\n  toolCallId: request.toolCallId,\n  sourceCallId: request.sourceCallId || null,\n  calendarEventId: event.id || event.eventId || null,\n  language,\n  patient: {\n    fullName: request.patient.fullName,\n    phoneE164: request.patient.phoneE164\n  },\n  appointment: {\n    start: request.slotStart,\n    end: request.slotEnd,\n    timezone: request.timezone,\n    service: {\n      id: request.service.id,\n      name: serviceName\n    }\n  },\n  kind: 'booking_confirmation',\n  sender: sender || null,\n  recipientPhoneE164,\n  phoneContext,\n  messageBody: body\n} }];"
+      }
+    },
+    {
+      "id": "d257784c-c90e-427d-ab95-99ba6633e5d7",
+      "name": "Send Booking SMS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        -240
+      ],
+      "parameters": {
+        "jsCode": "const request = $('Prepare Booking SMS').first().json;\nconst providerModeRaw = typeof $env.AI_RECEPTIONIST_SMS_PROVIDER === 'string' ? $env.AI_RECEPTIONIST_SMS_PROVIDER.trim().toLowerCase() : '';\nconst providerMode = providerModeRaw || 'mock';\nconst baseResult = {\n  toolCallId: request.toolCallId,\n  requestId: request.requestId,\n  accepted: true,\n  recipientPhoneE164: request.recipientPhoneE164 || null,\n  delivery: {\n    status: 'simulated',\n    provider: providerMode,\n    recipientCount: request.recipientPhoneE164 ? 1 : 0,\n    providerMessageId: null\n  },\n  sms: {\n    kind: request.kind,\n    language: request.language,\n    body: request.messageBody\n  },\n  phoneContext: request.phoneContext || null,\n  message: 'Potwierdzenie SMS po rezerwacji zostalo przygotowane.'\n};\n\nconst buildFailure = (code, message, provider, details, recipientCount = request.recipientPhoneE164 ? 1 : 0) => [{ json: {\n  toolCallId: request.toolCallId,\n  requestId: request.requestId,\n  accepted: false,\n  recipientPhoneE164: request.recipientPhoneE164 || null,\n  delivery: {\n    status: 'failed',\n    provider,\n    recipientCount,\n    providerMessageId: null\n  },\n  sms: baseResult.sms,\n  phoneContext: request.phoneContext || null,\n  message,\n  error: {\n    code,\n    details\n  }\n} }];\n\nif (!request.recipientPhoneE164) {\n  return buildFailure(\n    'CALLER_PHONE_UNAVAILABLE',\n    'Nie mozna wyslac potwierdzenia SMS po rezerwacji.',\n    'validation',\n    ['Live caller phone number was not available for this booking']\n  );\n}\n\nif (providerMode === 'mock') {\n  return [{ json: {\n    ...baseResult,\n    delivery: {\n      ...baseResult.delivery,\n      provider: 'mock'\n    }\n  } }];\n}\n\nif (providerMode === 'twilio') {\n  const accountSid = typeof $env.TWILIO_ACCOUNT_SID === 'string' ? $env.TWILIO_ACCOUNT_SID.trim() : '';\n  const authToken = typeof $env.TWILIO_AUTH_TOKEN === 'string' ? $env.TWILIO_AUTH_TOKEN.trim() : '';\n  const fromNumber = typeof $env.TWILIO_PHONE_NUMBER === 'string' ? $env.TWILIO_PHONE_NUMBER.trim() : '';\n  if (!accountSid || !authToken || !fromNumber) {\n    return buildFailure(\n      'SMS_PROVIDER_NOT_CONFIGURED',\n      'Nie mozna wyslac potwierdzenia SMS po rezerwacji.',\n      'twilio',\n      ['TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER are required for twilio mode']\n    );\n  }\n\n  const authHeader = `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`;\n\n  return [{ json: {\n    dispatchMode: 'twilio',\n    toolCallId: request.toolCallId,\n    requestId: request.requestId,\n    recipientPhoneE164: request.recipientPhoneE164,\n    recipient: request.recipientPhoneE164,\n    messageBody: request.messageBody,\n    accountSid,\n    fromNumber,\n    authHeader,\n    baseResult\n  } }];\n}\n\nif (providerMode !== 'webhook') {\n  return buildFailure(\n    'SMS_PROVIDER_INVALID',\n    'Nie mozna wyslac potwierdzenia SMS po rezerwacji.',\n    providerMode,\n    [`Unsupported AI_RECEPTIONIST_SMS_PROVIDER: ${providerMode}`]\n  );\n}\n\nconst webhookUrl = typeof $env.AI_RECEPTIONIST_SMS_WEBHOOK_URL === 'string' ? $env.AI_RECEPTIONIST_SMS_WEBHOOK_URL.trim() : '';\nif (!webhookUrl) {\n  return buildFailure(\n    'SMS_PROVIDER_NOT_CONFIGURED',\n    'Nie mozna wyslac potwierdzenia SMS po rezerwacji.',\n    'webhook',\n    ['AI_RECEPTIONIST_SMS_WEBHOOK_URL is required for webhook mode']\n  );\n}\n\nconst bearerToken = typeof $env.AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN === 'string' ? $env.AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN.trim() : '';\nconst timeoutMsRaw = Number.parseInt($env.AI_RECEPTIONIST_SMS_WEBHOOK_TIMEOUT_MS || '10000', 10);\nconst timeoutMs = Number.isFinite(timeoutMsRaw) && timeoutMsRaw > 0 ? timeoutMsRaw : 10000;\nconst webhookHeaders = bearerToken ? { authorization: `Bearer ${bearerToken}` } : {};\n\nreturn [{ json: {\n  dispatchMode: 'webhook',\n  toolCallId: request.toolCallId,\n  requestId: request.requestId,\n  recipientPhoneE164: request.recipientPhoneE164,\n  timeoutMs,\n  webhookUrl,\n  webhookHeaders,\n  webhookBody: {\n    sender: request.sender,\n    to: [request.recipientPhoneE164],\n    body: request.messageBody,\n    kind: request.kind,\n    metadata: {\n      requestId: request.requestId,\n      calendarEventId: request.calendarEventId,\n      appointmentStart: request.appointment.start,\n      appointmentEnd: request.appointment.end || null,\n      timezone: request.appointment.timezone,\n      sourceCallId: request.sourceCallId || null,\n      language: request.language,\n      declaredPhoneE164: request.phoneContext?.declaredPhoneE164 || null,\n      callerPhoneE164: request.phoneContext?.callerPhoneE164 || null,\n      callerPhoneSource: request.phoneContext?.callerPhoneSource || null,\n      callerMatchesDeclaredPhone: typeof request.phoneContext?.callerMatchesDeclaredPhone === 'boolean'\n        ? request.phoneContext.callerMatchesDeclaredPhone\n        : null,\n      recipientPhoneE164: request.recipientPhoneE164\n    }\n  },\n  baseResult\n} }];"
+      }
+    },
+    {
+      "id": "8870f707-c4ad-4f1e-ac0d-0d953ccffeff",
+      "name": "Immediate SMS Result?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        -240
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.accepted === true || $json.accepted === false }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "d8e6d5ab-e7d8-49e6-b8f6-c450be357db7",
+      "name": "SMS Delivery Mode?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1660,
+        -120
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.dispatchMode }}",
+              "operation": "equal",
+              "value2": "twilio"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c6262a01-b795-4596-b760-ac6f6a58dc88",
+      "name": "Dispatch Booking Twilio SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1920,
+        -300
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://api.twilio.com/2010-04-01/Accounts/' + $json.accountSid + '/Messages.json' }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify({ authorization: $json.authHeader }) }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "={{ $json.fromNumber }}"
+            },
+            {
+              "name": "To",
+              "value": "={{ $json.recipient }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ $json.messageBody }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "autodetect"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "6d77b19f-f70a-4b55-95ea-29467345f6af",
+      "name": "Finalize Booking Twilio Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2180,
+        -300
+      ],
+      "parameters": {
+        "jsCode": "const responseItems = $input.all();\nconst plannedItems = $('Send Booking SMS').all().map((item) => item.json).filter((item) => item.dispatchMode === 'twilio');\nconst fallbackItem = plannedItems[0] || {};\nconst baseResult = fallbackItem.baseResult || {};\nconst recipientPhoneE164 = fallbackItem.recipientPhoneE164 || fallbackItem.recipient || baseResult.recipientPhoneE164 || null;\n\nconst buildFailure = (details) => [{ json: {\n  toolCallId: baseResult.toolCallId || fallbackItem.toolCallId || null,\n  requestId: baseResult.requestId || fallbackItem.requestId || null,\n  accepted: false,\n  recipientPhoneE164,\n  delivery: {\n    status: 'failed',\n    provider: 'twilio',\n    recipientCount: recipientPhoneE164 ? 1 : 0,\n    providerMessageId: null\n  },\n  sms: baseResult.sms || null,\n  phoneContext: baseResult.phoneContext || null,\n  message: 'Nie mozna wyslac potwierdzenia SMS po rezerwacji.',\n  error: {\n    code: 'SMS_PROVIDER_REJECTED',\n    details\n  }\n} }];\n\nconst normalizeProviderStatus = (status) => {\n  const normalized = typeof status === 'string' ? status.trim().toLowerCase() : '';\n  if (normalized === 'sent' || normalized === 'delivered') return 'sent';\n  if (normalized === 'queued' || normalized === 'accepted' || normalized === 'scheduled' || normalized === 'sending') return 'queued';\n  if (normalized === 'failed' || normalized === 'undelivered' || normalized === 'canceled') return 'failed';\n  return 'queued';\n};\n\nconst parseBody = (value) => {\n  if (typeof value === 'string') {\n    try {\n      return JSON.parse(value);\n    } catch (error) {\n      return value;\n    }\n  }\n  return value;\n};\n\nconst summarizeBody = (value) => {\n  if (!value) return '';\n  if (typeof value === 'string') return value.slice(0, 500);\n  if (typeof value.message === 'string') return value.message.slice(0, 500);\n  if (typeof value.error_message === 'string') return value.error_message.slice(0, 500);\n  try {\n    return JSON.stringify(value).slice(0, 500);\n  } catch (error) {\n    return '';\n  }\n};\n\nif (plannedItems.length === 0) {\n  return buildFailure(['Missing Twilio dispatch context']);\n}\n\nconst responseItem = responseItems[0]?.json || {};\nconst parsedBody = parseBody(responseItem.body);\n\nif (responseItem.error) {\n  const detail = typeof responseItem.error === 'string'\n    ? responseItem.error\n    : responseItem.error.message || summarizeBody(responseItem.error) || 'Unknown Twilio error';\n  return buildFailure([detail]);\n}\n\nconst statusCode = Number(responseItem.statusCode);\nif (!Number.isFinite(statusCode)) {\n  return buildFailure(['Missing Twilio statusCode']);\n}\n\nif (statusCode < 200 || statusCode >= 300) {\n  const bodySummary = summarizeBody(parsedBody);\n  return buildFailure([`HTTP ${statusCode}${bodySummary ? ` ${bodySummary}` : ''}`]);\n}\n\nconst normalizedStatus = normalizeProviderStatus(parsedBody?.status);\nif (normalizedStatus === 'failed') {\n  const bodySummary = summarizeBody(parsedBody);\n  return buildFailure([bodySummary || 'Twilio returned a failed delivery status']);\n}\n\nreturn [{ json: {\n  ...baseResult,\n  recipientPhoneE164,\n  delivery: {\n    status: normalizedStatus,\n    provider: 'twilio',\n    recipientCount: recipientPhoneE164 ? 1 : 0,\n    providerMessageId: typeof parsedBody?.sid === 'string' ? parsedBody.sid : null\n  },\n  message: normalizedStatus === 'sent'\n    ? 'Potwierdzenie SMS po rezerwacji zostalo wyslane.'\n    : 'Potwierdzenie SMS po rezerwacji zostalo przekazane do wysylki.'\n} }];"
+      }
+    },
+    {
+      "id": "d39f5e4b-62fe-49d6-a8a3-1f22e1afd4fb",
+      "name": "Dispatch Booking Webhook SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1920,
+        40
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.webhookUrl }}",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={{ JSON.stringify($json.webhookHeaders) }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.webhookBody) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "autodetect"
+            }
+          },
+          "timeout": "={{ $json.timeoutMs }}"
+        }
+      }
+    },
+    {
+      "id": "f8ac126e-4483-4815-ba38-f15ae4721a87",
+      "name": "Finalize Booking Webhook Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2180,
+        40
+      ],
+      "parameters": {
+        "jsCode": "const responseItems = $input.all();\nconst plannedItem = $('Send Booking SMS').all().map((item) => item.json).find((item) => item.dispatchMode === 'webhook') || {};\nconst baseResult = plannedItem.baseResult || {};\nconst recipientPhoneE164 = plannedItem.recipientPhoneE164 || baseResult.recipientPhoneE164 || null;\nconst responseItem = responseItems[0]?.json || {};\n\nconst buildFailure = (details) => [{ json: {\n  toolCallId: baseResult.toolCallId || plannedItem.toolCallId || null,\n  requestId: baseResult.requestId || plannedItem.requestId || null,\n  accepted: false,\n  recipientPhoneE164,\n  delivery: {\n    status: 'failed',\n    provider: 'webhook',\n    recipientCount: recipientPhoneE164 ? 1 : 0,\n    providerMessageId: null\n  },\n  sms: baseResult.sms || null,\n  phoneContext: baseResult.phoneContext || null,\n  message: 'Nie mozna wyslac potwierdzenia SMS po rezerwacji.',\n  error: {\n    code: 'SMS_PROVIDER_REJECTED',\n    details\n  }\n} }];\n\nconst normalizeProviderStatus = (status) => {\n  const normalized = typeof status === 'string' ? status.trim().toLowerCase() : '';\n  if (normalized === 'sent' || normalized === 'delivered') return 'sent';\n  if (normalized === 'queued' || normalized === 'accepted' || normalized === 'scheduled' || normalized === 'sending') return 'queued';\n  if (normalized === 'failed' || normalized === 'undelivered' || normalized === 'canceled') return 'failed';\n  return 'queued';\n};\n\nconst parseBody = (value) => {\n  if (typeof value === 'string') {\n    try {\n      return JSON.parse(value);\n    } catch (error) {\n      return value;\n    }\n  }\n  return value;\n};\n\nconst summarizeBody = (value) => {\n  if (!value) return '';\n  if (typeof value === 'string') return value.slice(0, 500);\n  if (typeof value.message === 'string') return value.message.slice(0, 500);\n  try {\n    return JSON.stringify(value).slice(0, 500);\n  } catch (error) {\n    return '';\n  }\n};\n\nif (!plannedItem.dispatchMode) {\n  return buildFailure(['Missing webhook dispatch context']);\n}\n\nif (responseItem.error) {\n  const detail = typeof responseItem.error === 'string'\n    ? responseItem.error\n    : responseItem.error.message || summarizeBody(responseItem.error) || 'Unknown webhook error';\n  return buildFailure([detail]);\n}\n\nconst statusCode = Number(responseItem.statusCode);\nif (!Number.isFinite(statusCode)) {\n  return buildFailure(['Missing webhook statusCode']);\n}\n\nconst parsedBody = parseBody(responseItem.body);\nif (statusCode < 200 || statusCode >= 300) {\n  const bodySummary = summarizeBody(parsedBody);\n  return buildFailure([`HTTP ${statusCode}${bodySummary ? ` ${bodySummary}` : ''}`]);\n}\n\nconst normalizedStatus = normalizeProviderStatus(parsedBody?.status);\nif (normalizedStatus === 'failed') {\n  return buildFailure([summarizeBody(parsedBody) || 'Webhook returned a failed delivery status']);\n}\n\nreturn [{ json: {\n  ...baseResult,\n  recipientPhoneE164,\n  delivery: {\n    status: normalizedStatus,\n    provider: 'webhook',\n    recipientCount: recipientPhoneE164 ? 1 : 0,\n    providerMessageId: typeof parsedBody?.messageId === 'string'\n      ? parsedBody.messageId\n      : typeof parsedBody?.id === 'string'\n        ? parsedBody.id\n        : typeof parsedBody?.sid === 'string'\n          ? parsedBody.sid\n          : null\n  },\n  message: normalizedStatus === 'sent'\n    ? 'Potwierdzenie SMS po rezerwacji zostalo wyslane.'\n    : 'Potwierdzenie SMS po rezerwacji zostalo przekazane do wysylki.'\n} }];"
       }
     },
     {
@@ -159,11 +331,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
+        2440,
         -120
       ],
       "parameters": {
-        "jsCode": "const request = $('Slot Available?').first().json;\nconst event = $json;\nconst callerPhoneE164 = request.telephony?.callerPhoneE164 || null;\nconst callerMatchesDeclaredPhone = typeof request.telephony?.callerMatchesPatientPhone === 'boolean'\n  ? request.telephony.callerMatchesPatientPhone\n  : callerPhoneE164\n    ? callerPhoneE164 === request.patient.phoneE164\n    : null;\nconst result = {\n  requestId: request.requestId,\n  created: true,\n  calendarEventId: event.id || event.eventId || null,\n  appointment: {\n    calendarId: request.calendarId,\n    start: request.slotStart,\n    end: request.slotEnd,\n    timezone: request.timezone,\n    service: {\n      id: request.service.id,\n      name: request.service.name || request.service.id\n    },\n    patient: {\n      fullName: request.patient.fullName,\n      phoneE164: request.patient.phoneE164,\n      email: request.patient.email || null\n    }\n  },\n  phoneContext: {\n    declaredPhoneE164: request.patient.phoneE164,\n    callerPhoneE164,\n    callerPhoneSource: request.telephony?.callerPhoneSource || null,\n    callerMatchesDeclaredPhone\n  },\n  message: 'Wizyta zostala potwierdzona.'\n};\nconst body = request.toolCallId\n  ? { results: [{ toolCallId: request.toolCallId, result }] }\n  : result;\nreturn [{ json: body }];"
+        "jsCode": "const request = $('Slot Available?').first().json;\nconst event = $('Create Calendar Event').first().json;\nconst smsResult = $json && typeof $json === 'object' ? $json : {};\nconst callerPhoneE164 = request.telephony?.callerPhoneE164 || null;\nconst callerMatchesDeclaredPhone = typeof request.telephony?.callerMatchesPatientPhone === 'boolean'\n  ? request.telephony.callerMatchesPatientPhone\n  : callerPhoneE164\n    ? callerPhoneE164 === request.patient.phoneE164\n    : null;\nconst smsRecipientPhoneE164 = typeof smsResult.recipientPhoneE164 === 'string'\n  ? smsResult.recipientPhoneE164\n  : callerPhoneE164;\nconst bookingConfirmationSms = {\n  accepted: smsResult.accepted === true,\n  recipientPhoneE164: smsRecipientPhoneE164 || null,\n  delivery: smsResult.delivery || {\n    status: 'failed',\n    provider: 'unknown',\n    recipientCount: smsRecipientPhoneE164 ? 1 : 0,\n    providerMessageId: null\n  },\n  sms: smsResult.sms || null,\n  message: typeof smsResult.message === 'string' ? smsResult.message : null,\n  error: smsResult.accepted === false ? (smsResult.error || null) : null\n};\nconst result = {\n  requestId: request.requestId,\n  created: true,\n  calendarEventId: event.id || event.eventId || null,\n  appointment: {\n    calendarId: request.calendarId,\n    start: request.slotStart,\n    end: request.slotEnd,\n    timezone: request.timezone,\n    service: {\n      id: request.service.id,\n      name: request.service.name || request.service.id\n    },\n    patient: {\n      fullName: request.patient.fullName,\n      phoneE164: request.patient.phoneE164,\n      email: request.patient.email || null\n    }\n  },\n  phoneContext: {\n    declaredPhoneE164: request.patient.phoneE164,\n    callerPhoneE164,\n    callerPhoneSource: request.telephony?.callerPhoneSource || null,\n    callerMatchesDeclaredPhone,\n    smsRecipientPhoneE164: smsRecipientPhoneE164 || null\n  },\n  bookingConfirmationSms,\n  message: 'Wizyta zostala potwierdzona.'\n};\nconst body = request.toolCallId\n  ? { results: [{ toolCallId: request.toolCallId, result }] }\n  : result;\nreturn [{ json: body }];"
       }
     },
     {
@@ -323,6 +495,108 @@
       ]
     },
     "Create Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Prepare Booking SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Booking SMS": {
+      "main": [
+        [
+          {
+            "node": "Send Booking SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Booking SMS": {
+      "main": [
+        [
+          {
+            "node": "Immediate SMS Result?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Immediate SMS Result?": {
+      "main": [
+        [
+          {
+            "node": "Format Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SMS Delivery Mode?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SMS Delivery Mode?": {
+      "main": [
+        [
+          {
+            "node": "Dispatch Booking Twilio SMS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Dispatch Booking Webhook SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dispatch Booking Twilio SMS": {
+      "main": [
+        [
+          {
+            "node": "Finalize Booking Twilio Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Booking Twilio Response": {
+      "main": [
+        [
+          {
+            "node": "Format Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dispatch Booking Webhook SMS": {
+      "main": [
+        [
+          {
+            "node": "Finalize Booking Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Booking Webhook Response": {
       "main": [
         [
           {

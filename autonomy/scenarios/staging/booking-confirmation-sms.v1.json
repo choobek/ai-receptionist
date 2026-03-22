@@ -1,8 +1,8 @@
 {
   "schema_version": "staging-chat-scenario.v1",
   "scenario_id": "booking-confirmation-sms",
-  "title": "Confirmed booking triggers patient SMS only after createEvent succeeds",
-  "description": "The caller asks to book a first consultation, explicitly requests an SMS confirmation, selects the first slot, confirms synthetic identity details, and then confirms the booking. When the SMS tool is available, the assistant should call sendSmsToPatient only after createEvent succeeds and should reuse the created calendarEventId.",
+  "title": "Confirmed booking returns embedded patient SMS result from createEvent",
+  "description": "The caller asks to book a first consultation, explicitly requests an SMS confirmation, selects the first slot, confirms synthetic identity details, and then confirms the booking. The assistant should not call a separate patient-SMS tool. Instead, createEvent should complete the booking and return the embedded booking-confirmation SMS result.",
   "status": "active",
   "environment": "staging",
   "language": "pl",
@@ -12,9 +12,7 @@
     "post-booking",
     "staging-write"
   ],
-  "required_tool_bindings": [
-    "sendSmsToPatient"
-  ],
+  "required_tool_bindings": [],
   "source": {
     "origin": "project_scope",
     "references": [
@@ -142,110 +140,61 @@
       }
     },
     {
-      "criterion_id": "patient-sms-called-on-final-turn",
-      "description": "The assistant should only call sendSmsToPatient on the final confirmation turn.",
+      "criterion_id": "booking-sms-workflow-accepted",
+      "description": "createEvent should return accepted booking-SMS metadata after the booking succeeds.",
       "severity": "critical",
-      "root_cause_hint": "assistant did not trigger the patient SMS after a fully confirmed booking",
-      "rule": {
-        "type": "turn_tool_called",
-        "turn": 6,
-        "tool_name": "sendSmsToPatient"
-      }
-    },
-    {
-      "criterion_id": "patient-sms-called-after-booking-result",
-      "description": "The patient SMS should be triggered only after createEvent has already returned its result.",
-      "severity": "critical",
-      "root_cause_hint": "assistant called sendSmsToPatient before the createEvent result was available",
-      "rule": {
-        "type": "tool_called_after_tool_result",
-        "tool_name": "sendSmsToPatient",
-        "source_tool_name": "createEvent"
-      }
-    },
-    {
-      "criterion_id": "patient-sms-workflow-accepted",
-      "description": "The patient SMS workflow itself should accept the request after the booking succeeds.",
-      "severity": "critical",
-      "root_cause_hint": "sendSmsToPatient was called but the SMS workflow rejected or failed the request",
+      "root_cause_hint": "createEvent stopped returning the embedded booking-SMS result",
       "rule": {
         "type": "tool_result_path_equals",
-        "tool_name": "sendSmsToPatient",
-        "path": "accepted",
+        "tool_name": "createEvent",
+        "path": "bookingConfirmationSms.accepted",
         "equals": true
       }
     },
     {
-      "criterion_id": "patient-sms-reuses-calendar-event-id",
-      "description": "The patient SMS must reuse the exact calendarEventId returned by createEvent.",
-      "severity": "critical",
-      "root_cause_hint": "assistant did not propagate the created booking ID into sendSmsToPatient",
-      "rule": {
-        "type": "tool_arg_matches_tool_result_path",
-        "tool_name": "sendSmsToPatient",
-        "path": "calendarEventId",
-        "source_tool_name": "createEvent",
-        "source_path": "calendarEventId"
-      }
-    },
-    {
-      "criterion_id": "patient-sms-targets-single-recipient",
-      "description": "The patient SMS workflow should target exactly one recipient for this confirmed booking.",
+      "criterion_id": "booking-sms-targets-single-recipient",
+      "description": "The embedded patient SMS result should target exactly one recipient for this confirmed booking.",
       "severity": "high",
-      "root_cause_hint": "sendSmsToPatient produced an unexpected recipient count in the workflow result",
+      "root_cause_hint": "createEvent returned an unexpected recipient count in the embedded booking-SMS result",
       "rule": {
         "type": "tool_result_path_equals",
-        "tool_name": "sendSmsToPatient",
-        "path": "delivery.recipientCount",
+        "tool_name": "createEvent",
+        "path": "bookingConfirmationSms.delivery.recipientCount",
         "equals": 1
       }
     },
     {
-      "criterion_id": "patient-sms-produces-booking-confirmation-payload",
-      "description": "The patient SMS workflow should return a booking_confirmation payload.",
+      "criterion_id": "booking-sms-produces-booking-confirmation-payload",
+      "description": "The embedded patient SMS result should return a booking_confirmation payload.",
       "severity": "high",
-      "root_cause_hint": "sendSmsToPatient did not return the expected booking confirmation SMS payload",
+      "root_cause_hint": "createEvent did not return the expected booking confirmation SMS payload metadata",
       "rule": {
         "type": "tool_result_path_equals",
-        "tool_name": "sendSmsToPatient",
-        "path": "sms.kind",
+        "tool_name": "createEvent",
+        "path": "bookingConfirmationSms.sms.kind",
         "equals": "booking_confirmation"
       }
     },
     {
-      "criterion_id": "patient-sms-keeps-consent-confirmed",
-      "description": "The SMS request must pass explicit consent into sendSmsToPatient.",
-      "severity": "high",
-      "root_cause_hint": "assistant lost the explicit SMS consent before the sendSmsToPatient call",
-      "rule": {
-        "type": "tool_arg_equals",
-        "tool_name": "sendSmsToPatient",
-        "path": "consentConfirmed",
-        "equals": true
-      }
-    },
-    {
-      "criterion_id": "patient-sms-result-keeps-polish-language",
-      "description": "The generated SMS payload should stay in Polish for a Polish conversation.",
+      "criterion_id": "booking-sms-result-keeps-polish-language",
+      "description": "The generated embedded SMS payload should stay in Polish for a Polish conversation.",
       "severity": "medium",
-      "root_cause_hint": "sendSmsToPatient generated a result payload in the wrong language",
+      "root_cause_hint": "createEvent generated the embedded SMS payload in the wrong language",
       "rule": {
         "type": "tool_result_path_equals",
-        "tool_name": "sendSmsToPatient",
-        "path": "sms.language",
+        "tool_name": "createEvent",
+        "path": "bookingConfirmationSms.sms.language",
         "equals": "pl"
       }
     },
     {
-      "criterion_id": "patient-sms-keeps-polish-language",
-      "description": "A Polish conversation should set sendSmsToPatient.language to pl.",
-      "severity": "medium",
-      "root_cause_hint": "assistant drifted the SMS language away from the conversation language",
+      "criterion_id": "no-separate-patient-sms-tool",
+      "description": "The assistant should not call the direct patient SMS tool in this booking flow.",
+      "severity": "high",
+      "root_cause_hint": "assistant still tried to call sendSmsToPatient even though createEvent owns booking SMS delivery",
       "rule": {
-        "type": "tool_arg_equals",
-        "tool_name": "sendSmsToPatient",
-        "path": "language",
-        "equals": "pl"
+        "type": "tool_not_called",
+        "tool_name": "sendSmsToPatient"
       }
     },
     {

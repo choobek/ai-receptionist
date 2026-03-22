@@ -94,6 +94,96 @@
             "boolean",
             "null"
           ]
+        },
+        "smsRecipientPhoneE164": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "bookingConfirmationSms": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "accepted": {
+          "type": "boolean"
+        },
+        "recipientPhoneE164": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "delivery": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "type": "string"
+            },
+            "provider": {
+              "type": "string"
+            },
+            "recipientCount": {
+              "type": "integer"
+            },
+            "providerMessageId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "sms": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "language": {
+              "type": "string"
+            },
+            "body": {
+              "type": "string"
+            }
+          }
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "error": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         }
       }
     },
@@ -124,7 +214,7 @@
       "appointment": {
         "calendarId": "primary",
         "start": "2026-03-12T09:00:00+01:00",
-        "end": "2026-03-12T09:30:00+01:00",
+        "end": "2026-03-12T09:45:00+01:00",
         "timezone": "Europe/Warsaw",
         "service": {
           "id": "consultation",
@@ -140,7 +230,25 @@
         "declaredPhoneE164": "+48500100200",
         "callerPhoneE164": "+48500100200",
         "callerPhoneSource": "customer.number",
-        "callerMatchesDeclaredPhone": true
+        "callerMatchesDeclaredPhone": true,
+        "smsRecipientPhoneE164": "+48500100200"
+      },
+      "bookingConfirmationSms": {
+        "accepted": true,
+        "recipientPhoneE164": "+48500100200",
+        "delivery": {
+          "status": "simulated",
+          "provider": "mock",
+          "recipientCount": 1,
+          "providerMessageId": null
+        },
+        "sms": {
+          "kind": "booking_confirmation",
+          "language": "pl",
+          "body": "ipokrzyku.pl: potwierdzenie wizyty dla Jan Kowalski. Konsultacja, czwartek, 12 marca, 09:00. W razie zmian prosimy o kontakt z recepcja."
+        },
+        "message": "Potwierdzenie SMS po rezerwacji zostalo przygotowane.",
+        "error": null
       },
       "message": "Wizyta zostala potwierdzona."
     }

@@ -41,7 +41,7 @@ Confirm them in:
 - Vapi custom tool `searchKnowledgeBase`
 - Vapi custom tool `createReceptionTask`
 - optional Vapi custom tool `sendSmsToReceptionists`
-- optional Vapi custom tool `sendSmsToPatient`
+- optional direct/manual webhook `sendSmsToPatient` for SMS-provider probes (not bound to the assistant booking flow)
 - any Vapi webhook/server configuration that sends `call.ended` events to n8n
 
 Nothing in the Google Calendar credentials should need to change if the workflows are already connected correctly in n8n.
@@ -259,7 +259,7 @@ Run these on staging first, then repeat on production only after staging behavio
 
 ## 10. Direct tool test: `sendSmsToPatient`
 
-For a safe first pass, keep `AI_RECEPTIONIST_SMS_PROVIDER=mock` in the target environment.
+For a safe first pass, keep `AI_RECEPTIONIST_SMS_PROVIDER=mock` in the target environment. This endpoint remains useful for direct SMS-provider probes even though the normal assistant booking flow now sends the patient SMS inside `createEvent`.
 
 ```bash
 curl -sS -X POST https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/send-sms-to-patient \
@@ -309,7 +309,7 @@ Notes:
 - by default it restores the staging stack to the provider configured in the remote root `.env` after the run
 - use `--keep-provider` only if you intentionally want staging to stay in the selected mode
 - in `twilio` or `webhook` mode the patient phone must be a real test recipient; if omitted, the helper falls back to the first number from local `AI_RECEPTIONIST_RECEPTION_SMS_RECIPIENTS`
-- the helper also injects that same recipient into the `booking-confirmation-sms` assistant scenario so the patient-facing end-to-end SMS path can be exercised without hand-editing the scenario file
+- the helper also injects that same recipient into the `booking-confirmation-sms` assistant scenario so the createEvent-owned booking SMS path can be exercised without hand-editing the scenario file
 
 ## 11. Structured output webhook router test
 
@@ -429,7 +429,7 @@ If tool calls fail:
 If the assistant speaks but no booking happens:
 - verify the Vapi tool URLs use `https://vps-2c8bbf65.vps.ovh.net`
 - verify the schema names in Vapi still match `lookupPatient`, `checkAvailability`, `searchKnowledgeBase`, `createEvent`, and `createReceptionTask`
-- if SMS is enabled in that environment, also verify `sendSmsToReceptionists` and `sendSmsToPatient`
+- if SMS is enabled in that environment, also verify `sendSmsToReceptionists` and the embedded booking-SMS result returned by `createEvent`
 - verify the system prompt is the current file from this repo
 
 If structured output exists but router does not classify it:
@@ -446,7 +446,7 @@ Consider the setup healthy when all of these are true:
 - public `createEvent` works through the hosted URL
 - public `createReceptionTask` works through the hosted URL
 - public `sendSmsToReceptionists` works through the hosted URL
-- public `sendSmsToPatient` works through the hosted URL
+- public `sendSmsToPatient` direct webhook works through the hosted URL
 - a real Vapi call creates a Google Calendar event
 - the call produces structured output
 - the `call.ended` n8n router returns the expected route

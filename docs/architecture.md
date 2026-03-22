@@ -22,7 +22,6 @@ Deliver a first working version of an AI receptionist for a Polish dental clinic
 - calls `checkAvailability` and `createEvent`
 - can queue human follow-up through `createReceptionTask`
 - can optionally alert reception through `sendSmsToReceptionists`
-- can optionally send a patient booking confirmation through `sendSmsToPatient`
 - speaks the returned result in natural language
 
 ### n8n
@@ -86,7 +85,8 @@ Deliver a first working version of an AI receptionist for a Polish dental clinic
 4. n8n validates the patient payload.
 5. n8n re-checks slot availability.
 6. n8n creates the calendar event.
-7. n8n returns a confirmation object.
+7. n8n deterministically attempts the booking-confirmation SMS to the live caller number from telephony metadata.
+8. n8n returns a confirmation object that includes booking-SMS audit data.
 
 ### Reception follow-up
 
@@ -105,8 +105,8 @@ Deliver a first working version of an AI receptionist for a Polish dental clinic
 
 ### Patient confirmation SMS
 
-1. After `createEvent` succeeds and the caller explicitly agreed to SMS, Vapi can call `sendSmsToPatient`.
-2. n8n builds a short confirmation SMS in Polish or English.
+1. `createEvent` builds a short confirmation SMS in Polish or English as part of the booking workflow.
+2. The SMS destination is the live caller number from telephony metadata when that ground-truth number is available.
 3. In `mock` mode it returns a simulated delivery result.
 4. In `webhook` mode it POSTs the SMS payload to the configured downstream gateway.
 
