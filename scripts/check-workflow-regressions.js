@@ -1552,6 +1552,25 @@ test('assistant renderer includes SMS tools in staging when bindings are configu
   assert.ok(patientSmsBinding?.serverUrl?.includes('/send-sms-to-patient?secret='));
 });
 
+test('assistant renderer applies staging assistant overrides without changing the shared config', () => {
+  const shared = loadAssistantConfig();
+  const rendered = renderAssistantConfig('staging', {
+    STAGING_N8N_PUBLIC_BASE_URL: 'https://staging.example.test',
+    STAGING_AI_RECEPTIONIST_WEBHOOK_SECRET: 'stage-secret'
+  });
+
+  assert.equal(shared.assistant?.transcriber?.provider, 'openai');
+  assert.equal(shared.assistant?.transcriber?.model, 'gpt-4o-transcribe');
+  assert.equal(rendered.assistant?.transcriber?.provider, '11labs');
+  assert.equal(rendered.assistant?.transcriber?.model, 'scribe_v2');
+  assert.equal(rendered.assistant?.transcriber?.language, 'pl');
+  assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.4);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.5);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 1.4);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 1);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.smartEndpointingPlan?.provider, 'vapi');
+});
+
 assistantInvariantTest('assistant SMS scenarios resolve required tool bindings against staging and production environments', () => {
   const stagingEnabledBindings = getEnabledToolBindings(loadEnvironmentBindings('staging'));
   const productionEnabledBindings = getEnabledToolBindings(loadEnvironmentBindings('production'));

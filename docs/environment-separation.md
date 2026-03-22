@@ -3,7 +3,7 @@
 This repo now separates shared application logic from environment bindings:
 
 - Shared Vapi assistant behavior lives in [`../configs/vapi/assistant.v1.json`](../configs/vapi/assistant.v1.json).
-- Environment-specific Vapi resource IDs live in [`../configs/vapi/environments/staging.json`](../configs/vapi/environments/staging.json) and [`../configs/vapi/environments/production.json`](../configs/vapi/environments/production.json).
+- Environment-specific Vapi resource IDs and optional assistant overrides live in [`../configs/vapi/environments/staging.json`](../configs/vapi/environments/staging.json) and [`../configs/vapi/environments/production.json`](../configs/vapi/environments/production.json).
 - Local automation reads one root [`.env.example`](../.env.example) template with `STAGING_*` and `PRODUCTION_*` values.
 - Each deployed n8n target still keeps its own unprefixed root `.env` on that host.
 

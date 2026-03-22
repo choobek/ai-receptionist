@@ -3,7 +3,7 @@
 This repo should be operated from one root `.env` and six source-of-truth areas:
 
 - shared Vapi assistant config: [`configs/vapi/assistant.v1.json`](../configs/vapi/assistant.v1.json)
-- environment-specific Vapi bindings: [`configs/vapi/environments/`](../configs/vapi/environments/)
+- environment-specific Vapi bindings and optional assistant overrides: [`configs/vapi/environments/`](../configs/vapi/environments/)
 - Vapi structured outputs: [`../configs/vapi/structured-outputs/`](../configs/vapi/structured-outputs/)
 - Vapi scorecards: [`../configs/vapi/scorecards/`](../configs/vapi/scorecards/)
 - Vapi eval definitions: [`../configs/vapi/evals/`](../configs/vapi/evals/)

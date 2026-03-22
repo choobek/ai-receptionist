@@ -77,6 +77,20 @@ def append_secret(url: str, secret: str) -> str:
     )
 
 
+def deep_merge(base, override):
+    if not isinstance(base, dict) or not isinstance(override, dict):
+        return copy.deepcopy(override)
+
+    merged = copy.deepcopy(base)
+    for key, value in override.items():
+        existing = merged.get(key)
+        if isinstance(existing, dict) and isinstance(value, dict):
+            merged[key] = deep_merge(existing, value)
+        else:
+            merged[key] = copy.deepcopy(value)
+    return merged
+
+
 with open(config_path, "r", encoding="utf-8") as handle:
     shared = json.load(handle)
 
@@ -134,6 +148,10 @@ assistant = copy.deepcopy(shared.get("assistant") or {})
 assistant_name = bindings.get("assistantName")
 if isinstance(assistant_name, str) and assistant_name.strip():
     assistant["name"] = assistant_name.strip()
+
+assistant_overrides = bindings.get("assistantOverrides")
+if isinstance(assistant_overrides, dict):
+    assistant = deep_merge(assistant, assistant_overrides)
 
 model = assistant.setdefault("model", {})
 model["toolIds"] = tool_ids
