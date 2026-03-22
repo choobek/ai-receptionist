@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "name": "Vapi Live Call Autoevaluation Policy",
+  "description": "Thresholds and review rules for scorecard-backed Vapi live call autoevaluation.",
+  "passingFailureCategories": [
+    "none",
+    "needs_human_handoff",
+    "caller_abandoned"
+  ],
+  "reviewFailureCategories": {
+    "structured_output_missing": "high",
+    "wrong_tool_usage": "high",
+    "missing_required_data": "high",
+    "repeated_question": "medium",
+    "unsupported_claim": "high",
+    "tool_failure": "high",
+    "booking_conflict": "medium",
+    "other": "medium"
+  },
+  "scorecardThresholds": [
+    {
+      "scorecardName": "Core Call Quality",
+      "warnBelow": 85,
+      "criticalBelow": 70
+    },
+    {
+      "scorecardName": "Conversation Discipline",
+      "warnBelow": 85,
+      "criticalBelow": 70
+    }
+  ],
+  "badBooleanOutputs": [
+    {
+      "outputName": "QA: Medical Advice Given",
+      "severity": "high"
+    },
+    {
+      "outputName": "QA: Tool Failure",
+      "severity": "high"
+    },
+    {
+      "outputName": "QA: Premature Tool Call",
+      "severity": "high"
+    },
+    {
+      "outputName": "QA: Booking Confirm Missing",
+      "severity": "high"
+    },
+    {
+      "outputName": "QA: Phone Readback Wrong",
+      "severity": "high"
+    },
+    {
+      "outputName": "QA: Repeated Identity",
+      "severity": "medium"
+    },
+    {
+      "outputName": "QA: Stacked Questions",
+      "severity": "medium"
+    }
+  ]
+}

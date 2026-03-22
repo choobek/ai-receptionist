@@ -365,6 +365,175 @@
         }
       }
     },
+    "observability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "structured_outputs",
+        "scorecards"
+      ],
+      "properties": {
+        "structured_outputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "output_id",
+              "output_name",
+              "output_name_canonical",
+              "result_type",
+              "result"
+            ],
+            "properties": {
+              "output_id": {
+                "type": "string"
+              },
+              "output_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "output_name_canonical": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "result_type": {
+                "type": "string",
+                "enum": [
+                  "array",
+                  "boolean",
+                  "null",
+                  "number",
+                  "object",
+                  "string"
+                ]
+              },
+              "result": {
+                "type": [
+                  "object",
+                  "array",
+                  "string",
+                  "number",
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "scorecards": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "scorecard_id",
+              "name",
+              "name_canonical",
+              "score",
+              "score_normalized",
+              "metrics"
+            ],
+            "properties": {
+              "scorecard_id": {
+                "type": "string"
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "name_canonical": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "score": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "score_normalized": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "metrics": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "structured_output_id",
+                    "structured_output_name",
+                    "structured_output_name_canonical",
+                    "points",
+                    "result_type",
+                    "result"
+                  ],
+                  "properties": {
+                    "structured_output_id": {
+                      "type": "string"
+                    },
+                    "structured_output_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "structured_output_name_canonical": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "points": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "result_type": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "array",
+                        "boolean",
+                        "null",
+                        "number",
+                        "object",
+                        "string",
+                        null
+                      ]
+                    },
+                    "result": {
+                      "type": [
+                        "object",
+                        "array",
+                        "string",
+                        "number",
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "evaluation": {
       "type": "object",
       "additionalProperties": false,
@@ -387,4 +556,3 @@
     }
   }
 }
-

@@ -7,6 +7,7 @@ This repo should be operated from one root `.env` and six source-of-truth areas:
 - Vapi structured outputs: [`../configs/vapi/structured-outputs/`](../configs/vapi/structured-outputs/)
 - Vapi scorecards: [`../configs/vapi/scorecards/`](../configs/vapi/scorecards/)
 - Vapi eval definitions: [`../configs/vapi/evals/`](../configs/vapi/evals/)
+- Vapi live-call autoevaluation policy: [`../configs/vapi/autoevaluation-policy.v1.json`](../configs/vapi/autoevaluation-policy.v1.json)
 - service catalog: [`configs/services/catalog.v1.json`](../configs/services/catalog.v1.json)
 - n8n workflows: [`n8n/workflows/`](../n8n/workflows/)
 - mock patient data: [`mock-data/mock-patients.json`](../mock-data/mock-patients.json)
@@ -107,6 +108,27 @@ Artifacts land under:
 - `autonomy/reports/generated/vapi-evals/<suite-run-id>.md`
 
 As of 2026-03-21, the saved Vapi chat eval lane is configured and repo-backed, but the current staging assistant can still time out before returning the assistant turn inside Vapi's saved eval runner. Treat this lane as a fast diagnostic surface, not the release gate. The repo-local staging regression and staging voice smoke suites remain authoritative.
+
+### Live Vapi Autoevaluation Lane
+
+Run the live-call review queue against recent ended calls:
+
+```bash
+./scripts/run-vapi-live-autoeval.sh staging
+./scripts/run-vapi-live-autoeval.sh staging --since-hours 24 --limit 15
+./scripts/run-vapi-live-autoeval.sh production --since-hours 72
+```
+
+Artifacts land under:
+
+- `autonomy/runs/generated/vapi-live-autoeval/<suite-run-id>/`
+- `autonomy/reports/generated/vapi-live-autoeval/<suite-run-id>.md`
+
+Interpretation:
+
+- The runner fetches recent calls from Vapi, stores the raw call JSON, ingests each call into `run.v1`, and scores the runs against [`../configs/vapi/autoevaluation-policy.v1.json`](../configs/vapi/autoevaluation-policy.v1.json).
+- Treat this as the live-call review queue and drift monitor.
+- Keep the repo-local staging regression and staging voice smoke lanes as the release gate.
 
 ## 3. Sync Embedded Workflow Data
 
@@ -257,6 +279,7 @@ Interpretation:
 - `git status --short` should not show accidental secrets, throwaway scripts, or duplicate env templates.
 - `./scripts/check-repo-health.sh` should pass before deploys and after repo cleanup. It now includes workflow regression checks when `node` is installed.
 - `./scripts/run-vapi-eval-suite.sh staging` is a useful observability check, but it is not a substitute for the repo-local staging regression or voice smoke lanes.
+- `./scripts/run-vapi-live-autoeval.sh staging` is the fastest way to turn recent real calls into a concrete review queue with scorecard thresholds and reason counts.
 - `./scripts/check-workflow-regressions.js` is the default must-pass contract/invariant lane. Use `--include-experimental` only for explicit audits of quarantined prompt/config/voice checks.
 - `./scripts/sync-n8n-workflow-data.sh --check` should pass after proof-of-concept data edits.
 - rendered staging and production assistant configs should build cleanly from repo state plus root `.env`.

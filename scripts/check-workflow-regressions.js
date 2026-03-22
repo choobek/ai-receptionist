@@ -1297,6 +1297,71 @@ test('call-ended router rejects unauthorized requests when webhook secret is con
   assert.equal(result.reason, 'unauthorized');
 });
 
+test('call-ended router surfaces scorecard-backed autoevaluation hints on valid ended calls', () => {
+  const parseResult = runParse(
+    'webhook_vapi-call-ended-router.json',
+    'Parse Event',
+    {
+      type: 'call.ended',
+      call: {
+        id: 'call_obs_test',
+        assistantId: 'assistant_test',
+        startedAt: '2026-03-22T00:00:00Z',
+        endedAt: '2026-03-22T00:02:00Z'
+      },
+      artifact: {
+        structuredOutputs: {
+          'dff8d16d-1f39-4d46-9f3d-370c8ecaeb40': {
+            name: 'Dental Call Intake',
+            result: {
+              callOutcome: 'appointment_booked',
+              booking: {
+                bookingCreated: true,
+                serviceName: 'Konsultacja'
+              },
+              timing: {
+                selectedSlotStart: '2026-03-24T09:00:00+01:00'
+              },
+              summary: {
+                shortSummaryPl: 'Rezerwacja utworzona.'
+              }
+            }
+          },
+          'qa-phone': {
+            name: 'QA: Phone Readback Wrong',
+            result: true
+          }
+        },
+        scorecards: {
+          sc1: {
+            name: 'Core Call Quality',
+            score: 62,
+            scoreNormalized: 62
+          }
+        }
+      }
+    },
+    defaultEnv
+  );
+
+  assert.equal(parseResult.ok, true);
+  assert.equal(parseResult.route, 'booked');
+  assert.equal(parseResult.requiresReview, true);
+  assert.equal(parseResult.reviewSeverity, 'high');
+  assert.ok(parseResult.reviewReasons.includes('phone_readback_wrong'));
+  assert.ok(parseResult.reviewReasons.includes('Core Call Quality_critical'));
+
+  const workflow = loadWorkflow('webhook_vapi-call-ended-router.json');
+  const formatted = executeCode(getNodeCode(workflow, 'Format Booked'), {
+    $json: parseResult
+  })[0].json;
+
+  assert.equal(formatted.autoevaluation.requiresReview, true);
+  assert.equal(formatted.autoevaluation.reviewSeverity, 'high');
+  assert.equal(formatted.autoevaluation.scorecards[0].nameCanonical, 'Core Call Quality');
+  assert.equal(formatted.autoevaluation.qaSignals.phoneNumberRepeatedIncorrectly, true);
+});
+
 test('tool webhooks map validation and auth failures to HTTP status codes', () => {
   assert.equal(
     getResponseCodeOption('tool_check-availability.json', 'Respond Error'),

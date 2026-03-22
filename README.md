@@ -349,19 +349,21 @@ The sync path reads shared behavior from [`configs/vapi/assistant.v1.json`](./co
 
 Repo-backed observability setup:
 
-- canonical Vapi observability configs live in [`configs/vapi/structured-outputs/`](./configs/vapi/structured-outputs/), [`configs/vapi/scorecards/`](./configs/vapi/scorecards/), and [`configs/vapi/evals/`](./configs/vapi/evals/)
+- canonical Vapi observability configs live in [`configs/vapi/structured-outputs/`](./configs/vapi/structured-outputs/), [`configs/vapi/scorecards/`](./configs/vapi/scorecards/), [`configs/vapi/evals/`](./configs/vapi/evals/), and [`configs/vapi/autoevaluation-policy.v1.json`](./configs/vapi/autoevaluation-policy.v1.json)
 - the readable call-intake schema mirror lives in [`docs/vapi-structured-output.json`](./docs/vapi-structured-output.json)
 - sync the pack with [`scripts/sync-vapi-observability.sh`](./scripts/sync-vapi-observability.sh) or via the full [`scripts/sync-vapi-environment.sh`](./scripts/sync-vapi-environment.sh) path
 - use [`docs/vapi-observability.md`](./docs/vapi-observability.md) for scorecard and eval workflow notes
 - use [`docs/vapi-structured-output.md`](./docs/vapi-structured-output.md) and [`docs/vapi-structured-output-consumption.md`](./docs/vapi-structured-output-consumption.md) to read outputs and scores from webhooks or the Call API
 - import [`n8n/workflows/webhook_vapi-call-ended-router.json`](./n8n/workflows/webhook_vapi-call-ended-router.json) to route `call.ended` events inside n8n
 - run the saved Vapi eval pack with [`scripts/run-vapi-eval-suite.sh`](./scripts/run-vapi-eval-suite.sh)
+- run live-call autoevaluation with [`scripts/run-vapi-live-autoeval.sh`](./scripts/run-vapi-live-autoeval.sh)
 
 Before deploys or repo cleanup, run:
 
 ```bash
 ./scripts/check-repo-health.sh
 ./scripts/run-vapi-eval-suite.sh staging
+./scripts/run-vapi-live-autoeval.sh staging --since-hours 24 --limit 15
 ```
 
 When the Cloudflare tunnel URL changes:

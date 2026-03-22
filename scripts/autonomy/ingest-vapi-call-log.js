@@ -144,6 +144,16 @@ function parseMaybeJson(value) {
   }
 }
 
+function detectJsonType(value) {
+  if (value === null) {
+    return 'null';
+  }
+  if (Array.isArray(value)) {
+    return 'array';
+  }
+  return typeof value;
+}
+
 function pickCallEntries(root) {
   if (Array.isArray(root)) {
     return root.map((record, index) => ({
@@ -212,16 +222,61 @@ function selectEntries(entries, options) {
   throw new Error('Input contains multiple calls. Use --all, --call-id, or --index.');
 }
 
-function detectStructuredOutput(record, wrapper) {
-  const outputs =
-    safeObject(record?.artifact?.structuredOutputs) ||
-    safeObject(wrapper?.artifact?.structuredOutputs) ||
-    safeObject(wrapper?.call?.artifact?.structuredOutputs) ||
-    safeObject(wrapper?.message?.artifact?.structuredOutputs) ||
-    {};
+function normalizeScopedName(name) {
+  if (typeof name !== 'string') {
+    return null;
+  }
+  return name.replace(/\s+\[(staging|production)\]$/i, '').trim();
+}
 
-  const entries = Object.entries(outputs);
-  if (entries.length === 0) {
+function getArtifact(record, wrapper) {
+  return (
+    safeObject(record?.artifact) ||
+    safeObject(wrapper?.artifact) ||
+    safeObject(wrapper?.call?.artifact) ||
+    safeObject(wrapper?.message?.artifact) ||
+    null
+  );
+}
+
+function getStructuredOutputs(record, wrapper) {
+  return safeObject(getArtifact(record, wrapper)?.structuredOutputs) || {};
+}
+
+function getScorecards(record, wrapper) {
+  return safeObject(getArtifact(record, wrapper)?.scorecards) || {};
+}
+
+function normalizeStructuredOutputs(record, wrapper) {
+  return Object.entries(getStructuredOutputs(record, wrapper))
+    .map(([outputId, output]) => ({
+      output_id: outputId,
+      output_name: typeof output?.name === 'string' ? output.name : null,
+      output_name_canonical: normalizeScopedName(output?.name),
+      result_type: detectJsonType(output?.result ?? null),
+      result: output?.result ?? null
+    }))
+    .sort((left, right) => {
+      const leftName = left.output_name || left.output_id;
+      const rightName = right.output_name || right.output_id;
+      return leftName.localeCompare(rightName);
+    });
+}
+
+function detectStructuredOutput(record, wrapper, normalizedOutputs = null) {
+  const outputs = Array.isArray(normalizedOutputs)
+    ? normalizedOutputs
+    : normalizeStructuredOutputs(record, wrapper);
+
+  const selected =
+    outputs.find((item) => safeObject(item.result)?.callOutcome) ||
+    outputs.find((item) => {
+      const result = safeObject(item.result);
+      return result && Object.keys(result).length > 0;
+    }) ||
+    null;
+
+  if (!selected) {
     return {
       found: false,
       output_id: null,
@@ -230,23 +285,54 @@ function detectStructuredOutput(record, wrapper) {
     };
   }
 
-  let selected = entries.find(([, value]) => {
-    const result = safeObject(value?.result);
-    return result && Object.keys(result).length > 0;
-  });
-
-  if (!selected) {
-    selected = entries[0];
-  }
-
-  const [outputId, output] = selected;
-
   return {
     found: true,
-    output_id: outputId,
-    output_name: typeof output?.name === 'string' ? output.name : null,
-    result: safeObject(output?.result) || {}
+    output_id: selected.output_id,
+    output_name: selected.output_name,
+    result: safeObject(selected.result) || {}
   };
+}
+
+function normalizeScorecards(record, wrapper, normalizedOutputs = null) {
+  const outputs = Array.isArray(normalizedOutputs)
+    ? normalizedOutputs
+    : normalizeStructuredOutputs(record, wrapper);
+  const outputsById = new Map(outputs.map((item) => [item.output_id, item]));
+
+  return Object.entries(getScorecards(record, wrapper))
+    .map(([scorecardId, scorecard]) => {
+      const metricPoints = safeObject(scorecard?.metricPoints) || {};
+      return {
+        scorecard_id: scorecardId,
+        name: typeof scorecard?.name === 'string' ? scorecard.name : null,
+        name_canonical: normalizeScopedName(scorecard?.name),
+        score: toNumber(scorecard?.score),
+        score_normalized: toNumber(scorecard?.scoreNormalized),
+        metrics: Object.entries(metricPoints).map(([outputId, points]) => {
+          const output = outputsById.get(outputId) || null;
+          return {
+            structured_output_id: outputId,
+            structured_output_name: output?.output_name || null,
+            structured_output_name_canonical: output?.output_name_canonical || null,
+            points: toNumber(points),
+            result_type: output?.result_type || null,
+            result: output?.result ?? null
+          };
+        })
+      };
+    })
+    .sort((left, right) => {
+      const leftName = left.name || left.scorecard_id;
+      const rightName = right.name || right.scorecard_id;
+      return leftName.localeCompare(rightName);
+    });
+}
+
+function getObservedBoolean(observability, canonicalOutputName) {
+  const output = safeArray(observability?.structured_outputs).find(
+    (item) => item?.output_name_canonical === canonicalOutputName
+  );
+  return typeof output?.result === 'boolean' ? output.result : null;
 }
 
 function roleToNormalized(role) {
@@ -503,12 +589,17 @@ function truthy(value) {
   return value === true;
 }
 
-function deriveEvaluation(record, structuredOutput, toolTrace) {
+function deriveEvaluation(record, structuredOutput, toolTrace, observability = null) {
   const result = safeObject(structuredOutput.result) || {};
   const qualityFlags = safeObject(result.qualityFlags) || {};
   const riskFlags = safeObject(result.riskFlags) || {};
   const followUp = safeObject(result.followUp) || {};
   const booking = safeObject(result.booking) || {};
+
+  const observedRepeatedIdentity = getObservedBoolean(observability, 'QA: Repeated Identity');
+  const observedPrematureToolCall = getObservedBoolean(observability, 'QA: Premature Tool Call');
+  const observedMedicalAdviceGiven = getObservedBoolean(observability, 'QA: Medical Advice Given');
+  const observedToolFailure = getObservedBoolean(observability, 'QA: Tool Failure');
 
   const createEventTrace = findToolResult(toolTrace, 'createEvent');
   const createReceptionTaskTrace = findToolResult(toolTrace, 'createReceptionTask');
@@ -531,11 +622,15 @@ function deriveEvaluation(record, structuredOutput, toolTrace) {
   let wrongToolUsage = null;
   if (typeof qualityFlags.toolCalledOnIncompleteAnswer === 'boolean') {
     wrongToolUsage = qualityFlags.toolCalledOnIncompleteAnswer;
+  } else if (typeof observedPrematureToolCall === 'boolean') {
+    wrongToolUsage = observedPrematureToolCall;
   }
 
   let repeatedQuestion = null;
   if (typeof qualityFlags.repeatedIdentityRequest === 'boolean') {
     repeatedQuestion = qualityFlags.repeatedIdentityRequest;
+  } else if (typeof observedRepeatedIdentity === 'boolean') {
+    repeatedQuestion = observedRepeatedIdentity;
   }
 
   let missingRequiredData = null;
@@ -547,13 +642,18 @@ function deriveEvaluation(record, structuredOutput, toolTrace) {
   }
 
   let unsupportedClaim = null;
-  if (riskFlags.medicalAdviceGiven === true) {
+  if (riskFlags.medicalAdviceGiven === true || observedMedicalAdviceGiven === true) {
     unsupportedClaim = true;
   } else if (result.callOutcome === 'appointment_booked' && !bookingSucceeded) {
     unsupportedClaim = true;
   } else if (isNonEmptyObject(result)) {
     unsupportedClaim = false;
   }
+
+  const toolFailureDetected =
+    typeof riskFlags.toolFailureOccurred === 'boolean'
+      ? riskFlags.toolFailureOccurred
+      : observedToolFailure;
 
   let failureCategory = 'other';
   if (!structuredOutput.found || !isNonEmptyObject(result)) {
@@ -570,7 +670,7 @@ function deriveEvaluation(record, structuredOutput, toolTrace) {
     failureCategory = 'needs_human_handoff';
   } else if (createEventTrace?.result?.error?.code === 'SLOT_UNAVAILABLE') {
     failureCategory = 'booking_conflict';
-  } else if (riskFlags.toolFailureOccurred === true) {
+  } else if (toolFailureDetected === true) {
     failureCategory = 'tool_failure';
   } else if (riskFlags.callerHungUpBeforeCompletion === true || result.callOutcome === 'abandoned_or_incomplete') {
     failureCategory = 'caller_abandoned';
@@ -599,6 +699,9 @@ function deriveEvaluation(record, structuredOutput, toolTrace) {
   }
   if (truthy(missingRequiredData)) {
     evidence.push('tool_trace contains a validation error tied to required data');
+  }
+  if (toolFailureDetected === true) {
+    evidence.push('observability QA output or structured output indicates a material tool failure');
   }
   if (failureCategory === 'structured_output_missing') {
     evidence.push('structured output missing or empty');
@@ -668,7 +771,13 @@ function makeRunId(record, scenarioId, environment) {
 
 function buildRun(entry, options, inputPath) {
   const ingestedAt = stableNowIso();
-  const structuredOutput = detectStructuredOutput(entry.record, entry.wrapper);
+  const structuredOutputs = normalizeStructuredOutputs(entry.record, entry.wrapper);
+  const scorecards = normalizeScorecards(entry.record, entry.wrapper, structuredOutputs);
+  const observability = {
+    structured_outputs: structuredOutputs,
+    scorecards
+  };
+  const structuredOutput = detectStructuredOutput(entry.record, entry.wrapper, structuredOutputs);
   const { conversation, tool_trace } = normalizeConversation(entry.record);
   const runId = makeRunId(entry.record, options.scenarioId, options.environment);
 
@@ -703,8 +812,9 @@ function buildRun(entry, options, inputPath) {
     },
     conversation,
     tool_trace,
+    observability,
     structured_output: structuredOutput,
-    evaluation: deriveEvaluation(entry.record, structuredOutput, tool_trace)
+    evaluation: deriveEvaluation(entry.record, structuredOutput, tool_trace, observability)
   };
 }
 
@@ -747,9 +857,22 @@ function main() {
   process.stdout.write(`${JSON.stringify(runs[0], null, 2)}\n`);
 }
 
-try {
-  main();
-} catch (error) {
-  console.error(error.message);
-  process.exit(1);
+module.exports = {
+  buildRun,
+  detectStructuredOutput,
+  deriveEvaluation,
+  normalizeScorecards,
+  normalizeStructuredOutputs,
+  pickCallEntries,
+  selectEntries,
+  writeRun
+};
+
+if (require.main === module) {
+  try {
+    main();
+  } catch (error) {
+    console.error(error.message);
+    process.exit(1);
+  }
 }

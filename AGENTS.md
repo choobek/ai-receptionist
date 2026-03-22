@@ -9,6 +9,7 @@
 - Vapi structured output configs live in `configs/vapi/structured-outputs/`.
 - Vapi scorecard configs live in `configs/vapi/scorecards/`.
 - Vapi eval definitions live in `configs/vapi/evals/`.
+- Vapi live-call autoevaluation policy lives in `configs/vapi/autoevaluation-policy.v1.json`.
 - Service catalog source data lives in `configs/services/catalog.v1.json`.
 - `docs/vapi-structured-output.json` is a generated mirror of `configs/vapi/structured-outputs/dental-call-intake.v1.json`.
 - Prompt mirror files in `prompts/` are generated mirrors for readability. If they drift, the JSON config wins.
@@ -35,7 +36,8 @@
 4. Run `./scripts/sync-vapi-environment.sh staging` or `./scripts/sync-vapi-environment.sh production`.
 5. If you changed only observability resources and do not need a full assistant/tool sync, run `./scripts/sync-vapi-observability.sh staging` or `./scripts/sync-vapi-observability.sh production`.
 6. Use `./scripts/run-vapi-eval-suite.sh staging` for the saved Vapi eval lane. Treat the repo-local staging regression and staging voice smoke suites as the release gate.
-7. If the Vapi API rejects a field, remove or adjust that field in the repo config before retrying.
+7. Use `./scripts/run-vapi-live-autoeval.sh staging` or `./scripts/run-vapi-live-autoeval.sh production` to ingest recent real calls, score them against the repo policy, and render a review queue report.
+8. If the Vapi API rejects a field, remove or adjust that field in the repo config before retrying.
 
 ### Deploy Repo To VPS
 
