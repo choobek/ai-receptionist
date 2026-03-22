@@ -211,6 +211,9 @@
       "all-on-4",
       "all on 4",
       "all on four",
+      "implanty w jeden dzien",
+      "implanty w 1 dzien",
+      "implanty jednego dnia",
       "bezzebie",
       "zeby w 1 dzien",
       "zeby w jeden dzien",
@@ -225,6 +228,10 @@
     "queryExamples": [
       "Na czym polega all on 4?",
       "Co oznacza haslo zeby w jeden dzien?",
+      "Co oznacza haslo implanty w jeden dzien?",
+      "Na czym polega leczenie implanty w jeden dzien?",
+      "Czy implanty w jeden dzien to All on four?",
+      "W reklamie macie haslo implanty w jeden dzien - o co chodzi?",
       "Na czym polega leczenie zeby w jeden dzien?",
       "Czy po All on four mozna miec zeby tymczasowe w jeden dzien?",
       "Czy wykonujecie All on four?",
@@ -232,12 +239,14 @@
       "Czy przy all on 4 trzeba usuwac zeby?",
       "Jakie sa zalety all on 4?"
     ],
-    "answerPl": "All on four to metoda leczenia stosowana przede wszystkim przy calkowitym bezzebiu. Jesli pacjent ma jeszcze swoje zeby, zwykle trzeba je usunac podczas zabiegu, ale do takiego leczenia kwalifikuje lekarz na pierwszej konsultacji. Jesli pacjent nie chce usuwac swoich zebow, mozna rozwazyc pojedyncze implanty. Samo leczenie polega na osadzeniu stalego mostu na czterech strategicznie rozmieszczonych implantach i moze dac szybki efekt oraz dobra stabilnosc i estetyke.",
+    "answerPl": "W praktyce haslo \"implanty w jeden dzien\" albo \"zeby w jeden dzien\" najczesciej odnosi sie do rozwiazan typu All on four lub podobnej odbudowy calego luku. To leczenie stosowane przede wszystkim przy bezzebiu albo bardzo rozleglych brakach, w ktorym na czterech strategicznie rozmieszczonych implantach mocuje sie tymczasowe uzupelnienie podczas jednej wizyty. To nie jest standardowy pojedynczy implant dla kazdego pacjenta. Do takiego leczenia kwalifikuje lekarz na pierwszej konsultacji. Jesli pacjent ma jeszcze swoje zeby, zwykle trzeba je usunac albo rozwazyc inne opcje, na przyklad pojedyncze implanty.",
     "titleEn": "All on four system",
     "tagsEn": [
       "all-on-4",
       "all on 4",
       "all on four",
+      "implants in one day",
+      "implants one day",
       "full arch",
       "edentulism",
       "teeth in one day",
@@ -248,12 +257,14 @@
     ],
     "queryExamplesEn": [
       "How does All on four work?",
+      "What do you mean by implants in one day?",
+      "Are implants in one day the same as All on four?",
       "Do you offer All on four?",
       "Can I have All on four if I still have my own teeth?",
       "Do teeth need to be removed for All on four?",
       "What are the benefits of All on four?"
     ],
-    "answerEn": "All on four is a treatment method used mainly for complete tooth loss. If the patient still has their own teeth, they usually need to be removed during the procedure, but the doctor decides qualification for this treatment at the first consultation. If the patient does not want their teeth removed, single implants may be considered instead. The treatment itself places a fixed bridge on four strategically positioned implants and can offer a fast result, good stability, and good aesthetics."
+    "answerEn": "In practice, the marketing phrase \"implants in one day\" or \"teeth in one day\" most often refers to All on four or a similar full-arch solution, where a temporary restoration is attached to four strategically placed implants during one visit. It is not the standard single-implant path for every patient. The doctor decides whether a patient qualifies at the first consultation. If the patient still has their own teeth, those teeth usually need to be discussed for removal or other options such as single implants should be considered."
   },
   {
     "id": "kb_all_on_4_pricing",

@@ -1,0 +1,161 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "existing-patient-post-handoff-meta-question",
+  "title": "Existing-patient handoff does not reopen after a caller-number meta question",
+  "description": "The caller is an existing patient who needs reception help, confirms the repeated caller number, and then asks a meta question about how the assistant got that number. The assistant should answer briefly without creating a second handoff task or drifting back into scheduling.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "handoff",
+    "existing-patient",
+    "meta-question",
+    "staging-safe"
+  ],
+  "required_tool_bindings": [
+    "sendSmsToReceptionists"
+  ],
+  "source": {
+    "origin": "production_call_review",
+    "references": [
+      "configs/vapi/assistant.v1.json",
+      "autonomy/reports/generated/vapi-live-autoeval/production-vapi-live-autoeval-20260322T162754Z.md"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 3
+  },
+  "turns": [
+    {
+      "turn_id": "request-existing-patient-booking",
+      "user": "Dzien dobry, jestem wasza pacjentka i chcialabym umowic leczenie u doktora Kolurza. Mam na imie Test Pacjentka Meta, moj numer to siedem zero dwa, zero zero trzy, zero zero osiem.",
+      "assertions": [
+        {
+          "criterion_id": "no-handoff-before-phone-confirmation",
+          "description": "The assistant should not create the reception task before the caller confirms the repeated phone number.",
+          "severity": "high",
+          "root_cause_hint": "assistant skipped the phone confirmation step before createReceptionTask",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 1,
+            "tool_name": "createReceptionTask"
+          }
+        },
+        {
+          "criterion_id": "no-availability-check-before-confirmation",
+          "description": "The existing-patient handoff branch must not enter scheduling before phone confirmation.",
+          "severity": "critical",
+          "root_cause_hint": "assistant ignored the existing-patient handoff policy and tried scheduling anyway",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 1,
+            "tool_name": "checkAvailability"
+          }
+        }
+      ]
+    },
+    {
+      "turn_id": "confirm-phone",
+      "user": "Tak, zgadza sie."
+    },
+    {
+      "turn_id": "ask-about-caller-number",
+      "user": "Dobrze. A skad pan ma moj numer? Prosze juz tylko przekazac sprawe do recepcji."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "reception-task-created-on-confirmation-turn",
+      "description": "The assistant should create the handoff task immediately after phone confirmation.",
+      "severity": "critical",
+      "root_cause_hint": "assistant delayed the handoff instead of creating it on turn 2",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 2,
+        "tool_name": "createReceptionTask"
+      }
+    },
+    {
+      "criterion_id": "internal-sms-called-on-confirmation-turn",
+      "description": "The internal receptionist SMS should be triggered on the confirmation turn only.",
+      "severity": "critical",
+      "root_cause_hint": "assistant did not call sendSmsToReceptionists after the handoff task succeeded",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 2,
+        "tool_name": "sendSmsToReceptionists"
+      }
+    },
+    {
+      "criterion_id": "internal-sms-called-after-task-result",
+      "description": "The internal receptionist SMS should be triggered only after createReceptionTask has returned its result.",
+      "severity": "critical",
+      "root_cause_hint": "assistant called sendSmsToReceptionists before createReceptionTask returned the taskId",
+      "rule": {
+        "type": "tool_called_after_tool_result",
+        "tool_name": "sendSmsToReceptionists",
+        "source_tool_name": "createReceptionTask"
+      }
+    },
+    {
+      "criterion_id": "no-second-reception-task-on-meta-question",
+      "description": "A meta question about the caller number must not create a second reception task.",
+      "severity": "critical",
+      "root_cause_hint": "assistant reopened the handoff branch instead of answering the meta question briefly",
+      "rule": {
+        "type": "turn_tool_not_called",
+        "turn": 3,
+        "tool_name": "createReceptionTask"
+      }
+    },
+    {
+      "criterion_id": "no-second-internal-sms-on-meta-question",
+      "description": "A meta question after the handoff must not trigger another internal receptionist SMS.",
+      "severity": "high",
+      "root_cause_hint": "assistant repeated the internal handoff alert on the meta-question turn",
+      "rule": {
+        "type": "turn_tool_not_called",
+        "turn": 3,
+        "tool_name": "sendSmsToReceptionists"
+      }
+    },
+    {
+      "criterion_id": "no-availability-check",
+      "description": "The handoff plus meta-question path must not enter scheduling.",
+      "severity": "critical",
+      "root_cause_hint": "assistant tried to schedule an existing patient directly",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "The handoff plus meta-question path must not create a new calendar event.",
+      "severity": "critical",
+      "root_cause_hint": "assistant attempted createEvent instead of keeping the handoff closed",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    },
+    {
+      "criterion_id": "meta-question-answered-briefly",
+      "description": "The assistant should answer the caller-number question directly instead of reopening intake.",
+      "required": false,
+      "severity": "medium",
+      "root_cause_hint": "assistant dodged the caller-number question and drifted back into collection",
+      "rule": {
+        "type": "turn_assistant_text_contains_any",
+        "turn": 3,
+        "contains_any": [
+          "numeru, z ktorego pani dzwoni",
+          "numeru, z ktorego pan dzwoni",
+          "z numeru, z ktorego pani dzwoni",
+          "z numeru, z ktorego pan dzwoni"
+        ]
+      }
+    }
+  ]
+}

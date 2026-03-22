@@ -842,6 +842,8 @@ test('createEvent booking SMS uses the live caller number even when the declared
     callerMatchesDeclaredPhone: false,
     smsRecipientPhoneE164: '+48500111001'
   });
+  assert.match(prepared.messageBody, /Ipokrzyku\.pl: Appointment confirmed/i);
+  assert.match(prepared.messageBody, /24 March 2026, 10:00/);
 
   const dispatched = runCodeNode(
     'tool_create-event.json',
@@ -1053,8 +1055,39 @@ test('sendSmsToPatient prepares an English booking confirmation SMS', () => {
   assert.equal(prepared.kind, 'booking_confirmation');
   assert.equal(prepared.recipientPhoneE164, '+48500100200');
   assert.deepEqual(prepared.recipients, ['+48500100200']);
-  assert.match(prepared.messageBody, /appointment confirmed/i);
-  assert.match(prepared.messageBody, /Demo Dental Clinic/);
+  assert.match(prepared.messageBody, /Ipokrzyku\.pl: Appointment confirmed/i);
+  assert.match(prepared.messageBody, /20 March 2026, 10:30/);
+});
+
+test('sendSmsToPatient prepares the branded Polish booking confirmation SMS with the full date', () => {
+  const parseResult = runParse(
+    'tool_send-sms-to-patient.json',
+    'Parse Request',
+    {
+      calendarEventId: 'evt_002',
+      consentConfirmed: true,
+      language: 'pl',
+      patient: { fullName: 'Jan Nowak', phoneE164: '+48500100200' },
+      appointment: {
+        start: '2026-03-25T17:00:00+01:00',
+        timezone: 'Europe/Warsaw',
+        service: { id: 'implant_consultation', name: 'Konsultacja implantologiczna' }
+      }
+    },
+    defaultEnv
+  );
+  assert.equal(parseResult.ok, true);
+
+  const prepared = runCodeNode(
+    'tool_send-sms-to-patient.json',
+    'Prepare SMS',
+    { 'Parse Request': parseResult }
+  );
+
+  assert.equal(
+    prepared.messageBody,
+    'Ipokrzyku.pl: Potwierdzenie wizyty dla Jan Nowak. Konsultacja implantologiczna, środa, 25 marca 2026, 17:00. W razie zmian prosimy o kontakt z recepcją.'
+  );
 });
 
 test('sendSmsToPatient captures caller phone metadata and carries it into webhook dispatch', () => {
@@ -1532,6 +1565,27 @@ test('searchKnowledgeBase matches teeth-in-one-day marketing questions with extr
   assert.match(searchResult.answer, /bezzebiu|mostu|implantach/i);
 });
 
+test('searchKnowledgeBase matches the long natural-language live query about zeby w jeden dzien', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'widziałam, że macie taką reklamę "zęby w jeden dzień" i chciałam zapytać, jak to wygląda, bo aż ciężko uwierzyć, że tak robicie zęby w jeden dzień?',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.match(searchResult.answer, /All on four|pelnego luku/i);
+  assert.match(searchResult.answer, /tymczasowe uzupelnienie|jednej wizyty/i);
+});
+
 test('searchKnowledgeBase returns All on four qualification guidance for patients with their own teeth', () => {
   const workflow = loadWorkflow('tool_search-knowledge-base.json');
   const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
@@ -1572,6 +1626,27 @@ test('searchKnowledgeBase keeps branded All on four pricing queries retrievable'
   assert.equal(searchResult.found, true);
   assert.match(searchResult.answer, /30 000/);
   assert.match(searchResult.answer, /indywidualnie/i);
+});
+
+test('searchKnowledgeBase maps the marketing phrase implanty w jeden dzien to All on four guidance', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Co oznacza haslo implanty w jeden dzien? Czy to chodzi o All on four?',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.match(searchResult.answer, /All on four/i);
+  assert.match(searchResult.answer, /czterech strategicznie rozmieszczonych implantach/i);
 });
 
 test('searchKnowledgeBase returns individualized pricing guidance for root canal treatment', () => {
@@ -2043,6 +2118,68 @@ assistantInvariantTest('existing-patient booking handoff scenario routes directl
     path: 'taskId',
     source_tool_name: 'createReceptionTask',
     source_path: 'taskId'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-availability-check').rule, {
+    type: 'tool_not_called',
+    tool_name: 'checkAvailability'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-booking-created').rule, {
+    type: 'tool_not_called',
+    tool_name: 'createEvent'
+  });
+});
+
+assistantInvariantTest('one-day implant marketing scenario stays in the knowledge-base branch', () => {
+  const scenario = loadStagingScenario('zeby-w-jeden-dzien-kb-question.v1.json');
+
+  assert.deepEqual(getScenarioCriterion(scenario, 'kb-tool-called').rule, {
+    type: 'turn_tool_called',
+    turn: 1,
+    tool_name: 'searchKnowledgeBase'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'kb-answer-found').rule, {
+    type: 'turn_tool_result_path_equals',
+    turn: 1,
+    tool_name: 'searchKnowledgeBase',
+    path: 'found',
+    equals: true
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-availability-check').rule, {
+    type: 'tool_not_called',
+    tool_name: 'checkAvailability'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-booking-created').rule, {
+    type: 'tool_not_called',
+    tool_name: 'createEvent'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-reception-task-created').rule, {
+    type: 'tool_not_called',
+    tool_name: 'createReceptionTask'
+  });
+});
+
+assistantInvariantTest('post-handoff meta-question scenario forbids a second reception task', () => {
+  const scenario = loadStagingScenario('existing-patient-post-handoff-meta-question.v1.json');
+
+  assert.deepEqual(getScenarioCriterion(scenario, 'reception-task-created-on-confirmation-turn').rule, {
+    type: 'turn_tool_called',
+    turn: 2,
+    tool_name: 'createReceptionTask'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'internal-sms-called-on-confirmation-turn').rule, {
+    type: 'turn_tool_called',
+    turn: 2,
+    tool_name: 'sendSmsToReceptionists'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-second-reception-task-on-meta-question').rule, {
+    type: 'turn_tool_not_called',
+    turn: 3,
+    tool_name: 'createReceptionTask'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-second-internal-sms-on-meta-question').rule, {
+    type: 'turn_tool_not_called',
+    turn: 3,
+    tool_name: 'sendSmsToReceptionists'
   });
   assert.deepEqual(getScenarioCriterion(scenario, 'no-availability-check').rule, {
     type: 'tool_not_called',
