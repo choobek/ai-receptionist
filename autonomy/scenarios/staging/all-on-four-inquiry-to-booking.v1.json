@@ -31,7 +31,7 @@
     },
     {
       "turn_id": "ask-to-book-implant-consultation",
-      "user": "To prosze umowic mnie na konsultacje implantologiczna, najlepiej jutro rano."
+      "user": "To prosze umowic mnie na konsultacje implantologiczna, najlepiej na najblizszy wolny termin."
     },
     {
       "turn_id": "select-first-slot",
@@ -100,6 +100,33 @@
         "tool_name": "createEvent",
         "path": "created",
         "equals": true
+      }
+    },
+    {
+      "criterion_id": "booking-confirmation-spoken-on-final-turn",
+      "description": "After createEvent succeeds, the assistant should speak a short booking confirmation on the same final turn.",
+      "severity": "high",
+      "root_cause_hint": "post-createEvent success path stayed silent or drifted instead of confirming the created booking",
+      "rule": {
+        "type": "turn_assistant_text_contains_any",
+        "turn": 7,
+        "contains_any": [
+          "wizyta zostala umowiona",
+          "zostala potwierdzona"
+        ]
+      }
+    },
+    {
+      "criterion_id": "booking-closing-question-spoken-on-final-turn",
+      "description": "After createEvent succeeds, the assistant should finish with the standard closing question on the same final turn.",
+      "severity": "high",
+      "root_cause_hint": "post-createEvent success path omitted the standard closing question after confirming the booking",
+      "rule": {
+        "type": "turn_assistant_text_contains_any",
+        "turn": 7,
+        "contains_any": [
+          "czy moge pomoc jeszcze w czyms"
+        ]
       }
     },
     {
