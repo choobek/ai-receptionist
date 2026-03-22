@@ -66,6 +66,39 @@
         }
       }
     },
+    "phoneContext": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "declaredPhoneE164": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "callerPhoneE164": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "callerPhoneSource": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "callerMatchesDeclaredPhone": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
     "message": {
       "type": "string"
     },
@@ -99,6 +132,12 @@
         "kind": "booking_confirmation",
         "language": "pl",
         "body": "Demo Dental Clinic: potwierdzenie wizyty dla Jan Kowalski. Konsultacja, piatek, 20 marca, 10:30."
+      },
+      "phoneContext": {
+        "declaredPhoneE164": "+48500100200",
+        "callerPhoneE164": "+48500100200",
+        "callerPhoneSource": "customer.number",
+        "callerMatchesDeclaredPhone": true
       },
       "message": "Potwierdzenie SMS dla pacjenta zostalo przygotowane."
     }

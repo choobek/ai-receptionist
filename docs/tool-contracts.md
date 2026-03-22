@@ -195,16 +195,19 @@ Key fields:
 - `timezone`
 - `patient.fullName`
 - `patient.phoneE164`
+- optional `telephony.callerPhoneE164` when Vapi exposes the live caller number
 - optional `service.durationMinutes` metadata, but the selected slot boundary must win over any inferred duration
 
 ### Workflow behavior
 
 1. Parse Vapi wrapper or direct body.
-2. Validate required fields and patient details.
-3. Keep the exact `slotStart` and `slotEnd` from the selected availability option.
-4. Re-check availability for the requested slot.
-5. Create the Google Calendar event only if the slot is still free.
-6. Return confirmation data.
+2. Capture caller-number ground truth from Vapi telephony metadata when available.
+3. Validate required fields and patient details.
+4. Keep the exact `slotStart` and `slotEnd` from the selected availability option.
+5. Re-check availability for the requested slot.
+6. Create the Google Calendar event only if the slot is still free.
+7. Store both the declared callback number and the live caller number in the calendar description when available.
+8. Return confirmation data plus `phoneContext`.
 
 ### Success response
 
@@ -215,6 +218,7 @@ Important fields:
 - `created`
 - `calendarEventId`
 - `appointment`
+- `phoneContext`
 - `message`
 
 ## Tool: `createReceptionTask`
@@ -233,14 +237,16 @@ Key fields:
 - `patient.fullName`
 - `patient.phoneE164`
 - `summary`
+- optional `telephony.callerPhoneE164` when Vapi exposes the live caller number
 
 ### Workflow behavior
 
 1. Parse Vapi wrapper or direct body.
-2. Validate the patient and task payload.
-3. Reject unknown task types and malformed phone numbers.
-4. Create a queued proof-of-concept task in the n8n execution payload.
-5. Return task confirmation data.
+2. Capture caller-number ground truth from Vapi telephony metadata when available.
+3. Validate the patient and task payload.
+4. Reject unknown task types and malformed phone numbers.
+5. Create a queued proof-of-concept task in the n8n execution payload.
+6. Return task confirmation data.
 
 ### Success response
 
@@ -251,6 +257,7 @@ Important fields:
 - `accepted`
 - `taskId`
 - `task`
+- `task.phoneContext`
 - `message`
 
 ## Tool: `sendSmsToReceptionists`
@@ -270,14 +277,16 @@ Key fields:
 - `patient.fullName`
 - `patient.phoneE164`
 - `summary`
+- optional `telephony.callerPhoneE164` when Vapi exposes the live caller number
 
 ### Workflow behavior
 
 1. Parse Vapi wrapper or direct body.
-2. Validate that the receptionist task context is complete.
-3. Build a concise internal SMS body from the task payload.
-4. In `mock` mode, return a simulated delivery result.
-5. In `webhook` mode, POST the SMS payload to the configured downstream SMS gateway or clinic webhook.
+2. Capture caller-number ground truth from Vapi telephony metadata when available.
+3. Validate that the receptionist task context is complete.
+4. Build a concise internal SMS body that includes both the declared callback number and the live caller number when present.
+5. In `mock` mode, return a simulated delivery result.
+6. In `webhook` mode, POST the SMS payload to the configured downstream SMS gateway or clinic webhook.
 
 ### Success response
 
@@ -289,6 +298,7 @@ Important fields:
 - `delivery.status`
 - `delivery.provider`
 - `notification`
+- `phoneContext`
 - `message`
 
 ## Tool: `sendSmsToPatient`
@@ -310,14 +320,17 @@ Key fields:
 - `appointment.start`
 - `appointment.timezone`
 - `appointment.service`
+- optional `telephony.callerPhoneE164` when Vapi exposes the live caller number
 
 ### Workflow behavior
 
 1. Parse Vapi wrapper or direct body.
-2. Validate patient fields, booking context, consent, language, and timezone.
-3. Build a concise SMS body in Polish or English.
-4. In `mock` mode, return a simulated delivery result.
-5. In `webhook` mode, POST the SMS payload to the configured downstream SMS gateway or clinic webhook.
+2. Capture caller-number ground truth from Vapi telephony metadata when available.
+3. Validate patient fields, booking context, consent, language, and timezone.
+4. Build a concise SMS body in Polish or English.
+5. Carry `phoneContext` through the result metadata so SMS delivery can be audited against the live caller number.
+6. In `mock` mode, return a simulated delivery result.
+7. In `webhook` mode, POST the SMS payload to the configured downstream SMS gateway or clinic webhook.
 
 ### Success response
 
@@ -329,6 +342,7 @@ Important fields:
 - `delivery.status`
 - `delivery.provider`
 - `sms`
+- `phoneContext`
 - `message`
 
 ## Error contract

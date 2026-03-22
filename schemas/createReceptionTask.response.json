@@ -52,6 +52,33 @@
             }
           }
         },
+        "phoneContext": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "declaredPhoneE164": {
+              "type": "string"
+            },
+            "callerPhoneE164": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "callerPhoneSource": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "callerMatchesDeclaredPhone": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        },
         "summary": {
           "type": "string"
         },
@@ -107,6 +134,12 @@
         "patient": {
           "fullName": "Anna Kowalska",
           "phoneE164": "+48500111001"
+        },
+        "phoneContext": {
+          "declaredPhoneE164": "+48500111001",
+          "callerPhoneE164": "+48500111001",
+          "callerPhoneSource": "customer.number",
+          "callerMatchesDeclaredPhone": true
         },
         "summary": "Pacjentka chce umowic kolejna wizyte.",
         "notes": "Pacjentka prosila o kontakt rano."

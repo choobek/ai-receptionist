@@ -54,6 +54,24 @@
       "type": "string",
       "maxLength": 120
     },
+    "telephony": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "callerPhoneE164": {
+          "type": "string",
+          "pattern": "^\\+[1-9]\\d{7,14}$"
+        },
+        "callerPhoneRaw": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "callerPhoneSource": {
+          "type": "string",
+          "maxLength": 80
+        }
+      }
+    },
     "sourceCallId": {
       "type": "string"
     }
@@ -69,7 +87,11 @@
       },
       "summary": "Pacjentka chce umowic kolejna wizyte.",
       "notes": "Pacjentka prosila o kontakt rano.",
-      "preferredCallbackWindow": "rano"
+      "preferredCallbackWindow": "rano",
+      "telephony": {
+        "callerPhoneE164": "+48500111001",
+        "callerPhoneSource": "customer.number"
+      }
     }
   ]
 }

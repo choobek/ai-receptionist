@@ -677,6 +677,74 @@ test('createEvent rejects slots outside clinic working hours', () => {
   expectValidationError(result, 'slot must be within clinic working hours');
 });
 
+test('createEvent captures caller phone metadata from Vapi tool payloads', () => {
+  const parseResult = runParse(
+    'tool_create-event.json',
+    'Parse Request',
+    {
+      message: {
+        type: 'tool-calls',
+        customer: {
+          number: '+48500111001'
+        },
+        call: {
+          id: 'call_booking_001',
+          from: {
+            phoneNumber: '+48500111001'
+          }
+        },
+        toolCallList: [
+          {
+            id: 'tool_call_booking_001',
+            name: 'createEvent',
+            parameters: {
+              service: {
+                id: 'consultation'
+              },
+              slotStart: '2026-03-24T10:00:00+01:00',
+              slotEnd: '2026-03-24T10:45:00+01:00',
+              timezone: 'Europe/Warsaw',
+              patient: {
+                fullName: 'Anna Kowalska',
+                phoneE164: '+48500111001'
+              }
+            }
+          }
+        ]
+      }
+    },
+    defaultEnv
+  );
+  assert.equal(parseResult.ok, true);
+  assert.deepEqual(parseResult.telephony, {
+    callerPhoneE164: '+48500111001',
+    callerPhoneRaw: '+48500111001',
+    callerPhoneSource: 'customer.number',
+    callerMatchesPatientPhone: true
+  });
+
+  const formatResult = executeCode(getNodeCode(loadWorkflow('tool_create-event.json'), 'Format Success'), {
+    $: makeSelector({ 'Slot Available?': parseResult }),
+    $json: { id: 'evt_booking_001' }
+  })[0].json;
+  const bookedResult = formatResult.results?.[0]?.result || formatResult;
+  assert.deepEqual(bookedResult.phoneContext, {
+    declaredPhoneE164: '+48500111001',
+    callerPhoneE164: '+48500111001',
+    callerPhoneSource: 'customer.number',
+    callerMatchesDeclaredPhone: true
+  });
+});
+
+test('createEvent calendar description includes callback and caller phone context', () => {
+  const params = getNodeParameters('tool_create-event.json', 'Create Calendar Event');
+  const description = params.additionalFields?.description || '';
+
+  assert.match(description, /Callback phone:/);
+  assert.match(description, /Caller phone:/);
+  assert.match(description, /caller number (matches|differs)/i);
+});
+
 test('createReceptionTask rejects unknown taskType', () => {
   const result = runParse(
     'tool_create-reception-task.json',
@@ -689,6 +757,64 @@ test('createReceptionTask rejects unknown taskType', () => {
     defaultEnv
   );
   expectValidationError(result, 'taskType is invalid');
+});
+
+test('createReceptionTask captures caller phone metadata from Vapi tool payloads', () => {
+  const parseResult = runParse(
+    'tool_create-reception-task.json',
+    'Parse Request',
+    {
+      message: {
+        type: 'tool-calls',
+        customer: {
+          number: '+48500111001'
+        },
+        call: {
+          id: 'call_real_001',
+          from: {
+            phoneNumber: '+48500111001'
+          }
+        },
+        toolCallList: [
+          {
+            id: 'tool_call_001',
+            name: 'createReceptionTask',
+            parameters: {
+              taskType: 'existing_patient_booking',
+              patient: {
+                fullName: 'Anna Kowalska',
+                phoneE164: '+48500111001'
+              },
+              summary: 'Pacjentka chce umowic kolejna wizyte.'
+            }
+          }
+        ]
+      }
+    },
+    defaultEnv
+  );
+  assert.equal(parseResult.ok, true);
+  assert.equal(parseResult.sourceCallId, 'call_real_001');
+  assert.deepEqual(parseResult.telephony, {
+    callerPhoneE164: '+48500111001',
+    callerPhoneRaw: '+48500111001',
+    callerPhoneSource: 'customer.number',
+    callerMatchesPatientPhone: true
+  });
+
+  const built = runCodeNode(
+    'tool_create-reception-task.json',
+    'Build Task',
+    { 'Parse Request': parseResult }
+  );
+  const builtResult = built.results?.[0]?.result || built;
+  assert.equal(builtResult.accepted, true);
+  assert.deepEqual(builtResult.task?.phoneContext, {
+    declaredPhoneE164: '+48500111001',
+    callerPhoneE164: '+48500111001',
+    callerPhoneSource: 'customer.number',
+    callerMatchesDeclaredPhone: true
+  });
 });
 
 test('sendSmsToReceptionists requires createReceptionTask taskId', () => {
@@ -714,7 +840,11 @@ test('sendSmsToReceptionists prepares an internal alert body', () => {
       taskType: 'existing_patient_booking',
       patient: { fullName: 'Anna Kowalska', phoneE164: '+48500111001' },
       summary: 'Pacjentka chce umowic kolejna wizyte.',
-      preferredCallbackWindow: 'rano'
+      preferredCallbackWindow: 'rano',
+      telephony: {
+        callerPhoneE164: '+48700123000',
+        callerPhoneSource: 'customer.number'
+      }
     },
     defaultEnv
   );
@@ -734,6 +864,15 @@ test('sendSmsToReceptionists prepares an internal alert body', () => {
   assert.equal(prepared.kind, 'reception_follow_up');
   assert.match(prepared.messageBody, /Task ID: task_20260320_001/);
   assert.match(prepared.messageBody, /Preferowany kontakt: rano/);
+  assert.match(prepared.messageBody, /deklarowany \+48500111001/);
+  assert.match(prepared.messageBody, /numer dzwoniacego \+48700123000/);
+  assert.match(prepared.messageBody, /rozne - zweryfikowac, ktory numer wykorzystac/);
+  assert.deepEqual(prepared.phoneContext, {
+    declaredPhoneE164: '+48500111001',
+    callerPhoneE164: '+48700123000',
+    callerPhoneSource: 'customer.number',
+    callerMatchesDeclaredPhone: false
+  });
 });
 
 test('sendSmsToPatient requires explicit SMS consent', () => {
@@ -786,6 +925,123 @@ test('sendSmsToPatient prepares an English booking confirmation SMS', () => {
   assert.deepEqual(prepared.recipients, ['+48500100200']);
   assert.match(prepared.messageBody, /appointment confirmed/i);
   assert.match(prepared.messageBody, /Demo Dental Clinic/);
+});
+
+test('sendSmsToPatient captures caller phone metadata and carries it into webhook dispatch', () => {
+  const parseResult = runParse(
+    'tool_send-sms-to-patient.json',
+    'Parse Request',
+    {
+      message: {
+        type: 'tool-calls',
+        customer: {
+          number: '+48500111001'
+        },
+        call: {
+          id: 'call_sms_001',
+          from: {
+            phoneNumber: '+48500111001'
+          }
+        },
+        toolCallList: [
+          {
+            id: 'tool_call_sms_001',
+            name: 'sendSmsToPatient',
+            parameters: {
+              calendarEventId: 'evt_001',
+              consentConfirmed: true,
+              language: 'pl',
+              patient: {
+                fullName: 'Anna Kowalska',
+                phoneE164: '+48500999888'
+              },
+              appointment: {
+                start: '2026-03-20T10:30:00+01:00',
+                timezone: 'Europe/Warsaw',
+                service: {
+                  id: 'consultation',
+                  name: 'Konsultacja'
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    defaultEnv
+  );
+  assert.equal(parseResult.ok, true);
+  assert.equal(parseResult.sourceCallId, 'call_sms_001');
+  assert.deepEqual(parseResult.telephony, {
+    callerPhoneE164: '+48500111001',
+    callerPhoneRaw: '+48500111001',
+    callerPhoneSource: 'customer.number',
+    callerMatchesPatientPhone: false
+  });
+
+  const prepared = runCodeNode(
+    'tool_send-sms-to-patient.json',
+    'Prepare SMS',
+    { 'Parse Request': parseResult },
+    [],
+    defaultEnv
+  );
+  assert.deepEqual(prepared.phoneContext, {
+    declaredPhoneE164: '+48500999888',
+    callerPhoneE164: '+48500111001',
+    callerPhoneSource: 'customer.number',
+    callerMatchesDeclaredPhone: false
+  });
+
+  const dispatch = runCodeNode(
+    'tool_send-sms-to-patient.json',
+    'Send SMS',
+    { 'Prepare SMS': prepared },
+    [],
+    {
+      ...defaultEnv,
+      AI_RECEPTIONIST_SMS_PROVIDER: 'webhook',
+      AI_RECEPTIONIST_SMS_WEBHOOK_URL: 'https://sms-gateway.example.test/send',
+      AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN: 'token_123',
+      AI_RECEPTIONIST_SMS_WEBHOOK_TIMEOUT_MS: '9000'
+    }
+  );
+
+  assert.deepEqual(dispatch.baseResult?.phoneContext, prepared.phoneContext);
+  assert.deepEqual(dispatch.webhookBody?.metadata, {
+    requestId: parseResult.requestId,
+    calendarEventId: 'evt_001',
+    appointmentStart: '2026-03-20T10:30:00+01:00',
+    timezone: 'Europe/Warsaw',
+    sourceCallId: 'call_sms_001',
+    language: 'pl',
+    declaredPhoneE164: '+48500999888',
+    callerPhoneE164: '+48500111001',
+    callerPhoneSource: 'customer.number',
+    callerMatchesDeclaredPhone: false
+  });
+
+  const formatted = executeCode(getNodeCode(loadWorkflow('tool_send-sms-to-patient.json'), 'Format Success'), {
+    $json: {
+      toolCallId: 'tool_call_sms_001',
+      requestId: 'req_sms_001',
+      delivery: {
+        status: 'queued',
+        provider: 'webhook',
+        recipientCount: 1,
+        providerMessageId: 'msg_001'
+      },
+      sms: {
+        kind: 'booking_confirmation',
+        language: 'pl',
+        body: prepared.messageBody
+      },
+      phoneContext: prepared.phoneContext,
+      message: 'Potwierdzenie SMS dla pacjenta zostalo przekazane do wysylki.'
+    }
+  })[0].json;
+  const formattedResult = formatted.results?.[0]?.result || formatted;
+  assert.deepEqual(formattedResult.phoneContext, prepared.phoneContext);
 });
 
 test('sendSmsToReceptionists twilio mode requires an explicit sender number', () => {
@@ -1468,7 +1724,11 @@ experimentalTest('assistant prompt keeps the baseline spoken-phone and doctor-na
   assert.match(systemPrompts, /Numer telefonu czytaj cyfra po cyfrze lub parami/i);
   assert.match(systemPrompts, /nigdy nie rekonstruuj numeru telefonu z pamieci/i);
   assert.match(systemPrompts, /uzyj polskich slow dla kazdej cyfry/i);
-  assert.equal(/customer\.number/.test(systemPrompts), false);
+  assert.match(systemPrompts, /\{\{\s*customer\.number\s*\}\}/);
+  assert.match(systemPrompts, /system zna numer dzwoniacego/i);
+  assert.match(systemPrompts, /nie czytaj tego numeru na glos cyfra po cyfrze/i);
+  assert.match(systemPrompts, /ustaw patient\.phoneE164 dokladnie na \{\{\s*customer\.number\s*\}\}/i);
+  assert.match(systemPrompts, /nigdy nie wpisuj numeru przykladowego, testowego ani zastepczego/i);
 });
 
 experimentalTest('assistant config keeps the March 18 endpointing profile', () => {

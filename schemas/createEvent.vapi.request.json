@@ -60,7 +60,7 @@
         },
         "phoneE164": {
           "type": "string",
-          "description": "Patient phone number in E.164 format."
+          "description": "Confirmed callback number in E.164 format. If the caller confirmed using the number they are calling from, reuse that live caller number here."
         },
         "isExistingPatient": {
           "type": "boolean",
@@ -79,6 +79,24 @@
     "consentToSms": {
       "type": "boolean",
       "description": "True only if the caller explicitly agreed to SMS."
+    },
+    "telephony": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "callerPhoneE164": {
+          "type": "string",
+          "description": "Optional live caller number in E.164 format when Vapi exposes it."
+        },
+        "callerPhoneRaw": {
+          "type": "string",
+          "description": "Optional raw live caller number."
+        },
+        "callerPhoneSource": {
+          "type": "string",
+          "description": "Optional source label for the live caller number."
+        }
+      }
     }
   }
 }

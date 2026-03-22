@@ -75,7 +75,8 @@
         },
         "phoneE164": {
           "type": "string",
-          "pattern": "^\\+[1-9]\\d{7,14}$"
+          "pattern": "^\\+[1-9]\\d{7,14}$",
+          "description": "Confirmed callback number in E.164 format. If the caller confirmed using the number they are calling from, reuse that live caller number here."
         },
         "email": {
           "type": "string",
@@ -101,6 +102,24 @@
         "manual"
       ],
       "default": "phone"
+    },
+    "telephony": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "callerPhoneE164": {
+          "type": "string",
+          "pattern": "^\\+[1-9]\\d{7,14}$"
+        },
+        "callerPhoneRaw": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "callerPhoneSource": {
+          "type": "string",
+          "maxLength": 80
+        }
+      }
     }
   },
   "examples": [
@@ -120,7 +139,11 @@
       },
       "notes": "Pierwsza wizyta",
       "consentToSms": true,
-      "source": "phone"
+      "source": "phone",
+      "telephony": {
+        "callerPhoneE164": "+48500100200",
+        "callerPhoneSource": "customer.number"
+      }
     }
   ]
 }

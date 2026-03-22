@@ -42,7 +42,8 @@
         },
         "phoneE164": {
           "type": "string",
-          "pattern": "^\\+[1-9]\\d{7,14}$"
+          "pattern": "^\\+[1-9]\\d{7,14}$",
+          "description": "Confirmed SMS destination in E.164 format. If the caller confirmed using the number they are calling from, reuse that live caller number here."
         }
       }
     },
@@ -84,6 +85,24 @@
         }
       }
     },
+    "telephony": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "callerPhoneE164": {
+          "type": "string",
+          "pattern": "^\\+[1-9]\\d{7,14}$"
+        },
+        "callerPhoneRaw": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "callerPhoneSource": {
+          "type": "string",
+          "maxLength": 80
+        }
+      }
+    },
     "sourceCallId": {
       "type": "string"
     }
@@ -106,6 +125,10 @@
           "id": "consultation",
           "name": "Konsultacja"
         }
+      },
+      "telephony": {
+        "callerPhoneE164": "+48500100200",
+        "callerPhoneSource": "customer.number"
       },
       "sourceCallId": "call_002"
     }

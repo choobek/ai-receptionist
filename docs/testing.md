@@ -200,7 +200,11 @@ curl -sS -X POST https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/create
       "isExistingPatient": true
     },
     "summary": "Pacjentka chce umowic kolejna wizyte.",
-    "notes": "Preferuje kontakt rano."
+    "notes": "Preferuje kontakt rano.",
+    "telephony": {
+      "callerPhoneE164": "+48500111001",
+      "callerPhoneSource": "customer.number"
+    }
   }' | jq .
 ```
 
@@ -208,6 +212,7 @@ Expected:
 - HTTP 200
 - `accepted: true`
 - `taskId` present
+- `task.phoneContext.callerPhoneE164` present when telephony metadata was provided
 
 ## 9. Direct tool test: `sendSmsToReceptionists`
 
@@ -226,7 +231,11 @@ curl -sS -X POST https://vps-2c8bbf65.vps.ovh.net/webhook/ai-receptionist/send-s
       "isExistingPatient": true
     },
     "summary": "Pacjentka chce umowic kolejna wizyte.",
-    "notes": "Preferuje kontakt rano."
+    "notes": "Preferuje kontakt rano.",
+    "telephony": {
+      "callerPhoneE164": "+48500111001",
+      "callerPhoneSource": "customer.number"
+    }
   }' | jq .
 ```
 
@@ -235,6 +244,18 @@ Expected:
 - `accepted: true`
 - `delivery.status: "simulated"` in `mock` mode
 - `notification.body` present
+- `notification.body` contains both the declared number and the caller number
+- `phoneContext.callerPhoneE164` present when telephony metadata was provided
+
+## 9a. Required real-call validation before production rollout
+
+Run these on staging first, then repeat on production only after staging behavior is stable:
+
+1. Call from a real handset and keep the callback number identical to the calling number.
+2. Confirm the assistant asks to use the number the caller is calling from instead of forcing a full digit-by-digit readback.
+3. Confirm the booking or handoff flow continues normally after a simple yes/no confirmation.
+4. For a receptionist-handoff case, verify the internal SMS contains both the declared callback number and the telephony caller number.
+5. Repeat with a caller who explicitly asks to use a different callback number and verify the receptionist SMS shows both numbers as different.
 
 ## 10. Direct tool test: `sendSmsToPatient`
 
@@ -355,8 +376,10 @@ Verify:
 - Vapi calls `checkAvailability`
 - the assistant offers 2-3 real slots
 - after you choose one, it collects name and phone
+- if the caller confirms using the live caller number, later tools reuse that confirmed number instead of a placeholder
 - Vapi calls `createEvent`
 - the event appears in Google Calendar
+- the calendar event description includes both the callback number and the live caller number when available
 - the call produces the structured output
 
 ### Scenario B: no booking, receptionist follow-up
