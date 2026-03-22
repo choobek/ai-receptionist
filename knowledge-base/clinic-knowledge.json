@@ -434,6 +434,44 @@
     "answerEn": "A tooth extraction costs PLN 700. Wisdom tooth extraction starts from PLN 1,000."
   },
   {
+    "id": "kb_clinic_address",
+    "title": "Adres kliniki",
+    "category": "organization",
+    "sourceDocument": "reception-feedback-2026-03-21.md",
+    "tags": [
+      "adres",
+      "adres kliniki",
+      "adres gabinetu",
+      "lokalizacja",
+      "gdzie",
+      "gdzie znajduje sie klinika",
+      "krakow",
+      "dojazd"
+    ],
+    "queryExamples": [
+      "Jaki jest adres kliniki?",
+      "Gdzie znajduje sie klinika ipokrzyku.pl w Krakowie?",
+      "Jaki macie adres w Krakowie?"
+    ],
+    "answerPl": "Klinika ipokrzyku.pl znajduje sie przy ulicy Josepha Conrada 37, 31-357 Krakow.",
+    "titleEn": "Clinic address",
+    "tagsEn": [
+      "address",
+      "clinic address",
+      "office address",
+      "location",
+      "where is the clinic",
+      "krakow",
+      "directions"
+    ],
+    "queryExamplesEn": [
+      "What is the clinic address?",
+      "Where is the Ipokrzyku.pl clinic in Krakow?",
+      "What is your address in Krakow?"
+    ],
+    "answerEn": "The Ipokrzyku.pl clinic is located at 37 Josepha Conrada Street, 31-357 Krakow."
+  },
+  {
     "id": "kb_specialist_booking_policy",
     "title": "Umawianie pierwszych wizyt i innych specjalistow",
     "category": "organization",

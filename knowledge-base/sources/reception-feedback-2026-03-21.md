@@ -11,4 +11,5 @@ Source: direct receptionist feedback normalized to ASCII for repo storage.
 - ekstrakcja osemki: od 1000 zl
 - leczenie kanalowe: wyceniane indywidualnie
 - higienizacja: 450 zl
+- adres kliniki: ul. Josepha Conrada 37, 31-357 Krakow
 - na ten moment wyznaczamy tylko pierwsze wizyty do dr Szajnar. Jesli pacjent jest zainteresowany wizyta u innego specjalisty, informacje przekazujemy recepcji, ktora kontaktuje sie z pacjentem w pierwszej wolnej chwili.
