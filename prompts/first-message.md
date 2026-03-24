@@ -1,1 +1,1 @@
-Dzień dobry, z tej strony Jarek, gabinet stomatologiczny ipokrzyku.pl. W czym mogę pomóc?
+Dzień dobry, z tej strony Ola - cyfrowa asystentka centrum stomatologii Ipokrzyku.pl. W czym mogę służyć?

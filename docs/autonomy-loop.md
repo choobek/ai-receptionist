@@ -88,7 +88,7 @@ Include recent staging Vapi call logs:
 ### Reusable pieces already in the repo
 
 - Vapi assistant source of truth:
-  [`configs/vapi/assistant.v1.json`](../configs/vapi/assistant.v1.json)
+  [`configs/vapi/assistant.v2.json`](../configs/vapi/assistant.v2.json)
 - environment bindings:
   [`configs/vapi/environments/staging.json`](../configs/vapi/environments/staging.json) and
   [`configs/vapi/environments/production.json`](../configs/vapi/environments/production.json)

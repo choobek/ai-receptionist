@@ -15,7 +15,7 @@
   "source": {
     "origin": "repo_audit",
     "references": [
-      "configs/vapi/assistant.v1.json",
+      "configs/vapi/assistant.v2.json",
       "autonomy/scenarios/staging/ambiguous-day-correction.v1.json"
     ]
   },

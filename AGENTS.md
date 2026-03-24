@@ -4,7 +4,7 @@
 
 - Root `.env.example` is the only env template in the repo.
 - Root `.env` is the only local env file future automation should read by default.
-- Shared Vapi assistant behavior lives in `configs/vapi/assistant.v1.json`.
+- Shared Vapi assistant behavior lives in `configs/vapi/assistant.v2.json`.
 - Environment-specific Vapi bindings live in `configs/vapi/environments/staging.json` and `configs/vapi/environments/production.json`.
 - Vapi structured output configs live in `configs/vapi/structured-outputs/`.
 - Vapi scorecard configs live in `configs/vapi/scorecards/`.
@@ -30,7 +30,7 @@
 
 ### Sync Vapi Environment
 
-1. Edit `configs/vapi/assistant.v1.json` for shared behavior, the matching file under `configs/vapi/environments/`, and any relevant files under `configs/vapi/structured-outputs/`, `configs/vapi/scorecards/`, or `configs/vapi/evals/`.
+1. Edit `configs/vapi/assistant.v2.json` for shared behavior, the matching file under `configs/vapi/environments/`, and any relevant files under `configs/vapi/structured-outputs/`, `configs/vapi/scorecards/`, or `configs/vapi/evals/`.
 2. Run `./scripts/sync-vapi-prompt-mirrors.sh`.
 3. Run `./scripts/sync-vapi-observability-mirrors.sh` if you changed the canonical call-intake schema and want the readable mirror refreshed immediately.
 4. Run `./scripts/sync-vapi-environment.sh staging` or `./scripts/sync-vapi-environment.sh production`.
@@ -58,7 +58,7 @@
 ## Audit Checklist
 
 - Compare repo workflow files with the target environment's `n8n list:workflow`.
-- Check for config drift between Vapi and `configs/vapi/assistant.v1.json` plus `configs/vapi/environments/*.json`.
+- Check for config drift between Vapi and `configs/vapi/assistant.v2.json` plus `configs/vapi/environments/*.json`.
 - Run `./scripts/sync-n8n-workflow-data.sh --check` after changing proof-of-concept data files.
 - Check for duplicate env templates or new ad-hoc scripts that bypass root `.env`.
 - Prefer additive scripts and docs over tribal knowledge in chat history.

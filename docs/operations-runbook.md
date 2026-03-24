@@ -2,7 +2,7 @@
 
 This repo should be operated from one root `.env` and six source-of-truth areas:
 
-- shared Vapi assistant config: [`configs/vapi/assistant.v1.json`](../configs/vapi/assistant.v1.json)
+- shared Vapi assistant config: [`configs/vapi/assistant.v2.json`](../configs/vapi/assistant.v2.json)
 - environment-specific Vapi bindings and optional assistant overrides: [`configs/vapi/environments/`](../configs/vapi/environments/)
 - Vapi structured outputs: [`../configs/vapi/structured-outputs/`](../configs/vapi/structured-outputs/)
 - Vapi scorecards: [`../configs/vapi/scorecards/`](../configs/vapi/scorecards/)
@@ -63,7 +63,7 @@ If both environments share one host, keep production on the full compose file an
 
 Canonical path:
 
-1. Edit the shared assistant behavior in [`configs/vapi/assistant.v1.json`](../configs/vapi/assistant.v1.json), the target binding in [`configs/vapi/environments/`](../configs/vapi/environments/), and any relevant observability configs under [`../configs/vapi/structured-outputs/`](../configs/vapi/structured-outputs/), [`../configs/vapi/scorecards/`](../configs/vapi/scorecards/), or [`../configs/vapi/evals/`](../configs/vapi/evals/).
+1. Edit the shared assistant behavior in [`configs/vapi/assistant.v2.json`](../configs/vapi/assistant.v2.json), the target binding in [`configs/vapi/environments/`](../configs/vapi/environments/), and any relevant observability configs under [`../configs/vapi/structured-outputs/`](../configs/vapi/structured-outputs/), [`../configs/vapi/scorecards/`](../configs/vapi/scorecards/), or [`../configs/vapi/evals/`](../configs/vapi/evals/).
 2. Sync the readable prompt mirrors:
 
 ```bash

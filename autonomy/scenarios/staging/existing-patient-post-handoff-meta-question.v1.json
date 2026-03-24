@@ -18,7 +18,7 @@
   "source": {
     "origin": "production_call_review",
     "references": [
-      "configs/vapi/assistant.v1.json",
+      "configs/vapi/assistant.v2.json",
       "autonomy/reports/generated/vapi-live-autoeval/production-vapi-live-autoeval-20260322T162754Z.md"
     ]
   },

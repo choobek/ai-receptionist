@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DEFAULT_CONFIG_PATH="$ROOT_DIR/configs/vapi/assistant.v1.json"
+DEFAULT_CONFIG_PATH="$ROOT_DIR/configs/vapi/assistant.v2.json"
 # shellcheck source=./lib/env-context.sh
 . "$ROOT_DIR/scripts/lib/env-context.sh"
 PRESET_CONFIG_PATH="${VAPI_ASSISTANT_CONFIG_PATH:-}"

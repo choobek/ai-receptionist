@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CONFIG_PATH="${VAPI_ASSISTANT_CONFIG_PATH:-$ROOT_DIR/configs/vapi/assistant.v1.json}"
+CONFIG_PATH="${VAPI_ASSISTANT_CONFIG_PATH:-$ROOT_DIR/configs/vapi/assistant.v2.json}"
 SYSTEM_PROMPT_PATH="$ROOT_DIR/prompts/system-prompt.md"
 FIRST_MESSAGE_PATH="$ROOT_DIR/prompts/first-message.md"
 

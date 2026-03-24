@@ -14,7 +14,7 @@ configs/
   services/
     catalog.v1.json
   vapi/
-    assistant.v1.json
+    assistant.v2.json
     evals/
     scorecards/
     structured-outputs/
@@ -145,7 +145,7 @@ This first version is intentionally small:
 4. Create Google Calendar credentials in n8n and attach them to the Google Calendar nodes.
 5. Set the Vapi custom tool server URLs to the five core n8n webhook endpoints, plus the optional SMS endpoints if you create those extra Vapi tool resources. The repo now includes [`scripts/create-vapi-tool.sh`](./scripts/create-vapi-tool.sh) for that.
 6. If you set `AI_RECEPTIONIST_WEBHOOK_SECRET`, configure the same secret in Vapi using the `X-AI-Receptionist-Secret` header or a `?secret=` query parameter fallback.
-7. Keep the Vapi assistant source of truth in [`configs/vapi/assistant.v1.json`](./configs/vapi/assistant.v1.json).
+7. Keep the Vapi assistant source of truth in [`configs/vapi/assistant.v2.json`](./configs/vapi/assistant.v2.json).
 8. Apply the config with [`scripts/sync-vapi-environment.sh`](./scripts/sync-vapi-environment.sh) for the target environment. If Twilio is configured, that sync also keeps the environment's Vapi phone number bound to the assistant.
 
 Operational reference:
@@ -200,7 +200,7 @@ The current runner needs both:
 
 The repo now supports one shared codebase with explicit staging and production bindings:
 
-- shared assistant behavior: [`configs/vapi/assistant.v1.json`](./configs/vapi/assistant.v1.json)
+- shared assistant behavior: [`configs/vapi/assistant.v2.json`](./configs/vapi/assistant.v2.json)
 - environment-specific Vapi IDs: [`configs/vapi/environments/staging.json`](./configs/vapi/environments/staging.json) and [`configs/vapi/environments/production.json`](./configs/vapi/environments/production.json)
 - environment-specific automation values in root [`.env.example`](./.env.example) via `STAGING_*` and `PRODUCTION_*`
 - optional same-host staging: production keeps the shared Caddy edge, while staging can use [`deploy/vps/docker-compose.n8n-only.yml`](./deploy/vps/docker-compose.n8n-only.yml) behind that edge
@@ -327,7 +327,7 @@ Then configure the five core Vapi custom tools, and optionally add the two SMS t
 
 Recommended assistant wiring in Vapi:
 
-- assistant config source of truth: [`configs/vapi/assistant.v1.json`](./configs/vapi/assistant.v1.json)
+- assistant config source of truth: [`configs/vapi/assistant.v2.json`](./configs/vapi/assistant.v2.json)
 - service catalog source of truth: [`configs/services/catalog.v1.json`](./configs/services/catalog.v1.json)
 - assistant language: `pl-PL`
 - mirrored prompt copy: [`prompts/system-prompt.md`](./prompts/system-prompt.md)
@@ -345,7 +345,7 @@ $EDITOR .env
 ./scripts/sync-vapi-environment.sh production
 ```
 
-The sync path reads shared behavior from [`configs/vapi/assistant.v1.json`](./configs/vapi/assistant.v1.json), environment IDs from [`configs/vapi/environments/`](./configs/vapi/environments/), and the target public base URL plus webhook secret from root `.env`.
+The sync path reads shared behavior from [`configs/vapi/assistant.v2.json`](./configs/vapi/assistant.v2.json), environment IDs from [`configs/vapi/environments/`](./configs/vapi/environments/), and the target public base URL plus webhook secret from root `.env`.
 
 Repo-backed observability setup:
 

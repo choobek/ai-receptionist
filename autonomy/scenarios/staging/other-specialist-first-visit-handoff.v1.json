@@ -15,7 +15,7 @@
   "source": {
     "origin": "manual_regression",
     "references": [
-      "configs/vapi/assistant.v1.json",
+      "configs/vapi/assistant.v2.json",
       "knowledge-base/sources/reception-feedback-2026-03-21.md"
     ]
   },

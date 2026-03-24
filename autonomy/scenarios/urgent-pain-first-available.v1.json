@@ -14,7 +14,7 @@
   "source": {
     "origin": "project_scope",
     "derived_from": [
-      "configs/vapi/assistant.v1.json",
+      "configs/vapi/assistant.v2.json",
       "docs/architecture.md"
     ]
   },

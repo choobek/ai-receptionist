@@ -2,7 +2,7 @@
   "version": 1,
   "environment": "production",
   "assistantId": "6db99c99-3f93-41e3-ae4e-fefe3974e2d6",
-  "assistantName": "Jarek",
+  "assistantName": "Ola",
   "publicBaseUrlEnv": "PRODUCTION_N8N_PUBLIC_BASE_URL",
   "webhookSecretEnv": "PRODUCTION_AI_RECEPTIONIST_WEBHOOK_SECRET",
   "structuredOutputIds": [

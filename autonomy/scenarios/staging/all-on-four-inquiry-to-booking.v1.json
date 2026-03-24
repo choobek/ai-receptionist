@@ -15,7 +15,7 @@
   "source": {
     "origin": "project_scope",
     "references": [
-      "configs/vapi/assistant.v1.json",
+      "configs/vapi/assistant.v2.json",
       "docs/tool-contracts.md",
       "docs/test-scenario-2026-03-17-implant-inquiry-to-booking.md"
     ]

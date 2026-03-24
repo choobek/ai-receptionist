@@ -7,7 +7,7 @@ const path = require('node:path');
 
 const rootDir = path.resolve(__dirname, '..');
 const workflowsDir = path.join(rootDir, 'n8n', 'workflows');
-const assistantConfigPath = path.join(rootDir, 'configs', 'vapi', 'assistant.v1.json');
+const assistantConfigPath = path.join(rootDir, 'configs', 'vapi', 'assistant.v2.json');
 const structuredOutputSchemaPath = path.join(rootDir, 'docs', 'vapi-structured-output.json');
 const {
   evaluateCriterion: evaluateVoiceCriterion,
@@ -129,7 +129,7 @@ function getAssistantSystemPrompt(config = loadAssistantConfig()) {
     (message) => message.role === 'system' && typeof message.content === 'string'
   )?.content;
   if (!prompt) {
-    throw new Error('Assistant system prompt not found in configs/vapi/assistant.v1.json');
+    throw new Error('Assistant system prompt not found in configs/vapi/assistant.v2.json');
   }
   return prompt;
 }
@@ -1963,11 +1963,24 @@ experimentalTest('assistant config keeps the March 18 endpointing profile', () =
   assert.equal(config.assistant?.stopSpeakingPlan?.backoffSeconds, 1.2);
 });
 
-experimentalTest('assistant config keeps the March 18 voice model and temperature', () => {
+experimentalTest('assistant config keeps the Ola voice identity, voice model, and temperature', () => {
   const config = loadAssistantConfig();
+  assert.equal(config.assistant?.name, 'Ola');
   assert.equal(config.assistant?.voice?.model, 'eleven_turbo_v2_5');
+  assert.equal(config.assistant?.voice?.voiceId, '8EWWaNTDrqObI22Gvo1q');
   assert.equal(config.assistant?.voice?.chunkPlan?.enabled, true);
+  assert.equal(
+    config.assistant?.firstMessage,
+    'Dzień dobry, z tej strony Ola - cyfrowa asystentka centrum stomatologii Ipokrzyku.pl. W czym mogę służyć?'
+  );
   assert.equal(config.assistant?.model?.temperature, 0.2);
+});
+
+test('assistant config makes silence handling explicit and repo-owned', () => {
+  const config = loadAssistantConfig();
+  assert.equal(config.assistant?.silenceTimeoutSeconds, 60);
+  assert.deepEqual(config.assistant?.hooks, []);
+  assert.equal(config.assistant?.server?.timeoutSeconds, 20);
 });
 
 test('assistant renderer excludes the direct patient SMS tool from production bindings', () => {
@@ -2027,8 +2040,10 @@ test('assistant renderer applies staging assistant overrides without changing th
     STAGING_AI_RECEPTIONIST_WEBHOOK_SECRET: 'stage-secret'
   });
 
+  assert.equal(shared.assistant?.name, 'Ola');
   assert.equal(shared.assistant?.transcriber?.provider, 'openai');
   assert.equal(shared.assistant?.transcriber?.model, 'gpt-4o-transcribe');
+  assert.equal(rendered.assistant?.name, 'Ola [staging]');
   assert.equal(rendered.assistant?.transcriber?.provider, '11labs');
   assert.equal(rendered.assistant?.transcriber?.model, 'scribe_v2');
   assert.equal(rendered.assistant?.transcriber?.language, 'pl');
@@ -2037,6 +2052,8 @@ test('assistant renderer applies staging assistant overrides without changing th
   assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 1.4);
   assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 1);
   assert.equal(rendered.assistant?.startSpeakingPlan?.smartEndpointingPlan?.provider, 'vapi');
+  assert.equal(rendered.assistant?.silenceTimeoutSeconds, 60);
+  assert.deepEqual(rendered.assistant?.hooks, []);
 });
 
 assistantInvariantTest('assistant SMS scenarios resolve required tool bindings against staging and production environments', () => {

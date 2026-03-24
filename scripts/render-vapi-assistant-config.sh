@@ -8,7 +8,7 @@ ROOT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 ENVIRONMENT="$(normalize_deploy_environment "${1:-production}")"
 OUTPUT_PATH="${2:-}"
-CONFIG_PATH="${VAPI_ASSISTANT_CONFIG_PATH:-$ROOT_DIR/configs/vapi/assistant.v1.json}"
+CONFIG_PATH="${VAPI_ASSISTANT_CONFIG_PATH:-$ROOT_DIR/configs/vapi/assistant.v2.json}"
 BINDINGS_PATH="$ROOT_DIR/configs/vapi/environments/$ENVIRONMENT.json"
 
 load_root_env

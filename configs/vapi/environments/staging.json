@@ -2,7 +2,7 @@
   "version": 1,
   "environment": "staging",
   "assistantId": "8f0b2287-26b0-42ad-8859-34a4f386ce64",
-  "assistantName": "Jarek [staging]",
+  "assistantName": "Ola [staging]",
   "assistantOverrides": {
     "startSpeakingPlan": {
       "waitSeconds": 0.4,

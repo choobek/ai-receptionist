@@ -14,7 +14,7 @@ Turn failing or high-risk runs into the smallest repo-backed fix plan that impro
 
 - Keep the repo as the source of truth.
 - Prefer changes to:
-  - `configs/vapi/assistant.v1.json`
+  - `configs/vapi/assistant.v2.json`
   - `configs/vapi/environments/staging.json`
   - `n8n/workflows/*.json`
   - `schemas/*.json`

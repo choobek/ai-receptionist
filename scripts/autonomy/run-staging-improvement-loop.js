@@ -915,7 +915,7 @@ function buildFixPlan(clusters, handledClusterKeys) {
             source: {
               origin: 'repo_audit',
               references: [
-                'configs/vapi/assistant.v1.json',
+                'configs/vapi/assistant.v2.json',
                 'autonomy/scenarios/staging/alternative-day-refresh-availability.v1.json'
               ]
             },
@@ -1014,7 +1014,7 @@ function buildFixPlan(clusters, handledClusterKeys) {
             source: {
               origin: 'repo_audit',
               references: [
-                'configs/vapi/assistant.v1.json',
+                'configs/vapi/assistant.v2.json',
                 'autonomy/scenarios/staging/ambiguous-day-correction.v1.json'
               ]
             },
@@ -1125,7 +1125,7 @@ function buildFixPlan(clusters, handledClusterKeys) {
         title: 'Anchor createEvent to the exact selected slot when booking from checkAvailability',
         rationale: 'The staging implant-booking path drifted from the selected slot boundary. Tighten the repo prompt and local createEvent contract docs with a concrete slot example so Vapi keeps the selected slot end instead of collapsing to a default 30-minute duration.',
         target_files: [
-          path.join(ROOT_DIR, 'configs', 'vapi', 'assistant.v1.json'),
+          path.join(ROOT_DIR, 'configs', 'vapi', 'assistant.v2.json'),
           path.join(ROOT_DIR, 'docs', 'tool-contracts.md'),
           path.join(ROOT_DIR, 'schemas', 'createEvent.request.json'),
           path.join(ROOT_DIR, 'scripts', 'check-workflow-regressions.js')
@@ -1144,7 +1144,7 @@ function buildFixPlan(clusters, handledClusterKeys) {
               && message.content.includes('Wybrany slot ma pierwszenstwo nad kazda domyslna dlugoscia uslugi.');
           });
           if (!slotGuardrailMessage) {
-            throw new Error('Could not find the createEvent slot guardrail system message in configs/vapi/assistant.v1.json');
+            throw new Error('Could not find the createEvent slot guardrail system message in configs/vapi/assistant.v2.json');
           }
 
           const exampleSentence = ' Przyklad: jesli checkAvailability zwroci slot od 09:30 do 10:15, createEvent ma wyslac dokladnie slotStart 09:30 i slotEnd 10:15, nigdy 10:00. Jesli cokolwiek sugeruje 30 minut, usun service.durationMinutes i zachowaj pole end z wybranego slotu.';
@@ -1375,7 +1375,7 @@ function maybePrepareDerivedArtifacts(changedFiles, dryRun) {
 
   const commands = [];
   const relativeChangedFiles = changedFiles.map((filePath) => toRelativePath(filePath));
-  if (relativeChangedFiles.includes('configs/vapi/assistant.v1.json')) {
+  if (relativeChangedFiles.includes('configs/vapi/assistant.v2.json')) {
     commands.push(runCommand('./scripts/sync-vapi-prompt-mirrors.sh', [], { allowFailure: false }));
   }
 

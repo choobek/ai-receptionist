@@ -18,7 +18,7 @@
   "source": {
     "origin": "project_scope",
     "references": [
-      "configs/vapi/assistant.v1.json",
+      "configs/vapi/assistant.v2.json",
       "docs/tool-contracts.md"
     ]
   },
