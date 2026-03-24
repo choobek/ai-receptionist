@@ -1971,7 +1971,7 @@ experimentalTest('assistant config keeps the Ola voice identity, voice model, an
   assert.equal(config.assistant?.voice?.chunkPlan?.enabled, true);
   assert.equal(
     config.assistant?.firstMessage,
-    'Dzień dobry, z tej strony Ola - cyfrowa asystentka centrum stomatologii Ipokrzyku.pl. W czym mogę służyć?'
+    'Dzień dobry, z tej strony Ola - cyfrowa asystentka centrum stomatologii Ipokrzyku.pl. W czym mogę pomóc?'
   );
   assert.equal(config.assistant?.model?.temperature, 0.2);
 });

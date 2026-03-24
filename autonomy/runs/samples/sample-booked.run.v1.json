@@ -42,7 +42,7 @@
         "message_index": 0,
         "role": "assistant",
         "kind": "utterance",
-        "text": "Dzien dobry, z tej strony Ola - cyfrowa asystentka centrum stomatologii Ipokrzyku.pl. W czym moge sluzyc?",
+        "text": "Dzien dobry, z tej strony Ola - cyfrowa asystentka centrum stomatologii Ipokrzyku.pl. W czym moge pomoc?",
         "time_ms": 1773824405000,
         "seconds_from_start": 5,
         "tool_name": null,
