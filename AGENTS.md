@@ -12,7 +12,7 @@
 - Vapi live-call autoevaluation policy lives in `configs/vapi/autoevaluation-policy.v1.json`.
 - Service catalog source data lives in `configs/services/catalog.v1.json`.
 - `docs/vapi-structured-output.json` is a generated mirror of `configs/vapi/structured-outputs/dental-call-intake.v1.json`.
-- Prompt mirror files in `prompts/` are generated mirrors for readability. If they drift, the JSON config wins.
+- Prompt mirror files in `prompts/` are generated mirrors for readability by default. If you intentionally edit them, run `./scripts/import-vapi-prompt-mirrors.sh` to write them back into `configs/vapi/assistant.v2.json`; otherwise the JSON config wins.
 - n8n workflow source files live in `n8n/workflows/`.
 - Mock patient source data lives in `mock-data/mock-patients.json`.
 - Knowledge-base source data lives in `knowledge-base/clinic-knowledge.json`.
@@ -32,6 +32,7 @@
 
 1. Edit `configs/vapi/assistant.v2.json` for shared behavior, the matching file under `configs/vapi/environments/`, and any relevant files under `configs/vapi/structured-outputs/`, `configs/vapi/scorecards/`, or `configs/vapi/evals/`.
 2. Run `./scripts/sync-vapi-prompt-mirrors.sh`.
+   If you intentionally edited `prompts/system-prompt.md` or `prompts/first-message.md`, run `./scripts/import-vapi-prompt-mirrors.sh` first to update the canonical JSON config.
 3. Run `./scripts/sync-vapi-observability-mirrors.sh` if you changed the canonical call-intake schema and want the readable mirror refreshed immediately.
 4. Run `./scripts/sync-vapi-environment.sh staging` or `./scripts/sync-vapi-environment.sh production`.
 5. If you changed only observability resources and do not need a full assistant/tool sync, run `./scripts/sync-vapi-observability.sh staging` or `./scripts/sync-vapi-observability.sh production`.

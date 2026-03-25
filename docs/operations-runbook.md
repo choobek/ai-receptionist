@@ -70,6 +70,12 @@ Canonical path:
 ./scripts/sync-vapi-prompt-mirrors.sh
 ```
 
+If you intentionally edited the readable prompt mirror first, import it back into the canonical JSON config before syncing:
+
+```bash
+./scripts/import-vapi-prompt-mirrors.sh --system-only
+```
+
 This updates:
 - [`prompts/system-prompt.md`](../prompts/system-prompt.md)
 - [`prompts/first-message.md`](../prompts/first-message.md)

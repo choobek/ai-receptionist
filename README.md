@@ -345,6 +345,14 @@ $EDITOR .env
 ./scripts/sync-vapi-environment.sh production
 ```
 
+If you prefer editing the readable prompt mirror first, you can explicitly import it back into the canonical JSON config:
+
+```bash
+$EDITOR prompts/system-prompt.md
+./scripts/import-vapi-prompt-mirrors.sh --system-only
+./scripts/sync-vapi-environment.sh staging
+```
+
 The sync path reads shared behavior from [`configs/vapi/assistant.v2.json`](./configs/vapi/assistant.v2.json), environment IDs from [`configs/vapi/environments/`](./configs/vapi/environments/), and the target public base URL plus webhook secret from root `.env`.
 
 Repo-backed observability setup:
