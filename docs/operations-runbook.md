@@ -113,7 +113,7 @@ Artifacts land under:
 - `autonomy/runs/generated/vapi-evals/<suite-run-id>/`
 - `autonomy/reports/generated/vapi-evals/<suite-run-id>.md`
 
-As of 2026-03-21, the saved Vapi chat eval lane is configured and repo-backed, but the current staging assistant can still time out before returning the assistant turn inside Vapi's saved eval runner. Treat this lane as a fast diagnostic surface, not the release gate. The repo-local staging regression and staging voice smoke suites remain authoritative.
+The saved Vapi chat eval lane is configured and repo-backed, but the current staging assistant can still time out before returning the assistant turn inside Vapi's saved eval runner. Treat this lane as a fast diagnostic surface, not the release gate. The repo-local staging regression and staging voice smoke suites remain authoritative.
 
 ### Live Vapi Autoevaluation Lane
 

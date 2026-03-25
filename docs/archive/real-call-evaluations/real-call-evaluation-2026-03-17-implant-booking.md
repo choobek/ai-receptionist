@@ -11,7 +11,7 @@ Cost: $0.275
 ## Scenario alignment
 
 This call maps directly to the planned scenario
-`docs/test-scenario-2026-03-17-implant-inquiry-to-booking.md`.
+[`test-scenario-2026-03-17-implant-inquiry-to-booking.md`](../manual-test-scenarios/test-scenario-2026-03-17-implant-inquiry-to-booking.md).
 The caller ran the same opening (All-on-4 inquiry, own-teeth question, cost question)
 and proceeded to a confirmed booking.
 

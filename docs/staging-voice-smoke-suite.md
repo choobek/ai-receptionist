@@ -11,7 +11,7 @@ For lane boundaries and promotion rules, see [Testing Strategy](./testing-strate
 What exists today:
 
 - manual Vapi web-call test instructions in [`docs/testing.md`](./testing.md)
-- manual voice regression scripts such as [`docs/test-scenario-2026-03-17-implant-inquiry-to-booking.md`](./test-scenario-2026-03-17-implant-inquiry-to-booking.md)
+- manual voice regression scripts in the [`docs/archive/manual-test-scenarios/`](./archive/manual-test-scenarios/) archive
 - chat-based automated regression through [`./scripts/run-staging-regression-suite.sh`](../scripts/run-staging-regression-suite.sh)
 - post-call ingestion into normalized autonomy runs
 
@@ -197,7 +197,7 @@ Draft today:
 
 - [`../autonomy/scenarios/staging-voice/implant-inquiry-to-booking-voice.v1.json`](../autonomy/scenarios/staging-voice/implant-inquiry-to-booking-voice.v1.json)
 
-As of 2026-03-19, the booking scenario passes in isolation on staging, including `createEvent`, selected-slot preservation, and `successfulForAssistantScope=true` in [staging-voice-20260319T231612643Z.md](../autonomy/reports/generated/staging-voice/staging-voice-20260319T231612643Z.md). It still drifts under full-suite conditions in [staging-voice-20260319T232815489Z.md](../autonomy/reports/generated/staging-voice/staging-voice-20260319T232815489Z.md), mainly on doctor-name rendering in the offered slot, so it remains `draft`.
+The booking scenario has passed in isolation on staging, including `createEvent`, selected-slot preservation, and `successfulForAssistantScope=true`. It still drifts under full-suite conditions, mainly on doctor-name rendering in the offered slot, so it remains `draft`.
 
 By default, `./scripts/run-staging-voice-smoke-suite.sh` runs only the active Polish scenarios. Use `--language en` for the English companion lane or `--language all` to execute both. Add `--include-draft` only when you intentionally want experimental booking evals in the run.
 

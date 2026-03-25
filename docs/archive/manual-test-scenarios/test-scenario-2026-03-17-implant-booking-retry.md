@@ -7,7 +7,7 @@ Status: **planned — not yet run**
 ## Motivation
 
 The 2026-03-17 real call exposed five failures (see
-`docs/real-call-evaluation-2026-03-17-implant-booking.md`).
+[`real-call-evaluation-2026-03-17-implant-booking.md`](../real-call-evaluations/real-call-evaluation-2026-03-17-implant-booking.md)).
 All five have been addressed in commit `f66e83f`.
 This scenario re-runs the same conversation to verify:
 
@@ -126,8 +126,9 @@ Expected values:
 
 ## What to log after the test
 
-Copy the Vapi call export JSON to `/home/choobek/Downloads/` and create a
+Copy the Vapi call export JSON to a local review folder outside the repo and create a
 real-call evaluation document at
-`docs/real-call-evaluation-2026-03-17-implant-booking-retry.md`
-following the format of `docs/real-call-evaluation-2026-03-17-implant-booking.md`.
+`docs/archive/real-call-evaluations/real-call-evaluation-2026-03-17-implant-booking-retry.md`
+following the format of
+[`real-call-evaluation-2026-03-17-implant-booking.md`](../real-call-evaluations/real-call-evaluation-2026-03-17-implant-booking.md).
 Note which checks passed, which failed, and what changes (if any) were made.

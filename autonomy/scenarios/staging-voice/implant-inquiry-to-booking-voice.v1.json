@@ -16,8 +16,8 @@
   "source": {
     "origin": "manual_voice_test",
     "references": [
-      "docs/test-scenario-2026-03-17-implant-inquiry-to-booking.md",
-      "docs/test-scenario-2026-03-17-implant-booking-retry.md",
+      "docs/archive/manual-test-scenarios/test-scenario-2026-03-17-implant-inquiry-to-booking.md",
+      "docs/archive/manual-test-scenarios/test-scenario-2026-03-17-implant-booking-retry.md",
       "autonomy/scenarios/implant-inquiry-to-booking.v1.json"
     ]
   },

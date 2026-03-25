@@ -25,14 +25,16 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Checking shell scripts..."
-for script_path in "$ROOT_DIR"/scripts/*.sh; do
-  bash -n "$script_path"
-done
+while IFS= read -r script_path; do
+  [[ -f "$ROOT_DIR/$script_path" ]] || continue
+  bash -n "$ROOT_DIR/$script_path"
+done < <(git -C "$ROOT_DIR" ls-files '*.sh' | sort)
 
 echo "Checking JSON files..."
 while IFS= read -r json_path; do
-  jq empty "$json_path" >/dev/null
-done < <(find "$ROOT_DIR" -type f -name '*.json' -not -path "$ROOT_DIR/.git/*" | sort)
+  [[ -f "$ROOT_DIR/$json_path" ]] || continue
+  jq empty "$ROOT_DIR/$json_path" >/dev/null
+done < <(git -C "$ROOT_DIR" ls-files '*.json' | sort)
 
 echo "Checking workflow data sync..."
 "$ROOT_DIR/scripts/sync-n8n-workflow-data.sh" --check >/dev/null
@@ -63,14 +65,22 @@ echo "Checking local markdown links..."
 python3 - "$ROOT_DIR" <<'PY'
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 root = Path(sys.argv[1]).resolve()
 missing = []
 
-for path in root.rglob("*.md"):
-    relative_parts = path.relative_to(root).parts
-    if relative_parts and relative_parts[0] in {"node_modules", ".git"}:
+result = subprocess.run(
+    ["git", "-C", str(root), "ls-files", "*.md"],
+    check=True,
+    capture_output=True,
+    text=True,
+)
+
+for relative_path in result.stdout.splitlines():
+    path = root / relative_path
+    if not path.exists():
         continue
     text = path.read_text(encoding="utf-8")
     for match in re.finditer(r"\[[^\]]+\]\(([^)]+)\)", text):
@@ -79,7 +89,7 @@ for path in root.rglob("*.md"):
             continue
         resolved = (path.parent / target).resolve()
         if not resolved.exists():
-            missing.append(f"{path.relative_to(root)} -> {target}")
+            missing.append(f"{relative_path} -> {target}")
 
 if missing:
     for item in missing:

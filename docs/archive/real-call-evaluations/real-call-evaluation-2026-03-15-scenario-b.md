@@ -1,6 +1,6 @@
 # Real Call Evaluation: Scenario B
 
-Source file: `/home/choobek/Downloads/calls-export-df0880e1-cc65-492c-8c20-f6878278c5ad-2026-03-15-16-24-18.json`
+Source file: local Vapi export `calls-export-df0880e1-cc65-492c-8c20-f6878278c5ad-2026-03-15-16-24-18.json` (kept outside the repo)
 
 Call ID: `019cf24b-bd84-7000-9a48-db8c164d0596`
 
@@ -35,7 +35,7 @@ What happened:
 
 ## Repo changes made after this review
 
-- Tightened [system-prompt.md](/home/choobek/repos/ai-receptionist/prompts/system-prompt.md) so the assistant cannot claim it is checking availability unless it is actually calling `checkAvailability`.
+- Tightened [`prompts/system-prompt.md`](../../prompts/system-prompt.md) so the assistant cannot claim it is checking availability unless it is actually calling `checkAvailability`.
 - Added a rule that `najbliższy termin`, `pierwszy wolny termin`, and similar requests default to today’s clinic-local date with `timePreference: first_available`.
 - Added a specific urgent-care rule to call `checkAvailability` immediately for a first-visit urgent request instead of asking extra narrowing questions.
 

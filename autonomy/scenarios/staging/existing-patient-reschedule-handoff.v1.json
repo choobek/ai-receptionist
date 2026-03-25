@@ -14,7 +14,7 @@
   "source": {
     "origin": "manual_regression",
     "references": [
-      "docs/real-call-evaluation-2026-03-13-scenario-b.md",
+      "docs/archive/real-call-evaluations/real-call-evaluation-2026-03-13-scenario-b.md",
       "docs/tool-contracts.md"
     ]
   },

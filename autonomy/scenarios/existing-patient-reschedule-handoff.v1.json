@@ -14,7 +14,7 @@
   "source": {
     "origin": "project_scope",
     "derived_from": [
-      "docs/real-call-evaluation-2026-03-13-scenario-b.md"
+      "docs/archive/real-call-evaluations/real-call-evaluation-2026-03-13-scenario-b.md"
     ]
   },
   "caller_profile": {
@@ -58,4 +58,3 @@
     "recommended_next_action": "Treat as a valid handoff path, not a booking failure."
   }
 }
-

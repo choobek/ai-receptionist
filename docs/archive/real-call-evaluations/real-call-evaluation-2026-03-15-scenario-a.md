@@ -1,6 +1,6 @@
 # Real Call Evaluation: Scenario A
 
-Source file: `/home/choobek/Downloads/calls-export-df0880e1-cc65-492c-8c20-f6878278c5ad-2026-03-15-16-03-23.json`
+Source file: local Vapi export `calls-export-df0880e1-cc65-492c-8c20-f6878278c5ad-2026-03-15-16-03-23.json` (kept outside the repo)
 
 Call ID: `019cf238-1827-7ffa-8f0a-870cd123d4c1`
 
@@ -41,7 +41,7 @@ The weak spot was conversation control.
 
 ## Repo changes made after this review
 
-- Tightened [system-prompt.md](/home/choobek/repos/ai-receptionist/prompts/system-prompt.md) so the assistant must reuse front-loaded booking data instead of replaying the full flow.
+- Tightened [`prompts/system-prompt.md`](../../prompts/system-prompt.md) so the assistant must reuse front-loaded booking data instead of replaying the full flow.
 - Added a stronger rule that explicit hours override broad preferences like `rano` when calling `checkAvailability`.
 - Added a stop-condition after successful `createEvent` so the assistant does not restart scheduling unless the caller starts a new request.
 - Added an explicit rule not to ask again for name or phone if they were already clearly provided earlier in the call.

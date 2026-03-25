@@ -11,7 +11,7 @@ Cost: $0.2446
 ## Scenario alignment
 
 This call re-ran the scenario from
-`docs/test-scenario-2026-03-17-implant-booking-retry.md`.
+[`test-scenario-2026-03-17-implant-booking-retry.md`](../manual-test-scenarios/test-scenario-2026-03-17-implant-booking-retry.md).
 Same caller profile (All-on-4 inquiry, own-teeth question, booking).
 The exact script was not followed verbatim but the intent and path were identical.
 

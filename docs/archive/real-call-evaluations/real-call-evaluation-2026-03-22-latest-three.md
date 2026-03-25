@@ -1,6 +1,6 @@
 # Real Call Evaluation: Latest Three Staging Calls
 
-Source suite run: `/home/choobek/repos/ai-receptionist/autonomy/reports/generated/vapi-live-autoeval/staging-vapi-live-autoeval-20260322T182634Z.md`
+Source suite run: generated staging live autoeval report `staging-vapi-live-autoeval-20260322T182634Z.md` (kept outside the repo)
 
 Reviewed calls:
 

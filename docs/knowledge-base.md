@@ -2,10 +2,11 @@
 
 This proof-of-concept knowledge base is derived from the following source materials:
 
-- `/home/choobek/Downloads/konsultacja.odt`
-- `/home/choobek/Downloads/implanty.odt`
-- `/home/choobek/Downloads/all-on-4.odt`
-- `/home/choobek/Downloads/protetyka.odt`
+- original clinic ODT source files retained outside the repo:
+  - `konsultacja.odt`
+  - `implanty.odt`
+  - `all-on-4.odt`
+  - `protetyka.odt`
 - [`knowledge-base/sources/reception-feedback-2026-03-21.md`](../knowledge-base/sources/reception-feedback-2026-03-21.md)
 
 ## What is stored in the repo

@@ -125,8 +125,9 @@ Expected values:
 
 ## What to log after the test
 
-Copy the Vapi call export JSON to `/home/choobek/Downloads/` and create a
-real-call evaluation document at
-`docs/real-call-evaluation-2026-03-17-implant-booking-retry2.md`
-following the format of `docs/real-call-evaluation-2026-03-17-implant-booking-retry.md`.
+Copy the Vapi call export JSON to a local review folder outside the repo and create a
+matching real-call evaluation document at
+`docs/archive/real-call-evaluations/real-call-evaluation-2026-03-17-implant-booking-retry2.md`
+following the format of
+[`real-call-evaluation-2026-03-17-implant-booking-retry.md`](../real-call-evaluations/real-call-evaluation-2026-03-17-implant-booking-retry.md).
 Note which checks passed, which failed, and what changes (if any) were made.

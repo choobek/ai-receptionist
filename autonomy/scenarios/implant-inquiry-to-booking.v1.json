@@ -14,8 +14,8 @@
   "source": {
     "origin": "project_scope",
     "derived_from": [
-      "docs/test-scenario-2026-03-17-implant-inquiry-to-booking.md",
-      "docs/real-call-evaluation-2026-03-17-implant-booking.md"
+      "docs/archive/manual-test-scenarios/test-scenario-2026-03-17-implant-inquiry-to-booking.md",
+      "docs/archive/real-call-evaluations/real-call-evaluation-2026-03-17-implant-booking.md"
     ]
   },
   "caller_profile": {
@@ -88,4 +88,3 @@
     "recommended_next_action": "Archive as a passing booking regression."
   }
 }
-

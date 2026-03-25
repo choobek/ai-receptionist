@@ -106,9 +106,9 @@ Include recent staging Vapi call logs:
 - post-call routing workflow:
   [`n8n/workflows/webhook_vapi-call-ended-router.json`](../n8n/workflows/webhook_vapi-call-ended-router.json)
 - manually curated real-call reviews and test scenarios:
-  [`docs/real-call-evaluation-2026-03-17-implant-booking.md`](./real-call-evaluation-2026-03-17-implant-booking.md),
-  [`docs/real-call-evaluation-2026-03-17-implant-booking-retry.md`](./real-call-evaluation-2026-03-17-implant-booking-retry.md),
-  [`docs/test-scenario-2026-03-17-implant-inquiry-to-booking.md`](./test-scenario-2026-03-17-implant-inquiry-to-booking.md)
+  [`docs/archive/real-call-evaluations/real-call-evaluation-2026-03-17-implant-booking.md`](./archive/real-call-evaluations/real-call-evaluation-2026-03-17-implant-booking.md),
+  [`docs/archive/real-call-evaluations/real-call-evaluation-2026-03-17-implant-booking-retry.md`](./archive/real-call-evaluations/real-call-evaluation-2026-03-17-implant-booking-retry.md),
+  [`docs/archive/manual-test-scenarios/test-scenario-2026-03-17-implant-inquiry-to-booking.md`](./archive/manual-test-scenarios/test-scenario-2026-03-17-implant-inquiry-to-booking.md)
 
 ### Gaps
 

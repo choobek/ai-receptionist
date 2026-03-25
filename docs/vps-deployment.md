@@ -13,7 +13,7 @@ It is intended for a server such as your OVH VPS.
 Set one public hostname for n8n:
 
 - preferred: a subdomain you control, for example `n8n.example.com`
-- acceptable to test first: the OVH hostname, for example `vps-2c8bbf65.vps.ovh.net`
+- acceptable to test first: the OVH hostname, for example `your-vps-name.vps.ovh.net`
 
 The hostname must resolve to the VPS public IP and ports `80` and `443` must be reachable from the internet so Caddy can obtain a TLS certificate.
 
@@ -95,10 +95,10 @@ N8N_SECURE_COOKIE=true
 N8N_PROXY_HOPS=1
 ```
 
-For your current OVH hostname, the first pass would be:
+For an OVH-provided hostname, the first pass would be:
 
 ```dotenv
-N8N_DOMAIN=vps-2c8bbf65.vps.ovh.net
+N8N_DOMAIN=your-vps-name.vps.ovh.net
 ```
 
 ## 4. Start the stack

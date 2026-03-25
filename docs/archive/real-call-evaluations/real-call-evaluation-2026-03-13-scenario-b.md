@@ -1,6 +1,6 @@
 # Real Call Evaluation: Scenario B
 
-Source file: `/home/choobek/Downloads/calls-export-df0880e1-cc65-492c-8c20-f6878278c5ad-2026-03-13-22-50-28.json`
+Source file: local Vapi export `calls-export-df0880e1-cc65-492c-8c20-f6878278c5ad-2026-03-13-22-50-28.json` (kept outside the repo)
 
 Call ID: `019ce961-eb31-7ee0-940e-3ae358873dea`
 
@@ -59,7 +59,7 @@ Only after that long spoken turn did Vapi call `createReceptionTask`.
 
 ## Repo changes made after this review
 
-- Tightened [system-prompt.md](/home/choobek/repos/ai-receptionist/prompts/system-prompt.md) so the assistant should not repeat the full opening when the caller already starts with a complete request.
+- Tightened [`prompts/system-prompt.md`](../../prompts/system-prompt.md) so the assistant should not repeat the full opening when the caller already starts with a complete request.
 - Added a rule to reuse name and phone when the caller already provided them clearly.
 - Added stricter wording for reschedule/cancel flows so the assistant must wait for `createReceptionTask` success before promising reception follow-up.
 

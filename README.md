@@ -176,7 +176,7 @@ Run the guarded staging-only autonomous improvement loop with:
 
 The controller reuses the existing staging regression runner plus the existing deploy/sync scripts, clusters failures into bounded categories, derives draft regression scenarios from failures, applies only repo-backed targeted fixes that have an explicit safe fixer, optionally syncs staging if runtime files changed, reruns the suite, and writes a release-style report plus index under the git-ignored `autonomy/*/generated/staging-loop/` paths.
 
-Today the safe auto-fixer catalog is intentionally narrow: it can split the ambiguous-day false failure coverage and tighten the staging booking prompt around exact selected-slot reuse for `createEvent`. Workflow or VPS-affecting fixes are still reported, but they are blocked from pretending they deployed unless the repo state has been promoted through the existing git-backed staging path.
+The current safe auto-fixer catalog is intentionally narrow: it can split the ambiguous-day false failure coverage and tighten the staging booking prompt around exact selected-slot reuse for `createEvent`. Workflow or VPS-affecting fixes are still reported, but they are blocked from pretending they deployed unless the repo state has been promoted through the existing git-backed staging path.
 
 ## Staging Voice Smoke Suite
 

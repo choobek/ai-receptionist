@@ -10,7 +10,7 @@ Check real appointment availability for the dental clinic and return up to a few
 
 ## Recommended simplified schema
 
-File: [checkAvailability.vapi.request.json](/home/choobek/repos/ai-receptionist/schemas/checkAvailability.vapi.request.json)
+File: [`schemas/checkAvailability.vapi.request.json`](../schemas/checkAvailability.vapi.request.json)
 
 This version is intentionally simpler than the full contract:
 
@@ -24,7 +24,7 @@ This version is intentionally simpler than the full contract:
 - Point the server URL to your hosted n8n webhook.
 - If you enable `AI_RECEPTIONIST_WEBHOOK_SECRET`, send the same secret to the webhook with the `X-AI-Receptionist-Secret` header or a `?secret=` query parameter fallback.
 - If Vapi struggles with the full schema, use the simplified schema from this doc.
-- The backend still accepts the fuller request shape from [checkAvailability.request.json](/home/choobek/repos/ai-receptionist/schemas/checkAvailability.request.json).
+- The backend still accepts the fuller request shape from [`schemas/checkAvailability.request.json`](../schemas/checkAvailability.request.json).
 
 ## Mapping guidance
 

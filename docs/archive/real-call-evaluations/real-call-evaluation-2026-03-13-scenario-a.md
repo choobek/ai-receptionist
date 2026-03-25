@@ -1,6 +1,6 @@
 # Real Call Evaluation: Scenario A
 
-Source file: `/home/choobek/Downloads/calls-export-df0880e1-cc65-492c-8c20-f6878278c5ad-2026-03-13-22-02-15.json`
+Source file: local Vapi export `calls-export-df0880e1-cc65-492c-8c20-f6878278c5ad-2026-03-13-22-02-15.json` (kept outside the repo)
 
 Call ID: `019ce904-206e-733b-a903-24d4d5338764`
 
@@ -46,7 +46,7 @@ The weak spot was spoken conversation quality, not tool execution.
 
 ## Repo changes made after this review
 
-- Tightened [system-prompt.md](/home/choobek/repos/ai-receptionist/prompts/system-prompt.md) with a new spoken-output hygiene section.
+- Tightened [`prompts/system-prompt.md`](../../prompts/system-prompt.md) with a new spoken-output hygiene section.
 - Added stricter rules for relative date resolution and for not reopening an already confirmed date.
 - Added slot-offering guidance to keep options in one clean sentence.
 - Tightened pre-booking and post-booking confirmation phrasing.

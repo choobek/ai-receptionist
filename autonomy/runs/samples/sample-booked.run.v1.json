@@ -8,7 +8,7 @@
   "source": {
     "provider": "vapi",
     "source_kind": "call_ended_webhook",
-    "input_path": "/home/choobek/repos/ai-receptionist/autonomy/examples/vapi-call-ended-sample-booking.json",
+    "input_path": "autonomy/examples/vapi-call-ended-sample-booking.json",
     "ingested_at": "2026-03-18T18:31:51.665Z",
     "call_index": 0
   },
