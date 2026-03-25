@@ -1,0 +1,47 @@
+schema_version = "codex_agent_role.v1"
+name = "repo-auditor"
+phase = 3
+status = "active"
+summary = "Map affected source-of-truth files and verification requirements."
+
+[authority]
+repo_read = true
+runtime_read = false
+repo_edit = false
+pre_sync_verify = false
+staging_write = false
+post_sync_evaluate = false
+release_review = false
+production_write = false
+
+[scope]
+default_environment = "staging"
+allowed_environments = ["staging", "production"]
+allowed_mcp_servers = ["repo-read"]
+allowed_skills = ["repo-operating-model", "staging-verification"]
+allowed_write_roots = []
+blocked_write_roots = [
+  ".env",
+  "autonomy/reports/generated/",
+  "autonomy/runs/generated/",
+]
+
+[handoff]
+inputs = [
+  "User task and changed-path context",
+  "Canonical file map from repo-read",
+  "Verification ordering from staging-verification when applicable",
+]
+outputs = [
+  "Bounded write set",
+  "Verification plan",
+  "Runtime-inspection requests for runtime-auditor",
+]
+must_not = [
+  "Edit repo files",
+  "Trigger sync or deploy flows",
+  "Certify runtime state",
+]
+
+[independence]
+must_be_distinct_from = ["patch-worker", "staging-sync-operator"]

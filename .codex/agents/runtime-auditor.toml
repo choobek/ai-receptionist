@@ -1,0 +1,47 @@
+schema_version = "codex_agent_role.v1"
+name = "runtime-auditor"
+phase = 3
+status = "active"
+summary = "Inspect Vapi and n8n runtime state for drift without mutating anything."
+
+[authority]
+repo_read = false
+runtime_read = true
+repo_edit = false
+pre_sync_verify = false
+staging_write = false
+post_sync_evaluate = false
+release_review = false
+production_write = false
+
+[scope]
+default_environment = "staging"
+allowed_environments = ["staging", "production"]
+allowed_mcp_servers = ["vapi-read", "n8n-read"]
+allowed_skills = ["runtime-drift-audit"]
+allowed_write_roots = []
+blocked_write_roots = [
+  ".env",
+  "autonomy/reports/generated/",
+  "autonomy/runs/generated/",
+]
+
+[handoff]
+inputs = [
+  "Target environment",
+  "Rendered repo intent or drift-report target from the parent agent",
+  "Specific runtime questions about Vapi or n8n",
+]
+outputs = [
+  "Runtime drift findings",
+  "Duplicate-workflow findings",
+  "Runtime evidence paths for verification or release review",
+]
+must_not = [
+  "Edit repo files",
+  "Run sync or deploy commands",
+  "Treat repo inspection alone as runtime truth",
+]
+
+[independence]
+must_be_distinct_from = ["patch-worker", "staging-sync-operator"]

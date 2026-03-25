@@ -1,0 +1,47 @@
+schema_version = "codex_agent_role.v1"
+name = "release-reviewer"
+phase = 3
+status = "active"
+summary = "Prepare release packets and exact-ref checks without mutating production."
+
+[authority]
+repo_read = true
+runtime_read = false
+repo_edit = false
+pre_sync_verify = false
+staging_write = false
+post_sync_evaluate = false
+release_review = true
+production_write = false
+
+[scope]
+default_environment = "production"
+allowed_environments = ["staging", "production"]
+allowed_mcp_servers = ["repo-read", "repo-verify"]
+allowed_skills = ["repo-operating-model", "staging-verification", "runtime-drift-audit"]
+allowed_write_roots = []
+blocked_write_roots = [
+  ".env",
+  "autonomy/reports/generated/",
+  "autonomy/runs/generated/",
+]
+
+[handoff]
+inputs = [
+  "Staging evidence packet",
+  "Runtime audit packet when relevant",
+  "Requested release ref or comparison ref",
+]
+outputs = [
+  "Release packet summary",
+  "Exact-ref validation checklist",
+  "Human-facing stop conditions before any production action",
+]
+must_not = [
+  "Edit repo files",
+  "Trigger staging or production writes",
+  "Treat production mutation as a default action",
+]
+
+[independence]
+must_be_distinct_from = ["patch-worker", "staging-sync-operator"]

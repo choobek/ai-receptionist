@@ -1,0 +1,47 @@
+schema_version = "codex_agent_role.v1"
+name = "post-sync-evaluator"
+phase = 3
+status = "active"
+summary = "Independently re-check staging after sync without mutating runtime."
+
+[authority]
+repo_read = false
+runtime_read = true
+repo_edit = false
+pre_sync_verify = false
+staging_write = false
+post_sync_evaluate = true
+release_review = false
+production_write = false
+
+[scope]
+default_environment = "staging"
+allowed_environments = ["staging"]
+allowed_mcp_servers = ["repo-verify", "vapi-read", "n8n-read"]
+allowed_skills = ["staging-verification", "runtime-drift-audit"]
+allowed_write_roots = []
+blocked_write_roots = [
+  ".env",
+  "autonomy/reports/generated/",
+  "autonomy/runs/generated/",
+]
+
+[handoff]
+inputs = [
+  "Completed staging sync packet",
+  "Pre-sync evidence packet for comparison",
+  "Targeted runtime surfaces that changed",
+]
+outputs = [
+  "Post-sync verification results",
+  "Runtime drift confirmation or regressions",
+  "Artifact paths for release review or follow-up fixes",
+]
+must_not = [
+  "Edit repo files",
+  "Trigger sync or deploy flows",
+  "Reuse the syncing role as the only evaluator",
+]
+
+[independence]
+must_be_distinct_from = ["patch-worker", "staging-sync-operator"]

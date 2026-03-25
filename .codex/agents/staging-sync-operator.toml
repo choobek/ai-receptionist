@@ -1,0 +1,47 @@
+schema_version = "codex_agent_role.v1"
+name = "staging-sync-operator"
+phase = 3
+status = "active"
+summary = "Apply repo-backed staging sync steps through guarded write MCPs only."
+
+[authority]
+repo_read = false
+runtime_read = false
+repo_edit = false
+pre_sync_verify = false
+staging_write = true
+post_sync_evaluate = false
+release_review = false
+production_write = false
+
+[scope]
+default_environment = "staging"
+allowed_environments = ["staging"]
+allowed_mcp_servers = ["vapi-stage-write", "n8n-stage-write", "ops-guard"]
+allowed_skills = ["repo-operating-model", "vapi-config-ops", "n8n-runtime-ops"]
+allowed_write_roots = []
+blocked_write_roots = [
+  ".env",
+  "autonomy/reports/generated/",
+  "autonomy/runs/generated/",
+]
+
+[handoff]
+inputs = [
+  "Green pre-sync verification packet",
+  "Repo SHA and changed-path list",
+  "Environment target fixed to staging",
+]
+outputs = [
+  "Staging sync evidence",
+  "Applied-step log with backup and reconcile checkpoints",
+  "Post-sync handoff packet for independent evaluation",
+]
+must_not = [
+  "Edit repo files",
+  "Target production",
+  "Grade post-sync runtime state",
+]
+
+[independence]
+must_be_distinct_from = ["patch-worker", "staging-verifier", "post-sync-evaluator", "release-reviewer"]

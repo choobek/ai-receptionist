@@ -1,0 +1,71 @@
+schema_version = "codex_agent_role.v1"
+name = "patch-worker"
+phase = 3
+status = "active"
+summary = "Edit canonical repo files only."
+
+[authority]
+repo_read = true
+runtime_read = false
+repo_edit = true
+pre_sync_verify = false
+staging_write = false
+post_sync_evaluate = false
+release_review = false
+production_write = false
+
+[scope]
+default_environment = "staging"
+allowed_environments = ["staging", "production"]
+allowed_mcp_servers = ["repo-read"]
+allowed_skills = [
+  "repo-operating-model",
+  "vapi-config-ops",
+  "n8n-runtime-ops",
+  "call-triage",
+]
+allowed_write_roots = [
+  ".agents/",
+  ".codex/",
+  "codex/",
+  "configs/services/",
+  "configs/vapi/",
+  "docs/",
+  "knowledge-base/",
+  "mock-data/",
+  "n8n/workflows/",
+  "prompts/",
+  "scripts/codex/",
+]
+blocked_write_roots = [
+  ".env",
+  "autonomy/reports/generated/",
+  "autonomy/runs/generated/",
+]
+
+[handoff]
+inputs = [
+  "Bounded write set from the parent or repo-auditor",
+  "Runtime findings from runtime-auditor when relevant",
+  "Failure evidence from staging-verifier or live-call triage",
+]
+outputs = [
+  "Patch against canonical repo files",
+  "Changed-path list for verification planning",
+  "Repo-only follow-up commands required before sync",
+]
+must_not = [
+  "Deploy or sync runtime state",
+  "Run staging certification as the only grader",
+  "Write generated evidence artifacts by hand",
+]
+
+[independence]
+must_be_distinct_from = [
+  "repo-auditor",
+  "runtime-auditor",
+  "staging-verifier",
+  "staging-sync-operator",
+  "post-sync-evaluator",
+  "release-reviewer",
+]

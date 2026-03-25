@@ -1,0 +1,37 @@
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+personality = "pragmatic"
+
+# Phase 3 role definitions live in `.codex/agents/`.
+# Validate separation-of-duties boundaries with `./scripts/codex/check-agent-boundaries.sh`.
+[features]
+multi_agent = true
+shell_snapshot = true
+
+[mcp_servers.repo-read]
+command = "python3"
+args = ["-m", "codex.mcp.repo_read.server"]
+
+[mcp_servers.repo-verify]
+command = "python3"
+args = ["-m", "codex.mcp.repo_verify.server"]
+
+[mcp_servers.vapi-read]
+command = "python3"
+args = ["-m", "codex.mcp.vapi_read.server"]
+
+[mcp_servers.n8n-read]
+command = "python3"
+args = ["-m", "codex.mcp.n8n_read.server"]
+
+[mcp_servers.ops-guard]
+command = "python3"
+args = ["-m", "codex.mcp.ops_guard.server"]
+
+[mcp_servers.vapi-stage-write]
+command = "python3"
+args = ["-m", "codex.mcp.vapi_stage_write.server"]
+
+[mcp_servers.n8n-stage-write]
+command = "python3"
+args = ["-m", "codex.mcp.n8n_stage_write.server"]
