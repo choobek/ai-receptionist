@@ -40,7 +40,6 @@ Add a Codex-centered control plane around this repo without changing the repo's 
   - [`../scripts/check-repo-health.sh`](../scripts/check-repo-health.sh)
   - [`../scripts/check-workflow-regressions.js`](../scripts/check-workflow-regressions.js)
   - [`../scripts/run-staging-regression-suite.sh`](../scripts/run-staging-regression-suite.sh)
-  - [`../scripts/run-staging-voice-smoke-suite.sh`](../scripts/run-staging-voice-smoke-suite.sh)
   - [`../scripts/run-vapi-eval-suite.sh`](../scripts/run-vapi-eval-suite.sh) as a diagnostic lane
   - [`../scripts/run-vapi-live-autoeval.sh`](../scripts/run-vapi-live-autoeval.sh) as live-call review and drift monitoring
 - Existing autonomy surfaces are already close to what an agentic layer needs:
@@ -60,7 +59,7 @@ Add a Codex-centered control plane around this repo without changing the repo's 
 
 - Canonical config is already file-backed and script-applied.
 - Staging and production are already separated in both docs and automation.
-- The repo already has an evidence mindset: regression suites, voice smoke, live autoeval, generated artifacts, and committed design reports.
+- The repo already has an evidence mindset: regression suites, live autoeval, generated artifacts, and committed design reports.
 - The autonomy subsystem already clusters failures into categories that map well to agent routing: prompt issue, tool contract mismatch, schema gap, workflow bug, environment issue, false failure.
 
 ### What is still missing
@@ -70,7 +69,7 @@ Add a Codex-centered control plane around this repo without changing the repo's 
 - No named subagent roles with explicit boundaries.
 - No MCP layer that wraps current scripts and runtime APIs into safe read/write surfaces.
 - No explicit separation between repo editing, staging syncing, and independent evaluation.
-- No single Codex-facing release gate wrapper that packages repo health, contract checks, chat lane, voice lane, and live-call review into one evidence packet.
+- No single Codex-facing release gate wrapper that packages repo health, contract checks, the chat lane, and live-call review into one evidence packet.
 
 ### Where plain Codex helps today
 
@@ -84,7 +83,7 @@ Add a Codex-centered control plane around this repo without changing the repo's 
 - Dashboard drift unless it explicitly queries Vapi.
 - n8n active/draft/duplicate workflow state unless it explicitly queries the VPS.
 - Credential attachment state inside n8n.
-- Voice timing and interruption behavior unless it runs the voice lane.
+- Timing or interruption behavior unless it inspects raw call artifacts or live-call review outputs.
 - Environment-specific effective Vapi state if it reads only the shared assistant JSON.
 - Whether a repo patch was actually promoted to runtime unless it inspects staging after sync.
 
@@ -104,10 +103,9 @@ Add a Codex-centered control plane around this repo without changing the repo's 
 | Server | Mode | Backing surfaces | Why it exists | Hard boundary |
 | --- | --- | --- | --- | --- |
 | `repo-read` | read-only | repo files, git read commands, render helpers, local docs search | Lets Codex understand canonical repo state quickly and safely | No writes, no deploy, no sync |
-| `repo-verify` | read/exec | repo health, workflow regressions, staging chat suite, staging voice suite, saved Vapi eval lane, live autoeval lane | Central evidence surface for both humans and agents | No file edits, no runtime mutation |
+| `repo-verify` | read/exec | repo health, workflow regressions, staging chat suite, saved Vapi eval lane, live autoeval lane | Central evidence surface for both humans and agents | No file edits, no runtime mutation |
 | `vapi-read` | read-only | Vapi API GETs for assistants, tools, calls, scorecards, structured outputs, eval resources | Detects dashboard drift and gathers live-call evidence | No PATCH/POST/DELETE |
 | `n8n-read` | read-only | SSH + `n8n list:workflow`, active workflow inventory, duplicate detection, optional direct webhook probes | Exposes runtime workflow truth that Git alone cannot show | No import, publish, unpublish, or credential mutation |
-| `browser-voice` | read/exec | Playwright, Vapi Web SDK, voice smoke fixtures | Covers timing and interruption behavior that repo diffing cannot see | Staging web calls only, never production phone numbers |
 | `vapi-stage-write` | staging write | [`../scripts/sync-vapi-observability.sh`](../scripts/sync-vapi-observability.sh), [`../scripts/sync-vapi-environment.sh`](../scripts/sync-vapi-environment.sh), [`../scripts/update-vapi-tool-definition.sh`](../scripts/update-vapi-tool-definition.sh) | Applies repo-backed Vapi changes to staging through current scripts | Must refuse production |
 | `n8n-stage-write` | staging write | [`../scripts/import-n8n-workflows-vps.sh`](../scripts/import-n8n-workflows-vps.sh) and [`../scripts/reconcile-n8n-workflows-vps.sh`](../scripts/reconcile-n8n-workflows-vps.sh) | Applies repo-backed workflow changes to staging with mandatory backup and reconcile | Must refuse production |
 | `ops-guard` | policy/gate | git state checks, environment allowlists, backup requirements, release-gate ordering | Stops Codex from skipping required human and repo rules | No direct vendor API mutation; orchestration only |
@@ -122,7 +120,7 @@ Notes:
 | Skill | Responsibility boundary | Why it exists |
 | --- | --- | --- |
 | `repo-operating-model` | Source-of-truth files, mirror rules, env model, deploy model, staging/production separation | Prevents edits to the wrong files and stops dashboard-only thinking |
-| `staging-verification` | Repo health, contract tests, chat gate, voice gate, autoeval evidence order | Makes verification repeatable and keeps saved Vapi evals in the right diagnostic role |
+| `staging-verification` | Repo health, contract tests, chat gate, and autoeval evidence order | Makes verification repeatable and keeps saved Vapi evals in the right diagnostic role |
 | `runtime-drift-audit` | Compare rendered repo state against staging or production runtime state | Captures the real blind spots of plain Codex |
 | `vapi-config-ops` | Shared assistant config, prompt mirrors, environment bindings, observability resources, tool definition sync | Encodes Vapi-specific repo rules and environment override handling |
 | `n8n-runtime-ops` | Workflow JSON authority, embedded data sync, VPS import/reconcile, active workflow inspection | Encodes the repo's most fragile operational path |
@@ -136,9 +134,9 @@ Notes:
 | `repo-auditor` | Map affected source-of-truth files and verification requirements | `repo-read`, repo skills | No edits, no runtime writes |
 | `runtime-auditor` | Inspect Vapi/n8n staging or production for drift | `vapi-read`, `n8n-read`, `runtime-drift-audit` | No edits, no sync |
 | `patch-worker` | Edit canonical repo files only | `repo-read`, repo skills, normal file editing | No deploy, no sync, no final grading |
-| `staging-verifier` | Run local and staging evidence lanes before any sync | `repo-verify`, `browser-voice` | No edits, no deploy |
+| `staging-verifier` | Run local and staging evidence lanes before any sync | `repo-verify` | No edits, no deploy |
 | `staging-sync-operator` | Apply staging runtime changes through existing scripts | `vapi-stage-write`, `n8n-stage-write`, `ops-guard` | No repo edits, no production writes |
-| `post-sync-evaluator` | Independently re-check staging after sync | `repo-verify`, `vapi-read`, `n8n-read`, `browser-voice` | No edits, no sync |
+| `post-sync-evaluator` | Independently re-check staging after sync | `repo-verify`, `vapi-read`, `n8n-read` | No edits, no sync |
 | `release-reviewer` | Prepare production release packet and exact-ref validation | `repo-read`, `repo-verify`, `runtime-drift-audit`, `production-promotion-guard` | No production mutation unless user explicitly requests it |
 
 ### Parent/child delegation model
@@ -173,11 +171,10 @@ Make the future agentic layer reuse the repo's current verification surfaces in 
 1. Repo health: [`../scripts/check-repo-health.sh`](../scripts/check-repo-health.sh)
 2. Backend regression checks: [`../scripts/check-workflow-regressions.js`](../scripts/check-workflow-regressions.js)
 3. Staging chat gate: [`../scripts/run-staging-regression-suite.sh`](../scripts/run-staging-regression-suite.sh)
-4. Staging voice gate: [`../scripts/run-staging-voice-smoke-suite.sh`](../scripts/run-staging-voice-smoke-suite.sh)
-5. Saved Vapi eval lane: diagnostic only
-6. Live-call autoeval: staging as a drift monitor and triage queue; production as monitoring only
-7. Runtime drift check: Vapi rendered-vs-live plus n8n active/duplicate workflow inventory
-8. MCP health checks for the control plane itself
+4. Saved Vapi eval lane: diagnostic only
+5. Live-call autoeval: staging as a drift monitor and triage queue; production as monitoring only
+6. Runtime drift check: Vapi rendered-vs-live plus n8n active/duplicate workflow inventory
+7. MCP health checks for the control plane itself
 
 Recommended evidence output paths:
 
@@ -221,7 +218,6 @@ Use these for:
 | [`./environment-separation.md`](./environment-separation.md) | staging-first release model |
 | [`./testing-strategy.md`](./testing-strategy.md) | lane boundaries and release-gate policy |
 | [`./staging-regression-suite.md`](./staging-regression-suite.md) | assistant invariant gate |
-| [`./staging-voice-smoke-suite.md`](./staging-voice-smoke-suite.md) | voice smoke/eval gate |
 | [`./vapi-observability.md`](./vapi-observability.md) | observability sync and live review policy |
 | [`./autonomy-loop.md`](./autonomy-loop.md) | current guarded autonomy controller and safe-fixer model |
 
@@ -338,14 +334,12 @@ Future guarded path:
   - `.agents/skills/call-triage/SKILL.md`
   - `codex/mcp/vapi_read/`
   - `codex/mcp/n8n_read/`
-  - `codex/mcp/browser_voice/`
   - `scripts/codex/runtime-drift-report.sh`
   - artifact roots under `autonomy/runs/generated/codex/` and `autonomy/reports/generated/codex/`
 - Files/folders to add or modify:
   - `.agents/skills/`
   - `codex/mcp/vapi_read/`
   - `codex/mcp/n8n_read/`
-  - `codex/mcp/browser_voice/`
   - `autonomy/runs/generated/codex/`
   - `autonomy/reports/generated/codex/`
 - Dependencies:

@@ -32,7 +32,6 @@
 - [ ] Add `call-triage` skill.
 - [ ] Add `codex/mcp/vapi_read/`.
 - [ ] Add `codex/mcp/n8n_read/`.
-- [ ] Add `codex/mcp/browser_voice/`.
 - [ ] Add `scripts/codex/runtime-drift-report.sh`.
 - [ ] Redact secrets and PII in all MCP outputs and Codex-generated reports.
 - [ ] Prove Codex can render a staging drift report without manual SSH or ad-hoc curl commands.

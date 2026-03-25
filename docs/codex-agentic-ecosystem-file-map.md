@@ -41,10 +41,9 @@ This map assumes Python-based MCP wrappers so the control plane can stay thin an
 | --- | --- | --- |
 | `codex/mcp/shared/` | 1 | Shared helpers for env loading, redaction, artifact writing, and command execution |
 | `codex/mcp/repo_read/server.py` | 1 | Read-only access to repo files, git state, docs search, and rendered config helpers |
-| `codex/mcp/repo_verify/server.py` | 1 | Non-mutating access to repo health, regression suites, voice suite, and autoeval runners |
+| `codex/mcp/repo_verify/server.py` | 1 | Non-mutating access to repo health, regression suites, and autoeval runners |
 | `codex/mcp/vapi_read/server.py` | 2 | Read-only Vapi API access for assistants, tools, calls, and observability resources |
 | `codex/mcp/n8n_read/server.py` | 2 | Read-only runtime inventory for active workflows, duplicate workflows, and direct webhook probes |
-| `codex/mcp/browser_voice/server.py` | 2 | Browser-driven voice smoke and reproduction helpers, staging only |
 | `codex/mcp/vapi_stage_write/server.py` | 4 | Staging-only wrapper around repo-backed Vapi sync scripts |
 | `codex/mcp/n8n_stage_write/server.py` | 4 | Staging-only wrapper around workflow import and reconcile scripts |
 | `codex/mcp/ops_guard/server.py` | 4 | Environment allowlists, clean-tree checks, backup requirements, and staged orchestration rules |
@@ -54,7 +53,7 @@ This map assumes Python-based MCP wrappers so the control plane can stay thin an
 | Path | Phase | Purpose / planned contents |
 | --- | --- | --- |
 | `scripts/codex/check-mcp-health.sh` | 1 | Smoke-check every configured MCP server |
-| `scripts/codex/run-staging-release-gate.sh` | 1 | One-command wrapper for repo health, backend regressions, chat gate, and voice gate |
+| `scripts/codex/run-staging-release-gate.sh` | 1 | One-command wrapper for repo health, backend regressions, chat gate, and live-call review evidence |
 | `scripts/codex/runtime-drift-report.sh` | 2 | Produce a concise repo-vs-runtime drift packet for staging or production |
 | `scripts/codex/staging-sync-with-evidence.sh` | 4 | Run staging deploy/sync plus capture before/after evidence paths |
 | `scripts/codex/prepare-production-packet.sh` | 5 | Assemble exact-ref production release packet without mutating production by default |

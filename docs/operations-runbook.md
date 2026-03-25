@@ -113,7 +113,7 @@ Artifacts land under:
 - `autonomy/runs/generated/vapi-evals/<suite-run-id>/`
 - `autonomy/reports/generated/vapi-evals/<suite-run-id>.md`
 
-The saved Vapi chat eval lane is configured and repo-backed, but the current staging assistant can still time out before returning the assistant turn inside Vapi's saved eval runner. Treat this lane as a fast diagnostic surface, not the release gate. The repo-local staging regression and staging voice smoke suites remain authoritative.
+The saved Vapi chat eval lane is configured and repo-backed, but the current staging assistant can still time out before returning the assistant turn inside Vapi's saved eval runner. Treat this lane as a fast diagnostic surface, not the release gate. The repo-local workflow regression checks and staging regression suite remain authoritative.
 
 ### Live Vapi Autoevaluation Lane
 
@@ -134,7 +134,7 @@ Interpretation:
 
 - The runner fetches recent calls from Vapi, stores the raw call JSON, ingests each call into `run.v1`, and scores the runs against [`../configs/vapi/autoevaluation-policy.v1.json`](../configs/vapi/autoevaluation-policy.v1.json).
 - Treat this as the live-call review queue and drift monitor.
-- Keep the repo-local staging regression and staging voice smoke lanes as the release gate.
+- Keep the repo-local workflow regression checks and staging regression suite as the release gate.
 
 ## 3. Sync Embedded Workflow Data
 
@@ -244,7 +244,7 @@ curl -sS "https://<environment-host>/webhook/ai-receptionist/check-availability?
   --data '{"service":{"id":"consultation"},"timePreference":"first_available","timezone":"Europe/Warsaw"}'
 
 ./scripts/run-staging-regression-suite.sh
-./scripts/run-staging-voice-smoke-suite.sh --language all
+node ./scripts/check-workflow-regressions.js
 ```
 
 Notes:
@@ -272,7 +272,7 @@ Run these when the repo starts to feel improvised:
 git status --short
 ./scripts/check-repo-health.sh
 ./scripts/check-workflow-regressions.js
-# optional quarantined prompt/config/voice checks:
+# optional quarantined prompt/config checks:
 # ./scripts/check-workflow-regressions.js --include-experimental
 ./scripts/sync-n8n-workflow-data.sh --check
 ./scripts/render-vapi-assistant-config.sh production >/tmp/ai-receptionist-production-assistant.json
@@ -284,9 +284,9 @@ Interpretation:
 
 - `git status --short` should not show accidental secrets, throwaway scripts, or duplicate env templates.
 - `./scripts/check-repo-health.sh` should pass before deploys and after repo cleanup. It now includes workflow regression checks when `node` is installed.
-- `./scripts/run-vapi-eval-suite.sh staging` is a useful observability check, but it is not a substitute for the repo-local staging regression or voice smoke lanes.
+- `./scripts/run-vapi-eval-suite.sh staging` is a useful observability check, but it is not a substitute for the repo-local workflow regression checks and staging regression suite.
 - `./scripts/run-vapi-live-autoeval.sh staging` is the fastest way to turn recent real calls into a concrete review queue with scorecard thresholds and reason counts.
-- `./scripts/check-workflow-regressions.js` is the default must-pass contract/invariant lane. Use `--include-experimental` only for explicit audits of quarantined prompt/config/voice checks.
+- `./scripts/check-workflow-regressions.js` is the default must-pass contract/invariant lane. Use `--include-experimental` only for explicit audits of quarantined prompt/config checks.
 - `./scripts/sync-n8n-workflow-data.sh --check` should pass after proof-of-concept data edits.
 - rendered staging and production assistant configs should build cleanly from repo state plus root `.env`.
 - a clean Vapi update path means assistant changes are reproducible outside the dashboard.

@@ -155,8 +155,6 @@ Operational reference:
 - [`docs/operations-runbook.md`](./docs/operations-runbook.md) for human step-by-step operations
 - [`docs/vapi-observability.md`](./docs/vapi-observability.md) for the repo-backed Vapi observability pack
 - [`docs/staging-regression-suite.md`](./docs/staging-regression-suite.md) for the staging synthetic suite
-- [`docs/staging-voice-smoke-suite.md`](./docs/staging-voice-smoke-suite.md) for the staged voice smoke-lane surface
-- [`docs/voice-e2e-execution-lane.md`](./docs/voice-e2e-execution-lane.md) for the staged plan to add automated voice validation
 
 ## Staging Regression Suite
 
@@ -177,24 +175,6 @@ Run the guarded staging-only autonomous improvement loop with:
 The controller reuses the existing staging regression runner plus the existing deploy/sync scripts, clusters failures into bounded categories, derives draft regression scenarios from failures, applies only repo-backed targeted fixes that have an explicit safe fixer, optionally syncs staging if runtime files changed, reruns the suite, and writes a release-style report plus index under the git-ignored `autonomy/*/generated/staging-loop/` paths.
 
 The current safe auto-fixer catalog is intentionally narrow: it can split the ambiguous-day false failure coverage and tighten the staging booking prompt around exact selected-slot reuse for `createEvent`. Workflow or VPS-affecting fixes are still reported, but they are blocked from pretending they deployed unless the repo state has been promoted through the existing git-backed staging path.
-
-## Staging Voice Smoke Suite
-
-Run the staging-only automated voice smoke suite with:
-
-```bash
-./scripts/run-staging-voice-smoke-suite.sh
-```
-
-The default run executes the active Polish voice scenarios. Use `--language en` for the English companion lane or `--language all` to run both.
-
-This lane starts a real staging Vapi web call in Chrome through the Vapi Web SDK, feeds a synthesized fake-microphone WAV built from the scenario steps, waits for the call to end, fetches the final call artifact from the Vapi API, normalizes it through the existing autonomy ingester, writes JSON artifacts under `autonomy/runs/generated/staging-voice/`, renders a Markdown report under `autonomy/reports/generated/staging-voice/`, and exits non-zero when a required voice smoke criterion fails. If a referenced caller clip is missing, the runner can synthesize it on demand through ElevenLabs and cache it under `autonomy/scenarios/staging-voice/fixtures/`.
-
-The current runner needs both:
-
-- a private staging Vapi API key for server-side call fetches
-- a browser-side Vapi public key or public JWT token for web-call creation
-- `ELEVENLABS_API_KEY` only when voice fixtures still need to be synthesized locally
 
 ## Staging And Production
 
@@ -395,8 +375,6 @@ The repo now also includes an offline-first autonomy workspace for ingesting raw
 - design doc: [`docs/autonomy-loop.md`](./docs/autonomy-loop.md)
 - workspace overview: [`autonomy/README.md`](./autonomy/README.md)
 - ingestion CLI: [`scripts/autonomy/ingest-vapi-call-log.js`](./scripts/autonomy/ingest-vapi-call-log.js)
-- voice smoke suite surface: [`docs/staging-voice-smoke-suite.md`](./docs/staging-voice-smoke-suite.md)
-- planned voice lane: [`docs/voice-e2e-execution-lane.md`](./docs/voice-e2e-execution-lane.md)
 
 ## Assumptions baked into this starter
 

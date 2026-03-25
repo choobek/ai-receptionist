@@ -36,7 +36,7 @@
 3. Run `./scripts/sync-vapi-observability-mirrors.sh` if you changed the canonical call-intake schema and want the readable mirror refreshed immediately.
 4. Run `./scripts/sync-vapi-environment.sh staging` or `./scripts/sync-vapi-environment.sh production`.
 5. If you changed only observability resources and do not need a full assistant/tool sync, run `./scripts/sync-vapi-observability.sh staging` or `./scripts/sync-vapi-observability.sh production`.
-6. Use `./scripts/run-vapi-eval-suite.sh staging` for the saved Vapi eval lane. Treat the repo-local staging regression and staging voice smoke suites as the release gate.
+6. Use `./scripts/run-vapi-eval-suite.sh staging` for the saved Vapi eval lane. Treat `node scripts/check-workflow-regressions.js` plus `./scripts/run-staging-regression-suite.sh` as the release gate.
 7. Use `./scripts/run-vapi-live-autoeval.sh staging` or `./scripts/run-vapi-live-autoeval.sh production` to ingest recent real calls, score them against the repo policy, and render a review queue report.
 8. If the Vapi API rejects a field, remove or adjust that field in the repo config before retrying.
 

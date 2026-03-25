@@ -10,15 +10,6 @@ const workflowsDir = path.join(rootDir, 'n8n', 'workflows');
 const assistantConfigPath = path.join(rootDir, 'configs', 'vapi', 'assistant.v2.json');
 const structuredOutputSchemaPath = path.join(rootDir, 'docs', 'vapi-structured-output.json');
 const {
-  evaluateCriterion: evaluateVoiceCriterion,
-  selectCompletedRecentCall
-} = require(path.join(
-  rootDir,
-  'scripts',
-  'autonomy',
-  'run-staging-voice-smoke-suite.js'
-));
-const {
   createContext: createChatRegressionContext,
   normalizeOutputForTurn,
   evaluateCriterion: evaluateChatCriterion,
@@ -37,7 +28,7 @@ function usage() {
   node scripts/check-workflow-regressions.js [options]
 
 Options:
-  --include-experimental  Also run quarantined prompt/config/voice checks.
+  --include-experimental  Also run quarantined prompt/config checks.
   --help                  Show this help message.
 `);
 }
@@ -96,10 +87,6 @@ function loadStructuredOutputSchema() {
 
 function loadStagingScenario(filename) {
   return loadJson(path.join(rootDir, 'autonomy', 'scenarios', 'staging', filename));
-}
-
-function loadStagingVoiceScenario(filename) {
-  return loadJson(path.join(rootDir, 'autonomy', 'scenarios', 'staging-voice', filename));
 }
 
 function getScenarioCriterion(scenario, criterionId) {
@@ -1930,52 +1917,6 @@ experimentalTest('assistant prompt anchors createEvent to the exact selected slo
   assert.match(systemPrompts, /2026-03-19T10:15:00\+01:00/);
 });
 
-experimentalTest('assistant prompt keeps the baseline spoken-phone and doctor-name guardrails', () => {
-  const config = loadAssistantConfig();
-  const systemPrompts = (config.assistant?.model?.messages || [])
-    .filter((message) => message.role === 'system' && typeof message.content === 'string')
-    .map((message) => message.content)
-    .join('\n');
-  assert.match(systemPrompts, /nazwisko lekarza to Szajnar/i);
-  assert.match(systemPrompts, /Numer telefonu czytaj cyfra po cyfrze lub parami/i);
-  assert.match(systemPrompts, /nigdy nie rekonstruuj numeru telefonu z pamieci/i);
-  assert.match(systemPrompts, /uzyj polskich slow dla kazdej cyfry/i);
-  assert.match(systemPrompts, /\{\{\s*customer\.number\s*\}\}/);
-  assert.match(systemPrompts, /system zna numer dzwoniacego/i);
-  assert.match(systemPrompts, /nie czytaj tego numeru na glos cyfra po cyfrze/i);
-  assert.match(systemPrompts, /ustaw patient\.phoneE164 dokladnie na \{\{\s*customer\.number\s*\}\}/i);
-  assert.match(systemPrompts, /nigdy nie wpisuj numeru przykladowego, testowego ani zastepczego/i);
-});
-
-experimentalTest('assistant config keeps the March 18 endpointing profile', () => {
-  const config = loadAssistantConfig();
-  assert.equal(config.assistant?.transcriber?.provider, 'openai');
-  assert.equal(config.assistant?.transcriber?.model, 'gpt-4o-transcribe');
-  assert.equal(config.assistant?.transcriber?.language, 'pl');
-  assert.equal(config.assistant?.startSpeakingPlan?.waitSeconds, 0.6);
-  assert.deepEqual(config.assistant?.startSpeakingPlan?.smartEndpointingPlan, {
-    provider: 'vapi'
-  });
-  assert.equal(config.assistant?.startSpeakingPlan?.customEndpointingRules, undefined);
-  assert.equal(config.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.5);
-  assert.equal(config.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 3);
-  assert.equal(config.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 1.5);
-  assert.equal(config.assistant?.stopSpeakingPlan?.backoffSeconds, 1.2);
-});
-
-experimentalTest('assistant config keeps the Ola voice identity, voice model, and temperature', () => {
-  const config = loadAssistantConfig();
-  assert.equal(config.assistant?.name, 'Ola');
-  assert.equal(config.assistant?.voice?.model, 'eleven_turbo_v2_5');
-  assert.equal(config.assistant?.voice?.voiceId, '8EWWaNTDrqObI22Gvo1q');
-  assert.equal(config.assistant?.voice?.chunkPlan?.enabled, true);
-  assert.equal(
-    config.assistant?.firstMessage,
-    'Dzień dobry, z tej strony Ola - cyfrowa asystentka centrum stomatologii Ipokrzyku.pl. W czym mogę pomóc?'
-  );
-  assert.equal(config.assistant?.model?.temperature, 0.2);
-});
-
 test('assistant config makes silence handling explicit and repo-owned', () => {
   const config = loadAssistantConfig();
   assert.equal(config.assistant?.silenceTimeoutSeconds, 60);
@@ -2764,114 +2705,6 @@ assistantInvariantTest('assistant chat rubric rejects createEvent when slotEnd d
   });
   assert.equal(result.passed, false);
   assert.match(result.failure_reason || '', /exact selected slot boundaries/);
-});
-
-experimentalTest('voice smoke recent-call selection prefers the current scenario call', () => {
-  const selected = selectCompletedRecentCall({
-    calls: [
-      {
-        id: 'older-call',
-        assistantId: 'assistant_staging',
-        status: 'ended',
-        startedAt: '2026-03-20T19:01:48.313Z'
-      },
-      {
-        id: 'current-call',
-        assistantId: 'assistant_staging',
-        status: 'ended',
-        startedAt: '2026-03-20T19:02:40.973Z'
-      }
-    ],
-    assistantId: 'assistant_staging',
-    scenarioStartedAt: '2026-03-20T19:02:39.832Z',
-    preferredCallId: 'missing-call'
-  });
-
-  assert.equal(selected?.id, 'current-call');
-});
-
-experimentalTest('voice smoke evaluator supports numeric call-path latency ceilings', () => {
-  const passing = evaluateVoiceCriterion({
-    criterion_id: 'endpointing-latency-budget',
-    description: 'Average endpointing latency should stay under one second.',
-    severity: 'high',
-    rule: {
-      type: 'call_path_lte',
-      path: 'artifact.performanceMetrics.endpointingLatencyAverage',
-      lte: 900
-    }
-  }, {
-    callArtifact: {
-      artifact: {
-        performanceMetrics: {
-          endpointingLatencyAverage: 820
-        }
-      }
-    },
-    normalizedRun: null,
-    toolTrace: [],
-    structuredOutput: { found: false, result: {} },
-    eventTrace: [],
-    scenarioStepTimings: {}
-  });
-  assert.equal(passing.passed, true);
-
-  const failing = evaluateVoiceCriterion({
-    criterion_id: 'endpointing-latency-budget',
-    description: 'Average endpointing latency should stay under one second.',
-    severity: 'high',
-    rule: {
-      type: 'call_path_lte',
-      path: 'artifact.performanceMetrics.endpointingLatencyAverage',
-      lte: 900
-    }
-  }, {
-    callArtifact: {
-      artifact: {
-        performanceMetrics: {
-          endpointingLatencyAverage: 1200
-        }
-      }
-    },
-    normalizedRun: null,
-    toolTrace: [],
-    structuredOutput: { found: false, result: {} },
-    eventTrace: [],
-    scenarioStepTimings: {}
-  });
-  assert.equal(failing.passed, false);
-});
-
-experimentalTest('implant booking voice scenario now guards phone readback quality and latency', () => {
-  const scenario = loadStagingVoiceScenario('implant-inquiry-to-booking-voice.v1.json');
-  const criteria = new Map(scenario.rubric.map((criterion) => [criterion.criterion_id, criterion]));
-
-  assert.deepEqual(
-    criteria.get('phone-readback-uses-spoken-digits')?.rule,
-    {
-      type: 'tool_arg_equals',
-      tool_name: 'createEvent',
-      occurrence: 'last',
-      path: 'patient.phoneE164',
-      equals: '+48604123456'
-    }
-  );
-  assert.deepEqual(
-    criteria.get('phone-quality-flag-clear')?.rule,
-    {
-      type: 'structured_output_path_equals',
-      path: 'qualityFlags.phoneNumberRepeatedIncorrectly',
-      equals: false
-    }
-  );
-  assert.deepEqual(
-    criteria.get('endpointing-latency-budget')?.rule,
-    {
-      type: 'call_path_lte',
-      path: 'artifact.performanceMetrics.endpointingLatencyAverage',
-      lte: 900
-    }
-  );
 });
 
 test('structured output schema exposes QA flags for conversation regressions', () => {

@@ -92,10 +92,10 @@ curl -sS "https://api.vapi.ai/call/YOUR_CALL_ID" \
 jq '.artifact.scorecards'
 ```
 
-This setup has been verified on a real staging web call through the voice smoke lane: the raw Vapi call artifact contained both the primitive structured outputs and both scorecards.
+This setup has been verified on a real staging call artifact: the raw Vapi call payload contained both the primitive structured outputs and both scorecards.
 
 ## Current limitation
 
 The saved Vapi `chat.mockConversation` eval lane is configured and versioned in this repo, but the current staging assistant can still time out before returning the assistant turn inside Vapi's saved eval runner. The local runner records those timeouts as failed findings instead of hanging indefinitely.
 
-Treat the saved Vapi eval pack as an experimental fast lane for now. The repo-local staging regression suite and staging voice smoke suite remain the release gate.
+Treat the saved Vapi eval pack as an experimental fast lane for now. The repo-local workflow regression checks and staging regression suite remain the release gate.
