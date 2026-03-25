@@ -35,7 +35,7 @@ What happened:
 
 ## Repo changes made after this review
 
-- Tightened [`prompts/system-prompt.md`](../../prompts/system-prompt.md) so the assistant cannot claim it is checking availability unless it is actually calling `checkAvailability`.
+- Tightened [`prompts/system-prompt.md`](../../../prompts/system-prompt.md) so the assistant cannot claim it is checking availability unless it is actually calling `checkAvailability`.
 - Added a rule that `najbliższy termin`, `pierwszy wolny termin`, and similar requests default to today’s clinic-local date with `timePreference: first_available`.
 - Added a specific urgent-care rule to call `checkAvailability` immediately for a first-visit urgent request instead of asking extra narrowing questions.
 

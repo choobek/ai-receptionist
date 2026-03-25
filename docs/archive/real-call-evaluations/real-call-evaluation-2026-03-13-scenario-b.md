@@ -59,7 +59,7 @@ Only after that long spoken turn did Vapi call `createReceptionTask`.
 
 ## Repo changes made after this review
 
-- Tightened [`prompts/system-prompt.md`](../../prompts/system-prompt.md) so the assistant should not repeat the full opening when the caller already starts with a complete request.
+- Tightened [`prompts/system-prompt.md`](../../../prompts/system-prompt.md) so the assistant should not repeat the full opening when the caller already starts with a complete request.
 - Added a rule to reuse name and phone when the caller already provided them clearly.
 - Added stricter wording for reschedule/cancel flows so the assistant must wait for `createReceptionTask` success before promising reception follow-up.
 

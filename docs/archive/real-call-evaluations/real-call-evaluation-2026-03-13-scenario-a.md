@@ -46,7 +46,7 @@ The weak spot was spoken conversation quality, not tool execution.
 
 ## Repo changes made after this review
 
-- Tightened [`prompts/system-prompt.md`](../../prompts/system-prompt.md) with a new spoken-output hygiene section.
+- Tightened [`prompts/system-prompt.md`](../../../prompts/system-prompt.md) with a new spoken-output hygiene section.
 - Added stricter rules for relative date resolution and for not reopening an already confirmed date.
 - Added slot-offering guidance to keep options in one clean sentence.
 - Tightened pre-booking and post-booking confirmation phrasing.
