@@ -10,6 +10,14 @@ Add a Codex-centered control plane around this repo without changing the repo's 
 - Production remains explicit, human-gated, and exact-ref based.
 - Diagnosis, patching, syncing, and grading are separated so one agent does not certify its own work.
 
+## Current Status
+
+As of March 25, 2026:
+
+- Phase 0 through Phase 4 are implemented in the repo.
+- The control plane now includes project-local Codex config, repo-native skills, read-only MCP inspection, named agent roles, guarded staging-write MCPs, and evidence-backed staging sync wrappers.
+- Phase 5 remains intentionally deferred. Production mutation is still disabled by default and still routes through the existing human-gated promotion model.
+
 ## Audit Summary
 
 ### Real operating model
@@ -62,14 +70,12 @@ Add a Codex-centered control plane around this repo without changing the repo's 
 - The repo already has an evidence mindset: regression suites, live autoeval, generated artifacts, and committed design reports.
 - The autonomy subsystem already clusters failures into categories that map well to agent routing: prompt issue, tool contract mismatch, schema gap, workflow bug, environment issue, false failure.
 
-### What is still missing
+### What remains intentionally unimplemented
 
-- No project-scoped Codex config.
-- No repo-native skill layer that teaches Codex the source-of-truth model.
-- No named subagent roles with explicit boundaries.
-- No MCP layer that wraps current scripts and runtime APIs into safe read/write surfaces.
-- No explicit separation between repo editing, staging syncing, and independent evaluation.
-- No single Codex-facing release gate wrapper that packages repo health, contract checks, the chat lane, and live-call review into one evidence packet.
+- No production write MCP server is enabled by default.
+- No `production-promotion-guard` skill exists yet.
+- No Codex-triggered production promotion packet or exact-ref preflight exists yet.
+- Production mutation still requires an explicit human decision and the existing [`../scripts/promote-to-production.sh`](../scripts/promote-to-production.sh) path.
 
 ### Where plain Codex helps today
 
@@ -266,6 +272,8 @@ Future guarded path:
 
 ### Phase 0: Audit and prerequisites
 
+Status: Implemented.
+
 - Objective:
   Stabilize the baseline and capture the real runtime state before adding any new control-plane code.
 - Deliverables:
@@ -293,6 +301,8 @@ Future guarded path:
   - docs-only changes can be reverted with no runtime effect
 
 ### Phase 1: Lowest-risk, highest-ROI additions
+
+Status: Implemented.
 
 - Objective:
   Make Codex reliably repo-aware and verification-aware without giving it new mutation power.
@@ -326,6 +336,8 @@ Future guarded path:
 
 ### Phase 2: Repo-native skills and read-only investigation flows
 
+Status: Implemented.
+
 - Objective:
   Give Codex direct, read-only visibility into staging/production runtime state and live-call evidence.
 - Deliverables:
@@ -357,6 +369,8 @@ Future guarded path:
 
 ### Phase 3: Subagent orchestration
 
+Status: Implemented.
+
 - Objective:
   Formalize separation of duties and parallel audit work.
 - Deliverables:
@@ -383,6 +397,8 @@ Future guarded path:
   - turn off multi-agent use in `.codex/config.toml` and fall back to the Phase 1 read-only layer
 
 ### Phase 4: Guarded staging-write flows
+
+Status: Implemented.
 
 - Objective:
   Allow Codex to sync staging safely through the repo's existing scripts and gates.
@@ -413,6 +429,8 @@ Future guarded path:
 
 ### Phase 5: Optional production promotion controls
 
+Status: Not started by design.
+
 - Objective:
   Add a production path only if it preserves the repo's current exact-ref, clean-worktree release model.
 - Deliverables:
@@ -435,13 +453,12 @@ Future guarded path:
 - Rollback / containment:
   - keep production support disabled and use Codex for release prep only
 
-## Recommended Starting Cut
+## Current Next Cut
 
-Implement Phase 1 first.
+The next cut is optional Phase 5 only if the team explicitly wants a Codex-assisted production path.
 
-It gives the biggest leverage for this repo with the lowest risk:
+Until then, the recommended operating model is:
 
-- Codex becomes repo-native instead of generic.
-- Verification becomes one reusable gate instead of scattered shell knowledge.
-- Runtime state becomes easier to inspect without yet allowing mutation.
-- The team can test whether the skills and agent boundaries are actually useful before adding staging write power.
+- Keep production mutation disabled in Codex config and MCP surfaces.
+- Use the current control plane for repo edits, staging verification, staging sync, and post-sync evaluation only.
+- Keep exact-ref production promotion routed through the existing human-controlled script.

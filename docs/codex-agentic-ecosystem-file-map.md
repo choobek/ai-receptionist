@@ -1,6 +1,6 @@
 # Codex Agentic Ecosystem File Map
 
-Paths below are the recommended layout for the future control plane. They are intentionally split between:
+Paths below describe the current control-plane layout through Phase 4 plus the remaining optional Phase 5 extensions. They are intentionally split between:
 
 - hidden Codex config in `.codex/`
 - repo skills in `.agents/skills/`
@@ -12,7 +12,7 @@ This map assumes Python-based MCP wrappers so the control plane can stay thin an
 
 ## Core config
 
-| Path | Phase | Purpose / planned contents |
+| Path | Phase | Purpose / status |
 | --- | --- | --- |
 | `.codex/config.toml` | 1 | Project-scoped Codex defaults: model, reasoning level, project trust, enabled MCP servers, multi-agent on/off, production disabled by default |
 | `.codex/agents/repo-auditor.toml` | 3 | Read-only repo auditor role definition |
@@ -25,7 +25,7 @@ This map assumes Python-based MCP wrappers so the control plane can stay thin an
 
 ## Skills
 
-| Path | Phase | Purpose / planned contents |
+| Path | Phase | Purpose / status |
 | --- | --- | --- |
 | `.agents/skills/repo-operating-model/SKILL.md` | 1 | Source-of-truth files, mirror rules, env model, staging/prod rules, canonical commands |
 | `.agents/skills/staging-verification/SKILL.md` | 1 | Release-gate ordering, artifact locations, when to use each lane |
@@ -33,11 +33,11 @@ This map assumes Python-based MCP wrappers so the control plane can stay thin an
 | `.agents/skills/vapi-config-ops/SKILL.md` | 2 | How to edit and sync Vapi configs, observability resources, prompt mirrors, and tool definitions |
 | `.agents/skills/n8n-runtime-ops/SKILL.md` | 2 | How to edit workflow JSON, sync embedded data, import/reconcile staging, and inspect duplicate workflow state |
 | `.agents/skills/call-triage/SKILL.md` | 2 | How to use live autoeval, run artifacts, and scenario files to derive bounded fixes |
-| `.agents/skills/production-promotion-guard/SKILL.md` | 5 | Exact-ref production release policy and stop conditions |
+| `.agents/skills/production-promotion-guard/SKILL.md` | 5 | Planned optional skill for exact-ref production release policy and stop conditions |
 
 ## MCP servers
 
-| Path | Phase | Purpose / planned contents |
+| Path | Phase | Purpose / status |
 | --- | --- | --- |
 | `codex/mcp/shared/` | 1 | Shared helpers for env loading, redaction, artifact writing, and command execution |
 | `codex/mcp/repo_read/server.py` | 1 | Read-only access to repo files, git state, docs search, and rendered config helpers |
@@ -50,27 +50,28 @@ This map assumes Python-based MCP wrappers so the control plane can stay thin an
 
 ## Wrapper scripts
 
-| Path | Phase | Purpose / planned contents |
+| Path | Phase | Purpose / status |
 | --- | --- | --- |
 | `scripts/codex/check-mcp-health.sh` | 1 | Smoke-check every configured MCP server |
 | `scripts/codex/run-staging-release-gate.sh` | 1 | One-command wrapper for repo health, backend regressions, chat gate, and live-call review evidence |
 | `scripts/codex/runtime-drift-report.sh` | 2 | Produce a concise repo-vs-runtime drift packet for staging or production |
-| `scripts/codex/staging-sync-with-evidence.sh` | 4 | Run staging deploy/sync plus capture before/after evidence paths |
-| `scripts/codex/prepare-production-packet.sh` | 5 | Assemble exact-ref production release packet without mutating production by default |
+| `scripts/codex/staging-sync-with-evidence.sh` | 4 | Run guarded staging sync flows plus capture before/after evidence paths |
+| `scripts/codex/prepare-production-packet.sh` | 5 | Planned optional wrapper to assemble an exact-ref production release packet without mutating production by default |
 
 ## Evidence and reports
 
-| Path | Phase | Purpose / planned contents |
+| Path | Phase | Purpose / status |
 | --- | --- | --- |
 | `autonomy/runs/generated/codex/` | 2 | Git-ignored JSON outputs for runtime audits, release gates, sync reports, and promotion packets |
 | `autonomy/reports/generated/codex/` | 2 | Git-ignored Markdown summaries for the same Codex control-plane runs |
 | `docs/codex-agentic-ecosystem-plan.md` | 0 | Main architecture and rollout plan |
 | `docs/codex-agentic-ecosystem-rollout-checklist.md` | 0 | Actionable implementation checklist |
 | `docs/codex-agentic-ecosystem-risk-register.md` | 0 | Risks, mitigations, blockers, and containment rules |
-| `docs/codex-agentic-ecosystem-file-map.md` | 0 | Proposed folder/file layout and responsibilities |
+| `docs/codex-agentic-ecosystem-file-map.md` | 0 | Current folder/file layout through Phase 4 plus remaining Phase 5 extensions |
 
 ## Notes
 
-- Do not add all of these paths at once. Follow the phases.
-- Do not add a standalone production write server in the initial rollout.
+- Phase 1 through Phase 4 paths now exist in the repo.
+- Phase 5 paths remain optional and intentionally unimplemented.
+- Do not add a standalone production write server by default.
 - Keep MCP server code separate from app runtime code so the control plane stays understandable.
