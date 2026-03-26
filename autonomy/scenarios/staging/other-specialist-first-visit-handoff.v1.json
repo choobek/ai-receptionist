@@ -94,6 +94,28 @@
       }
     },
     {
+      "criterion_id": "reception-task-omits-summary",
+      "description": "The handoff payload must not include a free-text summary field.",
+      "severity": "critical",
+      "root_cause_hint": "assistant is still sending free-text summary data in createReceptionTask",
+      "rule": {
+        "type": "tool_arg_missing",
+        "tool_name": "createReceptionTask",
+        "path": "summary"
+      }
+    },
+    {
+      "criterion_id": "reception-task-omits-notes",
+      "description": "The handoff payload must not include a free-text notes field.",
+      "severity": "critical",
+      "root_cause_hint": "assistant is still sending free-text notes in createReceptionTask",
+      "rule": {
+        "type": "tool_arg_missing",
+        "tool_name": "createReceptionTask",
+        "path": "notes"
+      }
+    },
+    {
       "criterion_id": "no-availability-check",
       "description": "The assistant should not call checkAvailability for another-specialist requests.",
       "severity": "critical",

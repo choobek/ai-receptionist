@@ -624,6 +624,16 @@ function evaluateCriterion(context, criterion) {
         : fail(`Expected assistant text on turn ${rule.turn} to contain: ${(rule.contains_all || []).join(', ')}`);
     }
 
+    case 'turn_assistant_text_not_contains_any': {
+      const assistantText = getAssistantTextForTurn(context, rule.turn);
+      const normalizedText = normalizeText(assistantText);
+      evidence.push(`turn ${rule.turn}: ${assistantText || '[no assistant text]'}`);
+      const matched = (rule.contains_none || []).find((needle) => normalizedText.includes(normalizeText(needle)));
+      return matched === undefined
+        ? pass()
+        : fail(`Did not expect assistant text on turn ${rule.turn} to contain: ${matched}`);
+    }
+
     case 'tool_called': {
       const matches = findToolCalls(context, rule.tool_name);
       evidence.push(`${matches.length} ${rule.tool_name} call(s)`);
@@ -661,6 +671,29 @@ function evaluateCriterion(context, criterion) {
       return candidate && valuesEqual(getByPath(candidate.arguments, rule.path), rule.equals)
         ? pass()
         : fail(`Expected ${occurrence} ${rule.tool_name} call to set ${rule.path} to ${formatValue(rule.equals)}`);
+    }
+
+    case 'tool_arg_missing': {
+      const matches = findToolCalls(context, rule.tool_name);
+      const candidate = occurrence === 'any'
+        ? matches.find((trace) => getByPath(trace.arguments, rule.path) === undefined)
+        : pickOccurrence(matches, occurrence);
+
+      if (candidate) {
+        evidence.push(`${candidate.tool_name}.${rule.path}=${formatValue(getByPath(candidate.arguments, rule.path))}`);
+      } else {
+        evidence.push(`0 ${rule.tool_name} call(s)`);
+      }
+
+      if (occurrence === 'any') {
+        return candidate
+          ? pass()
+          : fail(`Expected any ${rule.tool_name} call to omit ${rule.path}`);
+      }
+
+      return candidate && getByPath(candidate.arguments, rule.path) === undefined
+        ? pass()
+        : fail(`Expected ${occurrence} ${rule.tool_name} call to omit ${rule.path}`);
     }
 
     case 'tool_result_path_equals': {

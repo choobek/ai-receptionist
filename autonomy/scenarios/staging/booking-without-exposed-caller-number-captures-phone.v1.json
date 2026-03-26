@@ -1,0 +1,95 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "booking-without-exposed-caller-number-captures-phone",
+  "title": "Booking flow without exposed caller number asks for a spoken phone number",
+  "description": "When staging chat does not expose a live caller number, a simple first-visit booking flow must ask the caller to provide a phone number instead of assuming the current call number.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "booking",
+    "phone-capture",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "live_call_review",
+    "references": [
+      "configs/vapi/assistant.v2.json",
+      "autonomy/runs/generated/vapi-live-autoeval/staging-vapi-live-autoeval-20260326T164544Z/normalized-runs/staging-019d2b05-75d9-7eea-bc04-6c7849484bb9.run.v1.json"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 4
+  },
+  "turns": [
+    {
+      "turn_id": "request-booking",
+      "user": "Chcialbym umowic pierwsza konsultacje na jutro rano. To moja pierwsza wizyta."
+    },
+    {
+      "turn_id": "allow-nearest-slot-search",
+      "user": "Tak, prosze sprawdzic najblizszy dostepny termin."
+    },
+    {
+      "turn_id": "select-first-offered-slot",
+      "user": "Poprosze pierwszy z podanych terminow."
+    },
+    {
+      "turn_id": "provide-name-only",
+      "user": "Wojciech Czump.",
+      "assertions": [
+        {
+          "criterion_id": "no-booking-before-phone-capture",
+          "description": "The assistant must not try to book before it has a confirmed phone number.",
+          "severity": "critical",
+          "root_cause_hint": "assistant tried to create the booking before collecting a real callback number",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 4,
+            "tool_name": "createEvent"
+          }
+        }
+      ]
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "asks-for-phone-number-after-name-only",
+      "description": "Without an exposed live caller number, the assistant should ask the caller to provide a phone number.",
+      "severity": "critical",
+      "root_cause_hint": "assistant stopped explicitly asking for a spoken phone number when no caller number was available",
+      "rule": {
+        "type": "turn_assistant_text_contains_any",
+        "turn": 4,
+        "contains_any": [
+          "prosze podac numer telefonu",
+          "prosze o numer telefonu",
+          "poprosze o numer telefonu",
+          "poprosze jeszcze numer telefonu do kontaktu",
+          "numer telefonu do kontaktu",
+          "numer telefonu do kontakt",
+          "numer telefonu do potwierdzenia wizyty",
+          "jaki numer telefonu",
+          "numer telefonu do rezerwacji"
+        ]
+      }
+    },
+    {
+      "criterion_id": "does-not-assume-current-call-number",
+      "description": "Without an exposed live caller number, the assistant should not ask whether the current call number should be used.",
+      "severity": "critical",
+      "root_cause_hint": "assistant assumed a current call number existed and asked for confirmation instead of collecting the number",
+      "rule": {
+        "type": "turn_assistant_text_not_contains_any",
+        "turn": 4,
+        "contains_none": [
+          "numer, z ktorego jest to polaczenie",
+          "numer, z ktorego teraz jest wykonywane polaczenie",
+          "numer z ktorego jest to polaczenie",
+          "numer z ktorego teraz jest wykonywane polaczenie"
+        ]
+      }
+    }
+  ]
+}

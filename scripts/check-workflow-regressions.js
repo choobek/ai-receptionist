@@ -94,6 +94,10 @@ function loadStructuredOutputSchema() {
   return loadJson(structuredOutputSchemaPath);
 }
 
+function loadSchema(filename) {
+  return loadJson(path.join(rootDir, 'schemas', filename));
+}
+
 function loadStagingScenario(filename) {
   return loadJson(path.join(rootDir, 'autonomy', 'scenarios', 'staging', filename));
 }
@@ -595,6 +599,18 @@ test('createEvent rejects reversed slots', () => {
   expectValidationError(result, 'slotEnd must be after slotStart');
 });
 
+test('createEvent Vapi schema requires digit-only E.164 phone numbers', () => {
+  const schema = loadSchema('createEvent.vapi.request.json');
+  assert.equal(
+    schema.properties?.patient?.properties?.phoneE164?.pattern,
+    '^\\+[1-9]\\d{7,14}$'
+  );
+  assert.equal(
+    schema.properties?.telephony?.properties?.callerPhoneE164?.pattern,
+    '^\\+[1-9]\\d{7,14}$'
+  );
+});
+
 test('createEvent rejects unsupported service IDs', () => {
   const result = runParse(
     'tool_create-event.json',
@@ -991,6 +1007,18 @@ test('createReceptionTask captures caller phone metadata from Vapi tool payloads
     callerPhoneSource: 'customer.number',
     callerMatchesDeclaredPhone: true
   });
+});
+
+test('Vapi tool sync scripts treat createReceptionTask as a repo-owned tool definition', () => {
+  const syncScript = loadText(path.join(rootDir, 'scripts', 'sync-vapi-environment.sh'));
+  const updateScript = loadText(path.join(rootDir, 'scripts', 'update-vapi-tool-definition.sh'));
+  const createScript = loadText(path.join(rootDir, 'scripts', 'create-vapi-tool.sh'));
+
+  assert.match(syncScript, /update-vapi-tool-definition\.sh" "\$ENVIRONMENT" createReceptionTask/);
+  assert.match(updateScript, /createReceptionTask\)/);
+  assert.match(updateScript, /SCHEMA_PATH="\$ROOT_DIR\/schemas\/createReceptionTask\.request\.json"/);
+  assert.match(createScript, /createReceptionTask\)/);
+  assert.match(createScript, /TOOL_ENDPOINT="\/webhook\/ai-receptionist\/create-reception-task"/);
 });
 
 test('sendSmsToReceptionists requires createReceptionTask taskId', () => {
@@ -1976,6 +2004,18 @@ test('assistant config makes silence handling explicit and repo-owned', () => {
   assert.equal(config.assistant?.server?.timeoutSeconds, 20);
 });
 
+test('assistant prompt keeps phone-collection logic as plain text without unresolved liquid control flow', () => {
+  const config = loadAssistantConfig();
+  const systemPrompts = (config.assistant?.model?.messages || [])
+    .filter((message) => message.role === 'system' && typeof message.content === 'string')
+    .map((message) => message.content)
+    .join('\n');
+
+  assert.equal(/\{%/.test(systemPrompts), false);
+  assert.match(systemPrompts, /Jeśli system nie podał jawnie konkretnego numeru dzwoniącego/i);
+  assert.match(systemPrompts, /nie pytaj o .*numer, z którego jest to połączenie/i);
+});
+
 test('assistant renderer excludes the direct patient SMS tool from production bindings', () => {
   const rendered = renderAssistantConfig('production', {
     PRODUCTION_N8N_PUBLIC_BASE_URL: 'https://prod.example.test',
@@ -2049,6 +2089,22 @@ test('assistant renderer applies staging assistant overrides without changing th
   assert.deepEqual(rendered.assistant?.hooks, []);
 });
 
+test('assistant renderer applies production transcriber override without changing the shared config', () => {
+  const shared = loadAssistantConfig();
+  const rendered = renderAssistantConfig('production', {
+    PRODUCTION_N8N_PUBLIC_BASE_URL: 'https://production.example.test',
+    PRODUCTION_AI_RECEPTIONIST_WEBHOOK_SECRET: 'prod-secret'
+  });
+
+  assert.equal(shared.assistant?.name, 'Ola');
+  assert.equal(shared.assistant?.transcriber?.provider, 'openai');
+  assert.equal(shared.assistant?.transcriber?.model, 'gpt-4o-transcribe');
+  assert.equal(rendered.assistant?.name, 'Ola');
+  assert.equal(rendered.assistant?.transcriber?.provider, '11labs');
+  assert.equal(rendered.assistant?.transcriber?.model, 'scribe_v2');
+  assert.equal(rendered.assistant?.transcriber?.language, 'pl');
+});
+
 assistantInvariantTest('assistant SMS scenarios resolve required tool bindings against staging and production environments', () => {
   const stagingEnabledBindings = getEnabledToolBindings(loadEnvironmentBindings('staging'));
   const productionEnabledBindings = getEnabledToolBindings(loadEnvironmentBindings('production'));
@@ -2097,6 +2153,16 @@ assistantInvariantTest('specialist handoff scenario routes other specialists int
     path: 'taskType',
     equals: 'general_follow_up'
   });
+  assert.deepEqual(getScenarioCriterion(scenario, 'reception-task-omits-summary').rule, {
+    type: 'tool_arg_missing',
+    tool_name: 'createReceptionTask',
+    path: 'summary'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'reception-task-omits-notes').rule, {
+    type: 'tool_arg_missing',
+    tool_name: 'createReceptionTask',
+    path: 'notes'
+  });
   assert.deepEqual(getScenarioCriterion(scenario, 'no-availability-check').rule, {
     type: 'tool_not_called',
     tool_name: 'checkAvailability'
@@ -2115,6 +2181,16 @@ assistantInvariantTest('existing-patient booking handoff scenario routes directl
     tool_name: 'createReceptionTask',
     path: 'taskType',
     equals: 'existing_patient_booking'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'reception-task-omits-summary').rule, {
+    type: 'tool_arg_missing',
+    tool_name: 'createReceptionTask',
+    path: 'summary'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'reception-task-omits-notes').rule, {
+    type: 'tool_arg_missing',
+    tool_name: 'createReceptionTask',
+    path: 'notes'
   });
   assert.deepEqual(getScenarioCriterion(scenario, 'internal-sms-workflow-accepted').rule, {
     type: 'tool_result_path_equals',
@@ -2181,6 +2257,16 @@ assistantInvariantTest('post-handoff meta-question scenario forbids a second rec
     turn: 2,
     tool_name: 'sendSmsToReceptionists'
   });
+  assert.deepEqual(getScenarioCriterion(scenario, 'reception-task-omits-summary').rule, {
+    type: 'tool_arg_missing',
+    tool_name: 'createReceptionTask',
+    path: 'summary'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'reception-task-omits-notes').rule, {
+    type: 'tool_arg_missing',
+    tool_name: 'createReceptionTask',
+    path: 'notes'
+  });
   assert.deepEqual(getScenarioCriterion(scenario, 'no-second-reception-task-on-meta-question').rule, {
     type: 'turn_tool_not_called',
     turn: 3,
@@ -2197,6 +2283,41 @@ assistantInvariantTest('post-handoff meta-question scenario forbids a second rec
   });
   assert.deepEqual(getScenarioCriterion(scenario, 'no-booking-created').rule, {
     type: 'tool_not_called',
+    tool_name: 'createEvent'
+  });
+});
+
+assistantInvariantTest('booking without an exposed caller number asks for the spoken phone number', () => {
+  const scenario = loadStagingScenario('booking-without-exposed-caller-number-captures-phone.v1.json');
+
+  assert.deepEqual(getScenarioCriterion(scenario, 'asks-for-phone-number-after-name-only').rule, {
+    type: 'turn_assistant_text_contains_any',
+    turn: 4,
+    contains_any: [
+      'prosze podac numer telefonu',
+      'prosze o numer telefonu',
+      'poprosze o numer telefonu',
+      'poprosze jeszcze numer telefonu do kontaktu',
+      'numer telefonu do kontaktu',
+      'numer telefonu do kontakt',
+      'numer telefonu do potwierdzenia wizyty',
+      'jaki numer telefonu',
+      'numer telefonu do rezerwacji'
+    ]
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'does-not-assume-current-call-number').rule, {
+    type: 'turn_assistant_text_not_contains_any',
+    turn: 4,
+    contains_none: [
+      'numer, z ktorego jest to polaczenie',
+      'numer, z ktorego teraz jest wykonywane polaczenie',
+      'numer z ktorego jest to polaczenie',
+      'numer z ktorego teraz jest wykonywane polaczenie'
+    ]
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-booking-before-phone-capture').rule, {
+    type: 'turn_tool_not_called',
+    turn: 4,
     tool_name: 'createEvent'
   });
 });
@@ -2595,6 +2716,59 @@ assistantInvariantTest('assistant chat rubric can verify internal receptionist S
     }
   });
   assert.equal(notificationKindResult.passed, true);
+});
+
+assistantInvariantTest('assistant chat rubric can verify createReceptionTask omits forbidden free-text fields', () => {
+  const context = createChatRegressionContext({
+    turns: [{ user: 'synthetic turn' }],
+    rubric: []
+  });
+
+  normalizeOutputForTurn(context, 1, [
+    {
+      role: 'assistant',
+      tool_calls: [
+        {
+          id: 'tool_create_task_minimized',
+          function: {
+            name: 'createReceptionTask',
+            arguments: JSON.stringify({
+              taskType: 'existing_patient_booking',
+              patient: {
+                fullName: 'Anna Kowalska',
+                phoneE164: '+48500111001'
+              },
+              serviceBucket: 'hygiene'
+            })
+          }
+        }
+      ]
+    }
+  ]);
+
+  const summaryMissingResult = evaluateChatCriterion(context, {
+    criterion_id: 'reception-task-omits-summary',
+    description: 'createReceptionTask should omit summary',
+    severity: 'critical',
+    rule: {
+      type: 'tool_arg_missing',
+      tool_name: 'createReceptionTask',
+      path: 'summary'
+    }
+  });
+  assert.equal(summaryMissingResult.passed, true);
+
+  const notesMissingResult = evaluateChatCriterion(context, {
+    criterion_id: 'reception-task-omits-notes',
+    description: 'createReceptionTask should omit notes',
+    severity: 'critical',
+    rule: {
+      type: 'tool_arg_missing',
+      tool_name: 'createReceptionTask',
+      path: 'notes'
+    }
+  });
+  assert.equal(notesMissingResult.passed, true);
 });
 
 assistantInvariantTest('assistant chat rubric can verify createEvent reuses the exact selected slot boundaries', () => {

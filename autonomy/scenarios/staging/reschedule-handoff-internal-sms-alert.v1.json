@@ -86,6 +86,28 @@
       }
     },
     {
+      "criterion_id": "reception-task-omits-summary",
+      "description": "The handoff payload must not include a free-text summary field.",
+      "severity": "critical",
+      "root_cause_hint": "assistant is still sending free-text summary data in createReceptionTask",
+      "rule": {
+        "type": "tool_arg_missing",
+        "tool_name": "createReceptionTask",
+        "path": "summary"
+      }
+    },
+    {
+      "criterion_id": "reception-task-omits-notes",
+      "description": "The handoff payload must not include a free-text notes field.",
+      "severity": "critical",
+      "root_cause_hint": "assistant is still sending free-text notes in createReceptionTask",
+      "rule": {
+        "type": "tool_arg_missing",
+        "tool_name": "createReceptionTask",
+        "path": "notes"
+      }
+    },
+    {
       "criterion_id": "internal-sms-called-on-confirmation-turn",
       "description": "The internal receptionist SMS should be triggered on the confirmation turn only.",
       "severity": "critical",

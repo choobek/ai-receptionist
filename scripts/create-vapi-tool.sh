@@ -56,6 +56,11 @@ case "$TOOL_NAME" in
     SCHEMA_PATH="$ROOT_DIR/schemas/createEvent.vapi.request.json"
     TOOL_ENDPOINT="/webhook/ai-receptionist/create-event"
     ;;
+  createReceptionTask)
+    TOOL_DESCRIPTION="Use this tool to queue a receptionist follow-up only after the caller's phone number has been repeated and confirmed. Required details include taskType, patient full name, and patient phone number. Use structured fields only: if it is operationally helpful, you may include serviceBucket or preferredCallbackWindow, but do not create free-text summary or notes fields. Never say the reception team will follow up until this tool returns success."
+    SCHEMA_PATH="$ROOT_DIR/schemas/createReceptionTask.request.json"
+    TOOL_ENDPOINT="/webhook/ai-receptionist/create-reception-task"
+    ;;
   sendSmsToReceptionists)
     TOOL_DESCRIPTION="Use this tool only after createReceptionTask has already returned success and you have the taskId from that result. It prepares or sends an internal receptionist SMS alert based on the saved follow-up task. Do not mention the internal SMS to the caller unless they ask. If this tool fails, the saved receptionist task still exists."
     SCHEMA_PATH="$ROOT_DIR/schemas/sendSmsToReceptionists.request.json"

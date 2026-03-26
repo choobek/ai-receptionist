@@ -109,3 +109,5 @@ else
   exit 1
 fi
 EOF
+
+"$ROOT_DIR/scripts/sync-vps-sms-config.sh" "$ENVIRONMENT"

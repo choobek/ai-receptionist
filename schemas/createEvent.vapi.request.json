@@ -68,6 +68,7 @@
         },
         "phoneE164": {
           "type": "string",
+          "pattern": "^\\+[1-9]\\d{7,14}$",
           "description": "Confirmed callback number stored on the booking. If the caller confirmed using the number they are calling from, reuse that live caller number here."
         },
         "isExistingPatient": {
@@ -90,6 +91,7 @@
       "properties": {
         "callerPhoneE164": {
           "type": "string",
+          "pattern": "^\\+[1-9]\\d{7,14}$",
           "description": "Optional live caller number in E.164 format when Vapi exposes it."
         },
         "callerPhoneRaw": {
