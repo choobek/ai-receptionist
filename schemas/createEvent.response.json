@@ -56,9 +56,6 @@
             },
             "phoneE164": {
               "type": "string"
-            },
-            "email": {
-              "type": "string"
             }
           }
         }
@@ -113,10 +110,15 @@
         "accepted": {
           "type": "boolean"
         },
-        "recipientPhoneE164": {
+        "recipientClass": {
           "type": [
             "string",
             "null"
+          ],
+          "enum": [
+            "caller_phone",
+            "declared_phone",
+            null
           ]
         },
         "delivery": {
@@ -154,9 +156,6 @@
               "type": "string"
             },
             "language": {
-              "type": "string"
-            },
-            "body": {
               "type": "string"
             }
           }
@@ -222,20 +221,18 @@
         },
         "patient": {
           "fullName": "Jan Kowalski",
-          "phoneE164": "+48500100200",
-          "email": "jan@example.com"
+          "phoneE164": "+48500100200"
         }
       },
       "phoneContext": {
         "declaredPhoneE164": "+48500100200",
         "callerPhoneE164": "+48500100200",
         "callerPhoneSource": "customer.number",
-        "callerMatchesDeclaredPhone": true,
-        "smsRecipientPhoneE164": "+48500100200"
+        "callerMatchesDeclaredPhone": true
       },
       "bookingConfirmationSms": {
         "accepted": true,
-        "recipientPhoneE164": "+48500100200",
+        "recipientClass": "caller_phone",
         "delivery": {
           "status": "simulated",
           "provider": "mock",
@@ -244,8 +241,7 @@
         },
         "sms": {
           "kind": "booking_confirmation",
-          "language": "pl",
-          "body": "ipokrzyku.pl: potwierdzenie wizyty dla Jan Kowalski. Konsultacja, czwartek, 12 marca, 09:00. W razie zmian prosimy o kontakt z recepcja."
+          "language": "pl"
         },
         "message": "Potwierdzenie SMS po rezerwacji zostalo przygotowane.",
         "error": null

@@ -123,6 +123,7 @@ Run the live-call review queue against recent ended calls:
 ./scripts/run-vapi-live-autoeval.sh staging
 ./scripts/run-vapi-live-autoeval.sh staging --since-hours 24 --limit 15
 ./scripts/run-vapi-live-autoeval.sh production --since-hours 72
+./scripts/run-vapi-live-autoeval.sh staging --include-raw-calls
 ```
 
 Artifacts land under:
@@ -132,7 +133,8 @@ Artifacts land under:
 
 Interpretation:
 
-- The runner fetches recent calls from Vapi, stores the raw call JSON, ingests each call into `run.v1`, and scores the runs against [`../configs/vapi/autoevaluation-policy.v1.json`](../configs/vapi/autoevaluation-policy.v1.json).
+- The runner fetches recent calls from Vapi, writes minimized normalized `run.v1` artifacts by default, and scores the runs against [`../configs/vapi/autoevaluation-policy.v1.json`](../configs/vapi/autoevaluation-policy.v1.json).
+- Raw call JSON is written only when `--include-raw-calls` is explicitly requested for short-lived debugging.
 - Treat this as the live-call review queue and drift monitor.
 - Keep the repo-local workflow regression checks and staging regression suite as the release gate.
 

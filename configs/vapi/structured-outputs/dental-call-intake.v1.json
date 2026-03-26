@@ -3,7 +3,7 @@
   "key": "dentalCallIntake",
   "rank": 10,
   "name": "Dental Call Intake",
-  "description": "Post-call extraction for the Ipokrzyku.pl dental receptionist assistant.",
+  "description": "Minimized post-call extraction for the Ipokrzyku.pl dental receptionist assistant.",
   "type": "ai",
   "schema": {
     "title": "Dental Assistant Call Extraction",
@@ -40,6 +40,34 @@
         ],
         "description": "Main language used by the caller and assistant."
       },
+      "caseCategory": {
+        "type": "string",
+        "enum": [
+          "new_patient_first_visit",
+          "existing_patient_follow_up",
+          "reschedule_or_cancel",
+          "general_question",
+          "urgent_case",
+          "wrong_number_or_unrelated",
+          "abandoned_or_incomplete",
+          "other",
+          "unknown"
+        ],
+        "description": "High-level operational category for the call, using closed categories instead of narrative reason text."
+      },
+      "serviceBucket": {
+        "type": "string",
+        "enum": [
+          "consultation",
+          "urgent_consultation",
+          "implant_consultation",
+          "orthodontic_consultation",
+          "aesthetic_consultation",
+          "hygiene",
+          "unknown"
+        ],
+        "description": "High-level service bucket only when it was operationally clear in the call."
+      },
       "caller": {
         "type": "object",
         "additionalProperties": false,
@@ -48,62 +76,14 @@
             "type": "string",
             "description": "Caller full name if clearly stated."
           },
-          "phoneRaw": {
-            "type": "string",
-            "description": "Phone number as spoken or repeated in the call, if mentioned."
-          },
           "phoneE164": {
             "type": "string",
             "pattern": "^\\+[1-9]\\d{7,14}$",
-            "description": "Normalized phone number if it can be inferred confidently."
+            "description": "Normalized callback number only if it can be inferred confidently."
           },
           "isExistingPatient": {
             "type": "boolean",
             "description": "Whether the caller said they are already a patient of the clinic."
-          },
-          "consentToSms": {
-            "type": "boolean",
-            "description": "True only if the caller explicitly agreed to SMS contact."
-          }
-        }
-      },
-      "intent": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "primaryReason": {
-            "type": "string",
-            "enum": [
-              "consultation",
-              "checkup",
-              "aesthetic_dentistry",
-              "implants",
-              "orthodontics",
-              "invisalign",
-              "hygiene",
-              "urgent_problem",
-              "general_question",
-              "cancellation_or_reschedule",
-              "other"
-            ],
-            "description": "Best-fit reason for the call."
-          },
-          "visitType": {
-            "type": "string",
-            "enum": [
-              "first_consultation",
-              "follow_up",
-              "control_visit",
-              "specific_problem",
-              "general_question",
-              "unknown"
-            ],
-            "description": "Visit type inferred from the conversation."
-          },
-          "shortReasonNote": {
-            "type": "string",
-            "maxLength": 240,
-            "description": "Short natural-language note about what the caller needed."
           }
         }
       },
@@ -111,18 +91,10 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "requestedDateText": {
-            "type": "string",
-            "description": "Date phrase used by the caller, for example 'next Thursday' or '12 March'."
-          },
           "requestedDateIso": {
             "type": "string",
             "format": "date",
             "description": "Normalized requested date if it was clarified confidently."
-          },
-          "requestedTimeText": {
-            "type": "string",
-            "description": "Time phrase used by the caller, for example 'in the morning' or 'around 3 PM'."
           },
           "timePreference": {
             "type": "string",
@@ -176,19 +148,19 @@
           },
           "serviceId": {
             "type": "string",
-            "description": "Service identifier used in tooling if visible from the conversation or tool results."
-          },
-          "serviceName": {
-            "type": "string",
-            "description": "Human-readable visit or service name."
+            "enum": [
+              "consultation",
+              "urgent_consultation",
+              "implant_consultation",
+              "orthodontic_consultation",
+              "aesthetic_consultation",
+              "hygiene"
+            ],
+            "description": "Tool-facing service identifier when it was visible from the conversation or tool results."
           },
           "firstVisit": {
             "type": "boolean",
             "description": "Whether this was treated as the caller's first visit to the clinic."
-          },
-          "doctorName": {
-            "type": "string",
-            "description": "Doctor name only if explicitly mentioned in the call or surfaced by system context."
           },
           "doctorAssignmentConfirmedBySystem": {
             "type": "boolean",
@@ -258,6 +230,10 @@
             "type": "boolean",
             "description": "True if the assistant repeated the caller's phone number with missing, reordered, or hallucinated digits."
           },
+          "unnecessaryHealthDetailRequest": {
+            "type": "boolean",
+            "description": "True if the assistant asked for symptom details, treatment history, or a free-text reason description when a high-level category, service bucket, or urgent lookup or handoff would have been enough."
+          },
           "postBookingFlowRestarted": {
             "type": "boolean",
             "description": "True if the assistant resumed scheduling or another stale flow after a successful booking confirmation."
@@ -283,31 +259,7 @@
               "other",
               "none"
             ],
-            "description": "Best-fit reason for receptionist follow-up."
-          },
-          "recommendedNextAction": {
-            "type": "string",
-            "maxLength": 240,
-            "description": "Short internal next-step note for staff."
-          }
-        }
-      },
-      "summary": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "shortSummaryPl"
-        ],
-        "properties": {
-          "shortSummaryPl": {
-            "type": "string",
-            "maxLength": 500,
-            "description": "Short Polish summary of the call for internal use."
-          },
-          "receptionistNotePl": {
-            "type": "string",
-            "maxLength": 500,
-            "description": "Action-oriented Polish note that a receptionist could use immediately."
+            "description": "Best-fit closed-category reason for receptionist follow-up."
           }
         }
       }
@@ -316,7 +268,7 @@
       "callOutcome",
       "successfulForAssistantScope",
       "language",
-      "summary"
+      "caseCategory"
     ]
   }
 }

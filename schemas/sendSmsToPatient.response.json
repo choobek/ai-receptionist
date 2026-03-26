@@ -15,10 +15,11 @@
     "accepted": {
       "type": "boolean"
     },
-    "recipientPhoneE164": {
-      "type": [
-        "string",
-        "null"
+    "recipientClass": {
+      "type": "string",
+      "enum": [
+        "caller_phone",
+        "declared_phone"
       ]
     },
     "delivery": {
@@ -66,48 +67,6 @@
         },
         "language": {
           "type": "string"
-        },
-        "body": {
-          "type": "string"
-        }
-      }
-    },
-    "phoneContext": {
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "declaredPhoneE164": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "callerPhoneE164": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "callerPhoneSource": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "callerMatchesDeclaredPhone": {
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "smsRecipientPhoneE164": {
-          "type": [
-            "string",
-            "null"
-          ]
         }
       }
     },
@@ -134,7 +93,7 @@
     {
       "requestId": "req_sms_patient_001",
       "accepted": true,
-      "recipientPhoneE164": "+48500100200",
+      "recipientClass": "declared_phone",
       "delivery": {
         "status": "simulated",
         "provider": "mock",
@@ -143,15 +102,7 @@
       },
       "sms": {
         "kind": "booking_confirmation",
-        "language": "pl",
-        "body": "Demo Dental Clinic: potwierdzenie wizyty dla Jan Kowalski. Konsultacja, piatek, 20 marca, 10:30."
-      },
-      "phoneContext": {
-        "declaredPhoneE164": "+48500100200",
-        "callerPhoneE164": "+48500100200",
-        "callerPhoneSource": "customer.number",
-        "callerMatchesDeclaredPhone": true,
-        "smsRecipientPhoneE164": "+48500100200"
+        "language": "pl"
       },
       "message": "Potwierdzenie SMS dla pacjenta zostalo przygotowane."
     }

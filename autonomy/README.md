@@ -58,6 +58,7 @@ Normalize a raw Vapi call payload:
 node scripts/autonomy/ingest-vapi-call-log.js \
   --input autonomy/examples/vapi-call-ended-sample-booking.json \
   --output autonomy/runs/samples/sample-booked.run.v1.json \
+  --run-kind synthetic_test \
   --scenario-id implant-inquiry-to-booking \
   --environment staging
 ```
@@ -75,6 +76,7 @@ node scripts/autonomy/ingest-vapi-call-log.js \
 ## Safety defaults
 
 - Commit only synthetic samples unless you have explicitly redacted the artifact.
+- Real-call ingests redact utterance text, caller identity, and tool payload details by default; use synthetic fixtures for committed examples.
 - Keep generated staging and real-call outputs under git-ignored paths inside `runs/` and `reports/`.
 - Keep generated scenario drafts under git-ignored paths inside `scenarios/generated/`.
 - Keep operational changes routed through the existing repo scripts, not through this workspace.

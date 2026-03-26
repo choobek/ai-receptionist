@@ -79,10 +79,7 @@
             }
           }
         },
-        "summary": {
-          "type": "string"
-        },
-        "notes": {
+        "serviceBucket": {
           "type": [
             "string",
             "null"
@@ -141,8 +138,8 @@
           "callerPhoneSource": "customer.number",
           "callerMatchesDeclaredPhone": true
         },
-        "summary": "Pacjentka chce umowic kolejna wizyte.",
-        "notes": "Pacjentka prosila o kontakt rano."
+        "serviceBucket": "hygiene",
+        "preferredCallbackWindow": "morning"
       },
       "message": "Prosba dla recepcji zostala zapisana."
     }

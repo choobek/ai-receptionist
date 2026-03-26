@@ -12,7 +12,7 @@
           "type": "comparator",
           "comparator": "=",
           "value": false,
-          "points": 30
+          "points": 25
         }
       ]
     },
@@ -23,7 +23,7 @@
           "type": "comparator",
           "comparator": "=",
           "value": false,
-          "points": 30
+          "points": 25
         }
       ]
     },
@@ -34,7 +34,18 @@
           "type": "comparator",
           "comparator": "=",
           "value": false,
-          "points": 25
+          "points": 20
+        }
+      ]
+    },
+    {
+      "structuredOutputKey": "unnecessaryHealthDetailRequest",
+      "conditions": [
+        {
+          "type": "comparator",
+          "comparator": "=",
+          "value": false,
+          "points": 15
         }
       ]
     },

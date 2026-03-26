@@ -212,8 +212,8 @@ curl -sS -X POST https://YOUR_HOSTNAME/webhook/ai-receptionist/create-reception-
       "phoneE164": "+48500111001",
       "isExistingPatient": true
     },
-    "summary": "Pacjentka chce umowic kolejna wizyte.",
-    "notes": "Test wdrozeniowy na VPS."
+    "serviceBucket": "hygiene",
+    "preferredCallbackWindow": "morning"
   }'
 ```
 

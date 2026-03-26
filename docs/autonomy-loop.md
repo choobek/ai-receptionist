@@ -180,7 +180,7 @@ The ingestion CLI lives at:
 - extracted structured output
 - first-pass evaluator result
 
-The run format intentionally uses stable offline fields and keeps raw tool or structured-output payload fragments only where they are useful for later review.
+The run format intentionally uses stable offline fields. For real-call ingestion it keeps only minimized operational traces by default, while synthetic staging artifacts can still retain richer detail for debugging.
 
 ### `evaluator-result.v1`
 

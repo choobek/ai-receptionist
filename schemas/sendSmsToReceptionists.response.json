@@ -128,7 +128,7 @@
       "notification": {
         "kind": "reception_follow_up",
         "taskId": "task_20260320_001",
-        "body": "Nowa prosba recepcji: istniejacy pacjent. Pacjent: Anna Kowalska. Numery: deklarowany +48500111001, numer dzwoniacego +48500111001 (zgodne). Summary: Pacjentka chce umowic kolejna wizyte."
+        "body": "Nowa prosba recepcji: istniejacy pacjent - booking. Pacjent: Anna Kowalska. Numery: deklarowany +48500111001, numer dzwoniacego +48500111001 (zgodne). Usluga: hygiene. Preferowany kontakt: morning. Task ID: task_20260320_001."
       },
       "phoneContext": {
         "declaredPhoneE164": "+48500111001",

@@ -33,12 +33,12 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "fullName",
         "phoneE164"
       ],
       "properties": {
         "fullName": {
-          "type": "string"
+          "type": "string",
+          "description": "Optional patient name for manual operator context. The SMS workflow does not need it to prepare the message."
         },
         "phoneE164": {
           "type": "string",
@@ -114,7 +114,6 @@
       "consentConfirmed": true,
       "language": "pl",
       "patient": {
-        "fullName": "Jan Kowalski",
         "phoneE164": "+48500100200"
       },
       "appointment": {

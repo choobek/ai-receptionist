@@ -56,6 +56,10 @@
       "severity": "medium"
     },
     {
+      "outputName": "QA: Unnecessary Detail Request",
+      "severity": "medium"
+    },
+    {
       "outputName": "QA: Stacked Questions",
       "severity": "medium"
     }

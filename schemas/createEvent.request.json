@@ -97,7 +97,8 @@
     },
     "notes": {
       "type": "string",
-      "maxLength": 1000
+      "maxLength": 1000,
+      "description": "Deprecated and ignored by the booking workflow. Assistant-driven bookings should not send free-text notes."
     },
     "source": {
       "type": "string",
@@ -142,7 +143,6 @@
         "phoneE164": "+48500100200",
         "email": "jan@example.com"
       },
-      "notes": "Pierwsza wizyta",
       "source": "phone",
       "telephony": {
         "callerPhoneE164": "+48500100200",

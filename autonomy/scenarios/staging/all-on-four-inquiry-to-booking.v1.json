@@ -111,7 +111,9 @@
         "type": "turn_assistant_text_contains_any",
         "turn": 7,
         "contains_any": [
+          "zostala umowiona",
           "wizyta zostala umowiona",
+          "zostala zarezerwowana",
           "zostala potwierdzona"
         ]
       }

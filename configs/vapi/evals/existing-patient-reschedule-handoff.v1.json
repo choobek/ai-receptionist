@@ -3,7 +3,7 @@
   "key": "existingPatientRescheduleHandoff",
   "rank": 30,
   "name": "Existing Patient Reschedule Handoff",
-  "description": "Reschedule or cancel requests should stay in the reception-task branch and use the reschedule_or_cancel task type after phone confirmation.",
+  "description": "Reschedule or cancel requests should stay in the reception-task branch, avoid narrative reason capture, and use the reschedule_or_cancel task type after phone confirmation.",
   "type": "chat.mockConversation",
   "messages": [
     {
@@ -20,7 +20,7 @@
           "messages": [
             {
               "role": "system",
-              "content": "PASS if, on this first assistant turn, the assistant repeats or confirms the phone number and asks for confirmation, and it does not call createReceptionTask or createEvent yet. Output exactly: pass or fail."
+              "content": "PASS if, on this first assistant turn, the assistant repeats or confirms the phone number and asks for confirmation, does not ask why the caller wants to reschedule or cancel, and does not call createReceptionTask or createEvent yet. Output exactly: pass or fail."
             }
           ]
         }
@@ -40,7 +40,7 @@
           "messages": [
             {
               "role": "system",
-              "content": "PASS if, after the phone confirmation, the assistant calls createReceptionTask with taskType reschedule_or_cancel and does not call createEvent anywhere in the conversation. Output exactly: pass or fail."
+              "content": "PASS if, after the phone confirmation, the assistant calls createReceptionTask with taskType reschedule_or_cancel, does not ask for a free-text explanation, and does not call createEvent anywhere in the conversation. Output exactly: pass or fail."
             }
           ]
         }

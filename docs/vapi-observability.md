@@ -14,11 +14,11 @@ This repo now keeps a repo-backed Vapi observability pack beside the assistant c
 ## What the pack includes
 
 - one full post-call extraction output: `Dental Call Intake`
-- eight primitive QA outputs used for scoring
+- nine primitive QA outputs used for scoring
 - two scorecards attached to each assistant:
   - `Core Call Quality`
   - `Conversation Discipline`
-- five saved Vapi chat evals for urgent routing, handoff behavior, phone capture, and medical-safety refusal
+- six saved Vapi chat evals for urgent routing, handoff behavior, phone capture, new-patient minimal intake, and medical-safety refusal
 - one live-call autoevaluation runner that fetches recent ended calls, ingests them into `run.v1`, and renders a review queue report
 
 ## Sync commands
@@ -62,6 +62,7 @@ Artifacts are written to:
 ./scripts/run-vapi-live-autoeval.sh staging
 ./scripts/run-vapi-live-autoeval.sh staging --since-hours 24 --limit 15
 ./scripts/run-vapi-live-autoeval.sh production --since-hours 72
+./scripts/run-vapi-live-autoeval.sh staging --include-raw-calls
 ```
 
 Artifacts are written to:
@@ -72,7 +73,8 @@ Artifacts are written to:
 The live runner:
 
 - fetches recent ended calls directly from the Vapi API for the configured assistant
-- stores raw call JSON and normalized `run.v1` files side by side
+- stores minimized normalized `run.v1` files by default
+- writes raw call JSON only when `--include-raw-calls` is explicitly requested
 - applies the repo review policy from [`../configs/vapi/autoevaluation-policy.v1.json`](../configs/vapi/autoevaluation-policy.v1.json)
 - flags calls for review when scorecards fall below threshold or the QA boolean outputs indicate concrete problems
 

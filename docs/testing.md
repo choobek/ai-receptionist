@@ -187,7 +187,6 @@ curl -sS -X POST "$WEBHOOK_BASE/create-event" \
       "phoneE164": "+48500100200",
       "isExistingPatient": false
     },
-    "notes": "Manual webhook test",
     "source": "manual"
   }' | jq .
 ```
@@ -216,8 +215,8 @@ curl -sS -X POST "$WEBHOOK_BASE/create-reception-task" \
       "phoneE164": "+48500111001",
       "isExistingPatient": true
     },
-    "summary": "Pacjentka chce umowic kolejna wizyte.",
-    "notes": "Preferuje kontakt rano.",
+    "serviceBucket": "hygiene",
+    "preferredCallbackWindow": "morning",
     "telephony": {
       "callerPhoneE164": "+48500111001",
       "callerPhoneSource": "customer.number"
@@ -248,8 +247,8 @@ curl -sS -X POST "$WEBHOOK_BASE/send-sms-to-receptionists" \
       "phoneE164": "+48500111001",
       "isExistingPatient": true
     },
-    "summary": "Pacjentka chce umowic kolejna wizyte.",
-    "notes": "Preferuje kontakt rano.",
+    "serviceBucket": "hygiene",
+    "preferredCallbackWindow": "morning",
     "telephony": {
       "callerPhoneE164": "+48500111001",
       "callerPhoneSource": "customer.number"
@@ -264,6 +263,7 @@ Expected:
 - `delivery.status: "simulated"` in `mock` mode
 - `notification.body` present
 - `notification.body` contains both the declared number and the caller number
+- `notification.body` does not contain a free-text summary or notes
 - `phoneContext.callerPhoneE164` present when telephony metadata was provided
 
 ## 8a. Required real-call validation before production rollout
@@ -289,7 +289,6 @@ curl -sS -X POST "$WEBHOOK_BASE/send-sms-to-patient" \
     "consentConfirmed": true,
     "language": "pl",
     "patient": {
-      "fullName": "Jan Testowy",
       "phoneE164": "+48500100200"
     },
     "appointment": {
@@ -308,7 +307,9 @@ Expected:
 - HTTP 200
 - `accepted: true`
 - `delivery.status: "simulated"` in `mock` mode
-- `sms.body` present
+- `recipientClass: "declared_phone"` when no live caller metadata is present
+- `sms.kind` and `sms.language` present
+- response does not echo phone numbers or the SMS body text
 
 If `AI_RECEPTIONIST_SMS_PROVIDER=twilio` is enabled instead, expect `delivery.status` to move to `queued` or `sent`. Set `TWILIO_PHONE_NUMBER` explicitly; the workflows no longer rely on Twilio number auto-discovery.
 
@@ -348,12 +349,11 @@ curl -sS -X POST "$WEBHOOK_BASE/vapi-call-ended" \
               "callOutcome": "appointment_booked",
               "successfulForAssistantScope": true,
               "language": "pl",
+              "caseCategory": "new_patient_first_visit",
+              "serviceBucket": "consultation",
               "booking": {
                 "bookingCreated": true,
-                "serviceName": "Pierwsza konsultacja"
-              },
-              "summary": {
-                "shortSummaryPl": "Pacjent umowil pierwsza konsultacje."
+                "serviceId": "consultation"
               }
             }
           }
@@ -400,7 +400,8 @@ Verify:
 - if the caller confirms using the live caller number, later tools reuse that confirmed number instead of a placeholder
 - Vapi calls `createEvent`
 - the event appears in Google Calendar
-- the calendar event description includes both the callback number and the live caller number when available
+- the calendar event description includes patient full name plus both the callback number and the live caller number when available
+- the calendar event description does not include notes, email, or booking-SMS targeting metadata
 - the call produces the structured output
 
 ### Scenario B: no booking, receptionist follow-up
@@ -416,6 +417,7 @@ Verify:
 - the assistant only says the request was saved after `createReceptionTask` succeeds
 - the call ends without `createEvent`
 - Vapi calls `createReceptionTask`
+- the assistant does not ask for a swobodny opis sprawy or generate its own summary note
 - structured output indicates follow-up is needed
 - `call.ended` router returns `needs_reception_follow_up`
 

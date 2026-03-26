@@ -22,6 +22,7 @@ Options:
   --limit <n>             Fetch up to this many recent calls before filtering. Default: 25.
   --since-hours <n>       Review only calls ended within the last n hours. Default: 168.
   --call-id <id>          Fetch a specific call id. Repeatable.
+  --include-raw-calls     Also write raw call JSON files for manual debugging.
   --output-dir <path>     Override the generated run directory.
   --report <path>         Override the generated Markdown report path.
   --summary-json <path>   Write the suite summary JSON to this path.
@@ -39,6 +40,7 @@ function parseArgs(argv) {
     outputDir: null,
     reportPath: null,
     summaryJson: null,
+    includeRawCalls: false,
     failOnReview: false
   };
 
@@ -50,6 +52,10 @@ function parseArgs(argv) {
     }
     if (arg === '--fail-on-review') {
       options.failOnReview = true;
+      continue;
+    }
+    if (arg === '--include-raw-calls') {
+      options.includeRawCalls = true;
       continue;
     }
     const next = argv[index + 1];
@@ -125,7 +131,7 @@ function buildSuitePaths(suiteRunId, options) {
   return {
     suiteRunId,
     runDir,
-    rawCallsDir: path.join(runDir, 'raw-calls'),
+    rawCallsDir: options.includeRawCalls ? path.join(runDir, 'raw-calls') : null,
     normalizedRunsDir: path.join(runDir, 'normalized-runs'),
     reportPath: options.reportPath || path.join(REPORTS_ROOT, `${suiteRunId}.md`)
   };
@@ -503,7 +509,9 @@ function renderSuiteReport(summary) {
         lines.push(`- Scorecards: ${call.scorecards.map((scorecard) => `${scorecard.name_canonical || scorecard.name}=${scorecard.score_normalized}`).join(', ')}`);
       }
       lines.push(`- Run path: \`${call.run_path}\``);
-      lines.push(`- Raw call path: \`${call.raw_call_path}\``);
+      if (call.raw_call_path) {
+        lines.push(`- Raw call path: \`${call.raw_call_path}\``);
+      }
       for (const reason of call.reasons) {
         lines.push(`- Review reason: ${reason.rendered_message}`);
       }
@@ -521,7 +529,9 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   const suiteRunId = `${options.environment}-vapi-live-autoeval-${compactTimestamp()}`;
   const suitePaths = buildSuitePaths(suiteRunId, options);
-  fs.mkdirSync(suitePaths.rawCallsDir, { recursive: true });
+  if (suitePaths.rawCallsDir) {
+    fs.mkdirSync(suitePaths.rawCallsDir, { recursive: true });
+  }
   fs.mkdirSync(suitePaths.normalizedRunsDir, { recursive: true });
 
   const policy = readJson(POLICY_PATH);
@@ -560,8 +570,11 @@ async function main() {
     }
 
     const safeCallId = sanitizeFileComponent(fullCall.id || `call-${index}`);
-    const rawCallPath = path.join(suitePaths.rawCallsDir, `${safeCallId}.call.json`);
-    writeJson(rawCallPath, fullCall);
+    let rawCallPath = null;
+    if (suitePaths.rawCallsDir) {
+      rawCallPath = path.join(suitePaths.rawCallsDir, `${safeCallId}.call.json`);
+      writeJson(rawCallPath, fullCall);
+    }
 
     const run = buildRun(
       {
@@ -585,7 +598,7 @@ async function main() {
     calls.push({
       call_id: run.call.call_id,
       ended_at: run.call.ended_at,
-      raw_call_path: path.relative(ROOT_DIR, rawCallPath),
+      raw_call_path: rawCallPath ? path.relative(ROOT_DIR, rawCallPath) : null,
       run_path: path.relative(ROOT_DIR, normalizedRunPath),
       failure_category: run.evaluation?.result?.failure_category || 'other',
       summary: run.evaluation?.result?.summary || null,

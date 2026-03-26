@@ -154,6 +154,577 @@ function detectJsonType(value) {
   return typeof value;
 }
 
+function copyIfPresent(target, source, key, predicate = null) {
+  const value = source?.[key];
+  if (value === null || value === undefined) {
+    return;
+  }
+  if (typeof predicate === 'function' && !predicate(value)) {
+    return;
+  }
+  target[key] = value;
+}
+
+function finalizeSanitizedObject(value) {
+  return safeObject(value) && Object.keys(value).length > 0 ? value : null;
+}
+
+function sanitizeErrorSummary(error) {
+  const source = safeObject(error);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'code', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'status', (value) => typeof value === 'number' && Number.isFinite(value));
+  copyIfPresent(sanitized, source, 'type', (value) => typeof value === 'string');
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizeDeliverySummary(delivery) {
+  const source = safeObject(delivery);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'status', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'provider', (value) => typeof value === 'string');
+  copyIfPresent(
+    sanitized,
+    source,
+    'recipientCount',
+    (value) => typeof value === 'number' && Number.isFinite(value)
+  );
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizeSlotList(slots) {
+  const sanitized = safeArray(slots)
+    .map((slot) => {
+      const source = safeObject(slot);
+      if (!source) {
+        return null;
+      }
+      const item = {};
+      copyIfPresent(item, source, 'start', (value) => typeof value === 'string');
+      copyIfPresent(item, source, 'end', (value) => typeof value === 'string');
+      return finalizeSanitizedObject(item);
+    })
+    .filter(Boolean);
+
+  return sanitized.length > 0 ? sanitized : null;
+}
+
+function sanitizeNormalizedAvailabilityRequest(request) {
+  const source = safeObject(request);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'serviceId', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'requestedDate', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'requestedTime', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'timePreference', (value) => typeof value === 'string');
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizeAppointmentSummary(appointment) {
+  const source = safeObject(appointment);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'start', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'end', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'timezone', (value) => typeof value === 'string');
+
+  const service = safeObject(source.service);
+  if (service) {
+    const sanitizedService = {};
+    copyIfPresent(sanitizedService, service, 'id', (value) => typeof value === 'string');
+    if (typeof service.durationMinutes === 'number' && Number.isFinite(service.durationMinutes)) {
+      sanitizedService.durationMinutes = service.durationMinutes;
+    }
+    if (Object.keys(sanitizedService).length > 0) {
+      sanitized.service = sanitizedService;
+    }
+  }
+
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizeRealCallStructuredOutput(result) {
+  const source = safeObject(result);
+  if (!source) {
+    return source === null ? null : {};
+  }
+
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'callOutcome', (value) => typeof value === 'string');
+  copyIfPresent(
+    sanitized,
+    source,
+    'successfulForAssistantScope',
+    (value) => typeof value === 'boolean'
+  );
+  copyIfPresent(sanitized, source, 'language', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'caseCategory', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'serviceBucket', (value) => typeof value === 'string');
+
+  const caller = safeObject(source.caller);
+  if (caller && typeof caller.isExistingPatient === 'boolean') {
+    sanitized.caller = {
+      isExistingPatient: caller.isExistingPatient
+    };
+  }
+
+  const timing = safeObject(source.timing);
+  if (timing) {
+    const sanitizedTiming = {};
+    copyIfPresent(sanitizedTiming, timing, 'requestedDateIso', (value) => typeof value === 'string');
+    copyIfPresent(sanitizedTiming, timing, 'timePreference', (value) => typeof value === 'string');
+    copyIfPresent(sanitizedTiming, timing, 'selectedSlotStart', (value) => typeof value === 'string');
+    copyIfPresent(sanitizedTiming, timing, 'selectedSlotEnd', (value) => typeof value === 'string');
+    copyIfPresent(sanitizedTiming, timing, 'timezone', (value) => typeof value === 'string');
+    if (Object.keys(sanitizedTiming).length > 0) {
+      sanitized.timing = sanitizedTiming;
+    }
+  }
+
+  const booking = safeObject(source.booking);
+  if (booking) {
+    const sanitizedBooking = {};
+    copyIfPresent(sanitizedBooking, booking, 'availabilityChecked', (value) => typeof value === 'boolean');
+    copyIfPresent(
+      sanitizedBooking,
+      booking,
+      'slotOptionsOffered',
+      (value) => typeof value === 'number' && Number.isFinite(value)
+    );
+    copyIfPresent(sanitizedBooking, booking, 'slotSelected', (value) => typeof value === 'boolean');
+    copyIfPresent(sanitizedBooking, booking, 'bookingCreated', (value) => typeof value === 'boolean');
+    copyIfPresent(sanitizedBooking, booking, 'serviceId', (value) => typeof value === 'string');
+    copyIfPresent(sanitizedBooking, booking, 'firstVisit', (value) => typeof value === 'boolean');
+    copyIfPresent(
+      sanitizedBooking,
+      booking,
+      'doctorAssignmentConfirmedBySystem',
+      (value) => typeof value === 'boolean'
+    );
+    copyIfPresent(sanitizedBooking, booking, 'firstVisitPriceMentioned', (value) => typeof value === 'boolean');
+    if (Object.keys(sanitizedBooking).length > 0) {
+      sanitized.booking = sanitizedBooking;
+    }
+  }
+
+  const riskFlags = safeObject(source.riskFlags);
+  if (riskFlags) {
+    const sanitizedRiskFlags = {};
+    for (const key of [
+      'urgentSymptomsMentioned',
+      'medicalAdviceRequested',
+      'medicalAdviceGiven',
+      'cancellationOrRescheduleRequested',
+      'toolFailureOccurred',
+      'ambiguousDateClarified',
+      'callerHungUpBeforeCompletion'
+    ]) {
+      copyIfPresent(sanitizedRiskFlags, riskFlags, key, (value) => typeof value === 'boolean');
+    }
+    if (Object.keys(sanitizedRiskFlags).length > 0) {
+      sanitized.riskFlags = sanitizedRiskFlags;
+    }
+  }
+
+  const qualityFlags = safeObject(source.qualityFlags);
+  if (qualityFlags) {
+    const sanitizedQualityFlags = {};
+    for (const key of [
+      'repeatedIdentityRequest',
+      'multipleQuestionsInSingleTurn',
+      'toolCalledOnIncompleteAnswer',
+      'explicitBookingConfirmationMissing',
+      'phoneNumberRepeatedIncorrectly',
+      'unnecessaryHealthDetailRequest',
+      'postBookingFlowRestarted'
+    ]) {
+      copyIfPresent(sanitizedQualityFlags, qualityFlags, key, (value) => typeof value === 'boolean');
+    }
+    if (Object.keys(sanitizedQualityFlags).length > 0) {
+      sanitized.qualityFlags = sanitizedQualityFlags;
+    }
+  }
+
+  const followUp = safeObject(source.followUp);
+  if (followUp) {
+    const sanitizedFollowUp = {};
+    copyIfPresent(
+      sanitizedFollowUp,
+      followUp,
+      'receptionFollowUpNeeded',
+      (value) => typeof value === 'boolean'
+    );
+    copyIfPresent(sanitizedFollowUp, followUp, 'reason', (value) => typeof value === 'string');
+    if (Object.keys(sanitizedFollowUp).length > 0) {
+      sanitized.followUp = sanitizedFollowUp;
+    }
+  }
+
+  return sanitized;
+}
+
+function sanitizeSearchKnowledgeBaseArguments(argumentsValue) {
+  const source = safeObject(argumentsValue);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'language', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'limit', (value) => typeof value === 'number' && Number.isFinite(value));
+  if (Object.prototype.hasOwnProperty.call(source, 'query')) {
+    sanitized.queryRedacted = true;
+  }
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizeSearchKnowledgeBaseResult(resultValue) {
+  const source = safeObject(resultValue);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'found', (value) => typeof value === 'boolean');
+  const matches = safeArray(source.matches)
+    .map((match) => {
+      const item = {};
+      copyIfPresent(item, match, 'id', (value) => typeof value === 'string');
+      copyIfPresent(item, match, 'title', (value) => typeof value === 'string');
+      copyIfPresent(item, match, 'sourceDocument', (value) => typeof value === 'string');
+      return finalizeSanitizedObject(item);
+    })
+    .filter(Boolean);
+  if (matches.length > 0) {
+    sanitized.matches = matches;
+  }
+  if (Object.prototype.hasOwnProperty.call(source, 'answer')) {
+    sanitized.answerRedacted = true;
+  }
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizeCheckAvailabilityArguments(argumentsValue) {
+  const source = safeObject(argumentsValue);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  const service = safeObject(source.service);
+  if (service && typeof service.id === 'string') {
+    sanitized.service = { id: service.id };
+  }
+  copyIfPresent(sanitized, source, 'timezone', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'requestedDate', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'requestedTime', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'timePreference', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'limit', (value) => typeof value === 'number' && Number.isFinite(value));
+  copyIfPresent(sanitized, source, 'searchDays', (value) => typeof value === 'number' && Number.isFinite(value));
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizeCheckAvailabilityResult(resultValue) {
+  const source = safeObject(resultValue);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'available', (value) => typeof value === 'boolean');
+  copyIfPresent(sanitized, source, 'timezone', (value) => typeof value === 'string');
+
+  const normalizedRequest = sanitizeNormalizedAvailabilityRequest(source.normalizedRequest);
+  if (normalizedRequest) {
+    sanitized.normalizedRequest = normalizedRequest;
+  }
+
+  const slots = sanitizeSlotList(source.slots);
+  if (slots) {
+    sanitized.slots = slots;
+  }
+
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizeCreateEventArguments(argumentsValue) {
+  const source = safeObject(argumentsValue);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'source', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'slotStart', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'slotEnd', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'timezone', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'language', (value) => typeof value === 'string');
+
+  const patient = safeObject(source.patient);
+  if (patient && typeof patient.isExistingPatient === 'boolean') {
+    sanitized.patient = {
+      isExistingPatient: patient.isExistingPatient
+    };
+  }
+
+  const service = safeObject(source.service);
+  if (service) {
+    const sanitizedService = {};
+    copyIfPresent(sanitizedService, service, 'id', (value) => typeof value === 'string');
+    copyIfPresent(
+      sanitizedService,
+      service,
+      'durationMinutes',
+      (value) => typeof value === 'number' && Number.isFinite(value)
+    );
+    if (Object.keys(sanitizedService).length > 0) {
+      sanitized.service = sanitizedService;
+    }
+  }
+
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizeBookingConfirmationSummary(resultValue) {
+  const source = safeObject(resultValue);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'accepted', (value) => typeof value === 'boolean');
+
+  const delivery = sanitizeDeliverySummary(source.delivery);
+  if (delivery) {
+    sanitized.delivery = delivery;
+  }
+
+  const error = sanitizeErrorSummary(source.error);
+  if (error) {
+    sanitized.error = error;
+  }
+
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizeCreateEventResult(resultValue) {
+  const source = safeObject(resultValue);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'created', (value) => typeof value === 'boolean');
+  copyIfPresent(sanitized, source, 'calendarEventId', (value) => typeof value === 'string');
+
+  const appointment = sanitizeAppointmentSummary(source.appointment);
+  if (appointment) {
+    sanitized.appointment = appointment;
+  }
+
+  const bookingConfirmationSms = sanitizeBookingConfirmationSummary(source.bookingConfirmationSms);
+  if (bookingConfirmationSms) {
+    sanitized.bookingConfirmationSms = bookingConfirmationSms;
+  }
+
+  const error = sanitizeErrorSummary(source.error);
+  if (error) {
+    sanitized.error = error;
+  }
+
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizeCreateReceptionTaskArguments(argumentsValue) {
+  const source = safeObject(argumentsValue);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'taskType', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'serviceBucket', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'preferredCallbackWindow', (value) => typeof value === 'string');
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizeTaskSummary(task) {
+  const source = safeObject(task);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'taskType', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'serviceBucket', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'preferredCallbackWindow', (value) => typeof value === 'string');
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizeCreateReceptionTaskResult(resultValue) {
+  const source = safeObject(resultValue);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'accepted', (value) => typeof value === 'boolean');
+  copyIfPresent(sanitized, source, 'taskId', (value) => typeof value === 'string');
+
+  const task = sanitizeTaskSummary(source.task);
+  if (task) {
+    sanitized.task = task;
+  }
+
+  const error = sanitizeErrorSummary(source.error);
+  if (error) {
+    sanitized.error = error;
+  }
+
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizeReceptionSmsArguments(argumentsValue) {
+  const source = safeObject(argumentsValue);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'taskId', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'taskType', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'serviceBucket', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'preferredCallbackWindow', (value) => typeof value === 'string');
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizePatientSmsArguments(argumentsValue) {
+  const source = safeObject(argumentsValue);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'calendarEventId', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'consentConfirmed', (value) => typeof value === 'boolean');
+  copyIfPresent(sanitized, source, 'language', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'sourceCallId', (value) => typeof value === 'string');
+
+  const appointment = sanitizeAppointmentSummary(source.appointment);
+  if (appointment) {
+    sanitized.appointment = appointment;
+  }
+
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizeSmsDispatchResult(resultValue) {
+  const source = safeObject(resultValue);
+  if (!source) {
+    return null;
+  }
+  const sanitized = {};
+  copyIfPresent(sanitized, source, 'accepted', (value) => typeof value === 'boolean');
+  copyIfPresent(sanitized, source, 'sent', (value) => typeof value === 'boolean');
+  copyIfPresent(sanitized, source, 'taskId', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'kind', (value) => typeof value === 'string');
+  copyIfPresent(sanitized, source, 'language', (value) => typeof value === 'string');
+
+  const delivery = sanitizeDeliverySummary(source.delivery);
+  if (delivery) {
+    sanitized.delivery = delivery;
+  }
+
+  const error = sanitizeErrorSummary(source.error);
+  if (error) {
+    sanitized.error = error;
+  }
+
+  return finalizeSanitizedObject(sanitized);
+}
+
+function sanitizeRealCallToolPayload(toolName, payload, section) {
+  if (payload === null || payload === undefined) {
+    return null;
+  }
+
+  switch (toolName) {
+    case 'searchKnowledgeBase':
+      return section === 'arguments'
+        ? sanitizeSearchKnowledgeBaseArguments(payload)
+        : sanitizeSearchKnowledgeBaseResult(payload);
+    case 'checkAvailability':
+      return section === 'arguments'
+        ? sanitizeCheckAvailabilityArguments(payload)
+        : sanitizeCheckAvailabilityResult(payload);
+    case 'createEvent':
+      return section === 'arguments'
+        ? sanitizeCreateEventArguments(payload)
+        : sanitizeCreateEventResult(payload);
+    case 'createReceptionTask':
+      return section === 'arguments'
+        ? sanitizeCreateReceptionTaskArguments(payload)
+        : sanitizeCreateReceptionTaskResult(payload);
+    case 'sendSmsToReceptionists':
+      return section === 'arguments'
+        ? sanitizeReceptionSmsArguments(payload)
+        : sanitizeSmsDispatchResult(payload);
+    case 'sendSmsToPatient':
+      return section === 'arguments'
+        ? sanitizePatientSmsArguments(payload)
+        : sanitizeSmsDispatchResult(payload);
+    default:
+      return null;
+  }
+}
+
+function sanitizeRealCallConversationMessage(message) {
+  const sanitized = {
+    ...message,
+    text: null,
+    arguments: null,
+    result: null
+  };
+
+  if (sanitized.role === 'tool_call' && typeof sanitized.tool_name === 'string') {
+    sanitized.arguments = sanitizeRealCallToolPayload(
+      sanitized.tool_name,
+      message.arguments,
+      'arguments'
+    );
+  }
+
+  if (sanitized.role === 'tool_result' && typeof sanitized.tool_name === 'string') {
+    sanitized.result = sanitizeRealCallToolPayload(
+      sanitized.tool_name,
+      message.result,
+      'result'
+    );
+  }
+
+  return sanitized;
+}
+
+function sanitizeRealCallToolTrace(trace) {
+  return {
+    ...trace,
+    arguments: sanitizeRealCallToolPayload(trace.tool_name, trace.arguments, 'arguments'),
+    result: sanitizeRealCallToolPayload(trace.tool_name, trace.result, 'result')
+  };
+}
+
+function sanitizeRealCallObservabilityResult(resultValue) {
+  if (typeof resultValue === 'boolean') {
+    return resultValue;
+  }
+  if (resultValue === null || resultValue === undefined) {
+    return null;
+  }
+  const source = safeObject(resultValue);
+  if (source && Object.prototype.hasOwnProperty.call(source, 'callOutcome')) {
+    return sanitizeRealCallStructuredOutput(source);
+  }
+  return null;
+}
+
 function pickCallEntries(root) {
   if (Array.isArray(root)) {
     return root.map((record, index) => ({
@@ -735,11 +1306,7 @@ function deriveEvaluation(record, structuredOutput, toolTrace, observability = n
   }
 
   let summary = null;
-  if (typeof result?.summary?.shortSummaryPl === 'string' && result.summary.shortSummaryPl.trim()) {
-    summary = result.summary.shortSummaryPl.trim();
-  } else if (typeof record?.summary === 'string' && record.summary.trim()) {
-    summary = record.summary.trim();
-  } else if (bookingSucceeded) {
+  if (bookingSucceeded) {
     summary = 'Booking succeeded according to tool output.';
   } else if (needsHumanHandoff) {
     summary = 'Reception handoff was required or completed.';
@@ -762,9 +1329,9 @@ function deriveEvaluation(record, structuredOutput, toolTrace, observability = n
       ? 'Archive as a supported receptionist handoff baseline.'
       : 'Archive as a passing regression baseline.';
   } else if (failureCategory === 'structured_output_missing') {
-    recommendedNextAction = 'Review the raw transcript and structured-output attachment before making repo changes.';
+    recommendedNextAction = 'Review the call in Vapi or rerun ingest with explicit raw-call retention before making repo changes.';
   } else if (failureCategory === 'conversation_start_failure') {
-    recommendedNextAction = 'Review the raw call log and caller-side audio because the conversation never started even though the call connected.';
+    recommendedNextAction = 'Review the call in Vapi because the conversation never started even though the call connected.';
   } else if (failureCategory === 'needs_human_handoff') {
     recommendedNextAction = 'Confirm the handoff path stayed within scope and that no unsupported promise was made before tool success.';
   }
@@ -810,7 +1377,7 @@ function buildRun(entry, options, inputPath) {
   const { conversation, tool_trace } = normalizeConversation(entry.record);
   const runId = makeRunId(entry.record, options.scenarioId, options.environment);
 
-  return {
+  const run = {
     schema_version: 'run.v1',
     run_id: runId,
     run_kind: options.runKind,
@@ -844,6 +1411,49 @@ function buildRun(entry, options, inputPath) {
     observability,
     structured_output: structuredOutput,
     evaluation: deriveEvaluation(entry.record, structuredOutput, tool_trace, observability, conversation)
+  };
+
+  if (options.runKind !== 'real_call') {
+    return run;
+  }
+
+  const redactedConversation = {
+    ...run.conversation,
+    messages_omitted: Array.from(new Set([
+      ...safeArray(run.conversation?.messages_omitted),
+      'real_call_content_redacted',
+      'real_call_tool_payloads_minimized'
+    ])),
+    messages: safeArray(run.conversation?.messages).map((message) => sanitizeRealCallConversationMessage(message))
+  };
+
+  return {
+    ...run,
+    call: {
+      ...run.call,
+      transcript: null,
+      recording_url: null,
+      web_call_url: null
+    },
+    conversation: redactedConversation,
+    tool_trace: safeArray(run.tool_trace).map((trace) => sanitizeRealCallToolTrace(trace)),
+    structured_output: {
+      ...run.structured_output,
+      result: sanitizeRealCallStructuredOutput(run.structured_output?.result)
+    },
+    observability: {
+      structured_outputs: safeArray(run.observability?.structured_outputs).map((item) => ({
+        ...item,
+        result: sanitizeRealCallObservabilityResult(item.result)
+      })),
+      scorecards: safeArray(run.observability?.scorecards).map((scorecard) => ({
+        ...scorecard,
+        metrics: safeArray(scorecard.metrics).map((metric) => ({
+          ...metric,
+          result: sanitizeRealCallObservabilityResult(metric.result)
+        }))
+      }))
+    }
   };
 }
 

@@ -123,6 +123,7 @@ function stableNowIso() {
 
 function normalizeText(value) {
   return String(value || '')
+    .replace(/[Łł]/g, (letter) => (letter === 'Ł' ? 'L' : 'l'))
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase();

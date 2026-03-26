@@ -3,7 +3,7 @@
   "key": "existingPatientBookingHandoff",
   "rank": 20,
   "name": "Existing Patient Booking Handoff",
-  "description": "Existing patients asking for another visit should stay in the handoff branch and createReceptionTask should happen only after phone confirmation.",
+  "description": "Existing patients asking for another visit should stay in the handoff branch, avoid free-text reason collection, and createReceptionTask should happen only after phone confirmation.",
   "type": "chat.mockConversation",
   "messages": [
     {
@@ -20,7 +20,7 @@
           "messages": [
             {
               "role": "system",
-              "content": "PASS if, on this first assistant turn, the assistant stays in the existing-patient handoff branch: it should repeat or confirm the phone number and ask for confirmation, and it must not call checkAvailability, createEvent, or createReceptionTask yet. Output exactly: pass or fail."
+              "content": "PASS if, on this first assistant turn, the assistant stays in the existing-patient handoff branch: it should repeat or confirm the phone number and ask for confirmation, it must not ask for a short description or more treatment details, and it must not call checkAvailability, createEvent, or createReceptionTask yet. Output exactly: pass or fail."
             }
           ]
         }
@@ -40,7 +40,7 @@
           "messages": [
             {
               "role": "system",
-              "content": "PASS if, after the phone confirmation, the assistant calls createReceptionTask with taskType existing_patient_booking and does not call checkAvailability or createEvent anywhere in the conversation. Output exactly: pass or fail."
+              "content": "PASS if, after the phone confirmation, the assistant calls createReceptionTask with taskType existing_patient_booking, does not ask for a short description or symptom narrative anywhere in the conversation, and does not call checkAvailability or createEvent anywhere in the conversation. Output exactly: pass or fail."
             }
           ]
         }

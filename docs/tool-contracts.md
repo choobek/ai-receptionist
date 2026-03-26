@@ -208,8 +208,9 @@ Key fields:
 5. Re-check availability for the requested slot.
 6. Create the Google Calendar event only if the slot is still free.
 7. Store both the declared callback number and the live caller number in the calendar description when available.
-8. Deterministically attempt the booking-confirmation SMS to the live caller number from telephony metadata.
-9. Return confirmation data plus `phoneContext` and `bookingConfirmationSms`.
+8. Keep the calendar description limited to receptionist-facing identity data such as patient name, declared callback number, live caller number, and source call ID.
+9. Prefer the live caller number for the booking-confirmation SMS when telephony metadata is available; otherwise fall back to the declared callback number.
+10. Return confirmation data plus top-level `phoneContext` and a minimized `bookingConfirmationSms` summary that keeps delivery status and recipient class, not the SMS body or recipient number.
 
 ### Success response
 
@@ -239,7 +240,8 @@ Key fields:
 - `taskType`
 - `patient.fullName`
 - `patient.phoneE164`
-- `summary`
+- optional `serviceBucket`
+- optional `preferredCallbackWindow`
 - optional `telephony.callerPhoneE164` when Vapi exposes the live caller number
 
 ### Workflow behavior
@@ -247,8 +249,8 @@ Key fields:
 1. Parse Vapi wrapper or direct body.
 2. Capture caller-number ground truth from Vapi telephony metadata when available.
 3. Validate the patient and task payload.
-4. Reject unknown task types and malformed phone numbers.
-5. Create a queued proof-of-concept task in the n8n execution payload.
+4. Reject unknown task types, malformed phone numbers, and invalid category enums.
+5. Create a queued proof-of-concept task in the n8n execution payload using structured receptionist-facing fields instead of free-text summary notes.
 6. Return task confirmation data.
 
 ### Success response
@@ -279,7 +281,8 @@ Key fields:
 - `taskType`
 - `patient.fullName`
 - `patient.phoneE164`
-- `summary`
+- optional `serviceBucket`
+- optional `preferredCallbackWindow`
 - optional `telephony.callerPhoneE164` when Vapi exposes the live caller number
 
 ### Workflow behavior
@@ -287,7 +290,7 @@ Key fields:
 1. Parse Vapi wrapper or direct body.
 2. Capture caller-number ground truth from Vapi telephony metadata when available.
 3. Validate that the receptionist task context is complete.
-4. Build a concise internal SMS body that includes both the declared callback number and the live caller number when present.
+4. Build a concise internal SMS body that includes both the declared callback number and the live caller number when present, plus only high-level operational fields such as `taskType`, `serviceBucket`, and `preferredCallbackWindow`.
 5. In `mock` mode, return a simulated delivery result.
 6. In `webhook` mode, POST the SMS payload to the configured downstream SMS gateway or clinic webhook.
 
@@ -318,7 +321,6 @@ Key fields:
 
 - `calendarEventId` from `createEvent`
 - `consentConfirmed`
-- `patient.fullName`
 - `patient.phoneE164`
 - `appointment.start`
 - `appointment.timezone`
@@ -332,9 +334,9 @@ Key fields:
 3. Validate patient fields, booking context, consent, language, and timezone.
 4. Build a concise SMS body in Polish or English.
 5. Prefer the live caller number as the actual SMS recipient when telephony metadata is available, even if the declared callback number differs.
-6. Carry `phoneContext` through the result metadata so SMS delivery can be audited against the live caller number.
+6. Persist only a low-sensitivity `recipientClass` in the tool result so delivery can still be audited without echoing phone numbers back out.
 7. In `mock` mode, return a simulated delivery result.
-8. In `webhook` mode, POST the SMS payload to the configured downstream SMS gateway or clinic webhook.
+8. In `webhook` mode, POST the SMS payload to the configured downstream SMS gateway or clinic webhook without extra caller/declared-phone metadata.
 
 ### Success response
 
@@ -343,11 +345,10 @@ Defined in [`schemas/sendSmsToPatient.response.json`](../schemas/sendSmsToPatien
 Important fields:
 
 - `accepted`
-- `recipientPhoneE164`
+- `recipientClass`
 - `delivery.status`
 - `delivery.provider`
 - `sms`
-- `phoneContext`
 - `message`
 
 ## Error contract

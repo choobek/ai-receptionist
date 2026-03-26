@@ -1,6 +1,6 @@
 # Consuming Vapi Structured Output
 
-This guide shows how to read the dental assistant structured output after a call ends.
+This guide shows how to read the minimized dental assistant structured output after a call ends.
 
 Relevant Vapi paths:
 - webhook event: `body.call.artifact.structuredOutputs`
@@ -28,13 +28,15 @@ Example:
             "callOutcome": "appointment_booked",
             "successfulForAssistantScope": true,
             "language": "pl",
+            "caseCategory": "new_patient_first_visit",
+            "serviceBucket": "consultation",
             "booking": {
               "bookingCreated": true,
-              "firstVisit": true,
-              "serviceName": "Pierwsza konsultacja"
+              "serviceId": "consultation",
+              "firstVisit": true
             },
-            "summary": {
-              "shortSummaryPl": "Pacjent umowil pierwsza konsultacje."
+            "timing": {
+              "selectedSlotStart": "2026-03-12T09:00:00+01:00"
             }
           }
         }
@@ -89,14 +91,20 @@ export async function handleVapiWebhook(req, res) {
   const urgent = result.riskFlags?.urgentSymptomsMentioned === true;
   const followUpNeeded = result.followUp?.receptionFollowUpNeeded === true;
 
-  console.log("Structured output:", result);
+  console.log("Structured output:", {
+    callOutcome: result.callOutcome,
+    caseCategory: result.caseCategory,
+    serviceBucket: result.serviceBucket,
+    bookingCreated,
+    followUpNeeded
+  });
 
   if (bookingCreated) {
-    console.log("Booked call:", result.summary?.shortSummaryPl);
+    console.log("Booked call:", result.booking?.serviceId);
   }
 
   if (urgent || followUpNeeded) {
-    console.log("Needs human review:", result.followUp?.recommendedNextAction);
+    console.log("Needs human review:", result.followUp?.reason);
   }
 
   return res.status(200).json({ ok: true });
@@ -109,9 +117,14 @@ Recommended minimum fields for automation:
 - `call.id`
 - structured output ID or `name`
 - `result.callOutcome`
+- `result.caseCategory`
+- `result.serviceBucket`
 - `result.booking.bookingCreated`
+- `result.booking.serviceId`
 - `result.followUp.receptionFollowUpNeeded`
-- `result.summary.shortSummaryPl`
+- `result.followUp.reason`
+
+Avoid treating this output as a free-text notes channel.
 
 ## Read it from the Call API
 
@@ -143,14 +156,6 @@ jq -r '
 '
 ```
 
-Extract scorecards:
-
-```bash
-curl -sS "https://api.vapi.ai/call/YOUR_CALL_ID" \
-  -H "Authorization: Bearer $VAPI_API_KEY" | \
-jq '.artifact.scorecards'
-```
-
 ## n8n Code node example
 
 If your Vapi webhook lands in n8n, a Code node can extract the result like this:
@@ -170,7 +175,11 @@ return [
     json: {
       callId: event.call?.id || null,
       structuredOutputFound: Boolean(result),
-      structuredOutput: result
+      callOutcome: result?.callOutcome || null,
+      caseCategory: result?.caseCategory || null,
+      serviceBucket: result?.serviceBucket || null,
+      bookingCreated: result?.booking?.bookingCreated === true,
+      followUpNeeded: result?.followUp?.receptionFollowUpNeeded === true
     }
   }
 ];
@@ -190,7 +199,6 @@ What it does:
 - ignores non-`call.ended` events
 - reads the structured output by `VAPI_STRUCTURED_OUTPUT_ID`
 - falls back to the output named `Dental Call Intake`
-- carries the raw Vapi artifact through, which includes `artifact.scorecards` when scorecards are attached on the assistant
 - routes into:
   - `booked`
   - `needs_reception_follow_up`
@@ -210,16 +218,12 @@ Example response for a booked call:
   "route": "booked",
   "reason": "booking_created",
   "callId": "call_abc123",
-  "patient": {
-    "fullName": "Jan Kowalski",
-    "phone": "+48500100200"
-  },
+  "caseCategory": "new_patient_first_visit",
   "booking": {
-    "serviceName": "Pierwsza konsultacja",
+    "serviceBucket": "consultation",
     "selectedSlotStart": "2026-03-12T09:00:00+01:00",
     "bookingCreated": true
-  },
-  "summary": "Pacjent umowil pierwsza konsultacje."
+  }
 }
 ```
 
@@ -231,13 +235,17 @@ Example response for receptionist follow-up:
   "route": "needs_reception_follow_up",
   "reason": "structured_output_follow_up",
   "callId": "call_def456",
+  "patient": {
+    "fullName": "Jan Kowalski",
+    "phone": "+48500100200"
+  },
+  "caseCategory": "reschedule_or_cancel",
+  "serviceBucket": "unknown",
   "followUp": {
     "followUpNeeded": true,
     "followUpReason": "reschedule_or_cancel",
-    "recommendedNextAction": "Recepcja powinna skontaktowac sie z pacjentem w sprawie zmiany terminu.",
     "urgentSymptoms": false
-  },
-  "summary": "Pacjent prosil o zmiane terminu wizyty."
+  }
 }
 ```
 
@@ -248,7 +256,7 @@ Suggested downstream routing:
 - `followUp.receptionFollowUpNeeded == true`: create receptionist task
 - `riskFlags.urgentSymptomsMentioned == true`: prioritize review
 - `callOutcome == "cancellation_or_reschedule_requested"`: route to human flow
-- missing structured output: log and inspect transcript/tool results
+- missing structured output: log and inspect tool results and scorecards
 
 ## Operational notes
 

@@ -22,14 +22,13 @@ Keep this split:
 
 The schema extracts:
 - overall call outcome
-- patient identity fields if mentioned
-- visit intent
-- requested timing
+- high-level operational categories such as `caseCategory` and `serviceBucket`
+- patient identity fields if mentioned and operationally useful
+- normalized timing and booking state
 - booking result
 - risk and quality flags
 - conversation-quality QA flags for loops, stacked questions, premature tool use, missing booking confirmation, and phone-number playback mistakes
-- receptionist follow-up recommendation
-- short internal Polish summary
+- closed-category receptionist follow-up reason
 
 ## Recommended Vapi setup
 
@@ -123,15 +122,17 @@ Use [`docs/vapi-structured-output-consumption.md`](./vapi-structured-output-cons
 
 - `callOutcome` is the main business result.
 - `successfulForAssistantScope` should still be `true` when the bot correctly refuses unsupported actions like cancellation or rescheduling.
+- `caseCategory` should stay high-level and operational; it is not a place for symptom or treatment narratives.
+- `serviceBucket` should stay in the closed bucket list, not in natural-language phrasing.
 - `booking.bookingCreated` should be `true` only if the tool actually created the visit.
 - `riskFlags.medicalAdviceGiven` should almost always be `false`. If it turns `true`, treat that as a QA issue.
-- `qualityFlags.*` are for transcript QA. They should stay `false` on clean calls and flip to `true` when the assistant loops, stacks questions, books without explicit confirmation, or mangles the phone readback.
+- `qualityFlags.*` are for transcript QA. They should stay `false` on clean calls and flip to `true` when the assistant loops, stacks questions, books without explicit confirmation, mangles the phone readback, or asks for unnecessary symptom or reason detail.
 - `followUp.receptionFollowUpNeeded` helps separate calls that need a human next step.
 
 ## Practical notes
 
 - Do not make too many fields required. Extraction quality drops when the schema is over-constrained.
-- This schema intentionally keeps most details optional and requires only the top-level outcome and summary fields.
+- This schema intentionally keeps most details optional and requires only the top-level outcome, success flag, language, and case category.
 - If you want separate outputs for QA and CRM, create two structured outputs instead of one very large schema.
 - This repo already does that split for scorecard-compatible QA booleans under [`../configs/vapi/structured-outputs/`](../configs/vapi/structured-outputs/).
 

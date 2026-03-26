@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "key": "unnecessaryHealthDetailRequest",
+  "rank": 85,
+  "name": "QA: Unnecessary Detail Request",
+  "description": "Boolean QA metric: true only if the assistant asked for symptom details, treatment history, or a free-text reason description that was not operationally required.",
+  "type": "ai",
+  "schema": {
+    "type": "boolean",
+    "description": "True only if the assistant asked for unnecessary symptom details, treatment history, or a free-text reason description when a high-level operational category or next step would have been enough."
+  }
+}

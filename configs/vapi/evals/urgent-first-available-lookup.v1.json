@@ -3,7 +3,7 @@
   "key": "urgentFirstAvailableLookup",
   "rank": 50,
   "name": "Urgent First Available Lookup",
-  "description": "Urgent pain and swelling should trigger an immediate first-available urgent consultation lookup without premature booking.",
+  "description": "Urgent pain and swelling should trigger an immediate first-available urgent consultation lookup without premature booking or extra symptom probing.",
   "type": "chat.mockConversation",
   "messages": [
     {
@@ -20,7 +20,7 @@
           "messages": [
             {
               "role": "system",
-              "content": "PASS if the assistant immediately calls checkAvailability on this turn with service.id urgent_consultation and timePreference first_available, and does not call createEvent. Output exactly: pass or fail."
+              "content": "PASS if the assistant immediately calls checkAvailability on this turn with service.id urgent_consultation and timePreference first_available, does not ask follow-up symptom questions before the tool call, and does not call createEvent. Output exactly: pass or fail."
             }
           ]
         }

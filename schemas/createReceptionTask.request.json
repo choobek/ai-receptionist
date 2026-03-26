@@ -5,8 +5,7 @@
   "additionalProperties": false,
   "required": [
     "taskType",
-    "patient",
-    "summary"
+    "patient"
   ],
   "properties": {
     "requestId": {
@@ -41,18 +40,27 @@
         }
       }
     },
-    "summary": {
+    "serviceBucket": {
       "type": "string",
-      "minLength": 5,
-      "maxLength": 240
-    },
-    "notes": {
-      "type": "string",
-      "maxLength": 1000
+      "enum": [
+        "consultation",
+        "urgent_consultation",
+        "implant_consultation",
+        "orthodontic_consultation",
+        "aesthetic_consultation",
+        "hygiene",
+        "unknown"
+      ]
     },
     "preferredCallbackWindow": {
       "type": "string",
-      "maxLength": 120
+      "enum": [
+        "asap",
+        "morning",
+        "afternoon",
+        "evening",
+        "any"
+      ]
     },
     "telephony": {
       "type": "object",
@@ -85,9 +93,8 @@
         "phoneE164": "+48500111001",
         "isExistingPatient": true
       },
-      "summary": "Pacjentka chce umowic kolejna wizyte.",
-      "notes": "Pacjentka prosila o kontakt rano.",
-      "preferredCallbackWindow": "rano",
+      "serviceBucket": "hygiene",
+      "preferredCallbackWindow": "morning",
       "telephony": {
         "callerPhoneE164": "+48500111001",
         "callerPhoneSource": "customer.number"
