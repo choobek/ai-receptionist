@@ -115,10 +115,38 @@ case "$TOOL_NAME" in
   createReceptionTask)
     TOOL_DESCRIPTION="Use this tool to queue a receptionist follow-up only after the caller's phone number has been repeated and confirmed. Required details include taskType, patient full name, and patient phone number. Use structured fields only: if it is operationally helpful, you may include serviceBucket or preferredCallbackWindow, but do not create free-text summary or notes fields. If the caller confirmed using the number they are calling from, pass that exact confirmed number as patient.phoneE164 and never invent placeholder or test numbers. Never say the reception team will follow up until this tool returns success."
     SCHEMA_PATH="$ROOT_DIR/schemas/createReceptionTask.request.json"
+    MESSAGES_JSON='[
+      {
+        "type": "request-start",
+        "content": "Już zapisuję prośbę dla recepcji.",
+        "blocking": false
+      },
+      {
+        "type": "request-response-delayed",
+        "content": "Jeszcze chwila, kończę zapisywać prośbę dla recepcji.",
+        "timingMilliseconds": 3000
+      },
+      {
+        "type": "request-failed",
+        "content": "Przepraszam, nie udało mi się teraz zapisać prośby dla recepcji."
+      }
+    ]'
     ;;
   sendSmsToReceptionists)
     TOOL_DESCRIPTION="Use this tool only after createReceptionTask has already returned success and you have the taskId from that result. It prepares or sends an internal receptionist SMS alert based on the saved follow-up task. Do not mention the internal SMS to the caller unless they ask. If this tool fails, the saved receptionist task still exists."
     SCHEMA_PATH="$ROOT_DIR/schemas/sendSmsToReceptionists.request.json"
+    MESSAGES_JSON='[
+      {
+        "type": "request-start",
+        "content": "Jeszcze chwila, kończę przekazywanie sprawy.",
+        "blocking": false
+      },
+      {
+        "type": "request-response-delayed",
+        "content": "Jeszcze moment, dopinam przekazanie sprawy.",
+        "timingMilliseconds": 3000
+      }
+    ]'
     ;;
   sendSmsToPatient)
     TOOL_DESCRIPTION="Use this tool only for direct/manual booking-confirmation SMS probes after createEvent has already returned success. Required details include the calendarEventId returned by createEvent, patient name and phone, appointment start/timezone, and the booked service. When live caller metadata is available, the SMS must target that caller number rather than any separately declared callback number. If this tool fails, the booking still exists."

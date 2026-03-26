@@ -1018,8 +1018,12 @@ test('Vapi tool sync scripts treat createReceptionTask as a repo-owned tool defi
   assert.match(syncScript, /update-vapi-tool-definition\.sh" "\$ENVIRONMENT" createReceptionTask/);
   assert.match(updateScript, /createReceptionTask\)/);
   assert.match(updateScript, /SCHEMA_PATH="\$ROOT_DIR\/schemas\/createReceptionTask\.request\.json"/);
+  assert.match(updateScript, /Już zapisuję prośbę dla recepcji\./);
+  assert.match(updateScript, /kończę zapisywać prośbę dla recepcji\./);
   assert.match(createScript, /createReceptionTask\)/);
   assert.match(createScript, /TOOL_ENDPOINT="\/webhook\/ai-receptionist\/create-reception-task"/);
+  assert.match(createScript, /Już zapisuję prośbę dla recepcji\./);
+  assert.match(createScript, /kończę zapisywać prośbę dla recepcji\./);
 });
 
 test('Vapi tool sync scripts keep searchKnowledgeBase and delayed tool messages repo-owned', () => {
@@ -1039,6 +1043,18 @@ test('Vapi tool sync scripts keep searchKnowledgeBase and delayed tool messages 
   assert.match(createScript, /Jeszcze moment, finalizuję rezerwację wizyty\./);
   assert.match(createScript, /timingMilliseconds/);
   assert.doesNotMatch(createScript, /request-complete/);
+});
+
+test('Vapi tool sync scripts keep receptionist handoff wait messages repo-owned', () => {
+  const updateScript = loadText(path.join(rootDir, 'scripts', 'update-vapi-tool-definition.sh'));
+  const createScript = loadText(path.join(rootDir, 'scripts', 'create-vapi-tool.sh'));
+
+  assert.match(updateScript, /sendSmsToReceptionists\)/);
+  assert.match(updateScript, /Jeszcze chwila, kończę przekazywanie sprawy\./);
+  assert.match(updateScript, /Jeszcze moment, dopinam przekazanie sprawy\./);
+  assert.match(createScript, /sendSmsToReceptionists\)/);
+  assert.match(createScript, /Jeszcze chwila, kończę przekazywanie sprawy\./);
+  assert.match(createScript, /Jeszcze moment, dopinam przekazanie sprawy\./);
 });
 
 test('sendSmsToReceptionists requires createReceptionTask taskId', () => {
