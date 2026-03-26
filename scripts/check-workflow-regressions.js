@@ -855,6 +855,7 @@ test('createEvent booking SMS uses the live caller number even when the declared
   assert.equal(prepared.recipientClass, 'caller_phone');
   assert.match(prepared.messageBody, /Ipokrzyku\.pl: Appointment confirmed/i);
   assert.match(prepared.messageBody, /24 March 2026, 10:00/);
+  assert.match(prepared.messageBody, /contact reception at \+48530880033/i);
 
   const dispatched = runCodeNode(
     'tool_create-event.json',
@@ -1021,6 +1022,25 @@ test('Vapi tool sync scripts treat createReceptionTask as a repo-owned tool defi
   assert.match(createScript, /TOOL_ENDPOINT="\/webhook\/ai-receptionist\/create-reception-task"/);
 });
 
+test('Vapi tool sync scripts keep searchKnowledgeBase and delayed tool messages repo-owned', () => {
+  const syncScript = loadText(path.join(rootDir, 'scripts', 'sync-vapi-environment.sh'));
+  const updateScript = loadText(path.join(rootDir, 'scripts', 'update-vapi-tool-definition.sh'));
+  const createScript = loadText(path.join(rootDir, 'scripts', 'create-vapi-tool.sh'));
+
+  assert.match(syncScript, /update-vapi-tool-definition\.sh" "\$ENVIRONMENT" searchKnowledgeBase/);
+  assert.match(updateScript, /searchKnowledgeBase\)/);
+  assert.match(updateScript, /SCHEMA_PATH="\$ROOT_DIR\/schemas\/searchKnowledgeBase\.request\.json"/);
+  assert.match(updateScript, /request-response-delayed/);
+  assert.match(updateScript, /Już sprawdzam dostępne terminy\./);
+  assert.doesNotMatch(updateScript, /Mam już potrzebne informacje\./);
+  assert.doesNotMatch(updateScript, /Wizyta została zapisana\./);
+  assert.match(createScript, /searchKnowledgeBase\)/);
+  assert.match(createScript, /TOOL_ENDPOINT="\/webhook\/ai-receptionist\/search-knowledge-base"/);
+  assert.match(createScript, /Jeszcze moment, finalizuję rezerwację wizyty\./);
+  assert.match(createScript, /timingMilliseconds/);
+  assert.doesNotMatch(createScript, /request-complete/);
+});
+
 test('sendSmsToReceptionists requires createReceptionTask taskId', () => {
   const result = runParse(
     'tool_send-sms-to-receptionists.json',
@@ -1133,6 +1153,7 @@ test('sendSmsToPatient prepares an English booking confirmation SMS', () => {
   assert.deepEqual(prepared.recipients, ['+48500100200']);
   assert.match(prepared.messageBody, /Ipokrzyku\.pl: Appointment confirmed/i);
   assert.match(prepared.messageBody, /20 March 2026, 10:30/);
+  assert.match(prepared.messageBody, /contact reception at \+48530880033/i);
 });
 
 test('sendSmsToPatient prepares the branded Polish booking confirmation SMS with the full date', () => {
@@ -1162,7 +1183,7 @@ test('sendSmsToPatient prepares the branded Polish booking confirmation SMS with
 
   assert.equal(
     prepared.messageBody,
-    'Ipokrzyku.pl: Potwierdzenie wizyty. środa, 25 marca 2026, 17:00. W razie zmian prosimy o kontakt z recepcją.'
+    'Ipokrzyku.pl: Potwierdzenie wizyty. środa, 25 marca 2026, 17:00. W razie zmian prosimy o kontakt z recepcją pod numerem +48530880033.'
   );
 });
 
@@ -1684,7 +1705,8 @@ test('searchKnowledgeBase keeps branded All on four pricing queries retrievable'
   })[0].json;
 
   assert.equal(searchResult.found, true);
-  assert.match(searchResult.answer, /30 000/);
+  assert.match(searchResult.answer, /28 000/);
+  assert.match(searchResult.answer, /18 000/);
   assert.match(searchResult.answer, /indywidualnie/i);
 });
 
@@ -1709,7 +1731,7 @@ test('searchKnowledgeBase maps the marketing phrase implanty w jeden dzien to Al
   assert.match(searchResult.answer, /czterech strategicznie rozmieszczonych implantach/i);
 });
 
-test('searchKnowledgeBase returns individualized pricing guidance for root canal treatment', () => {
+test('searchKnowledgeBase returns starting-price guidance for root canal treatment', () => {
   const workflow = loadWorkflow('tool_search-knowledge-base.json');
   const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
     $json: {
@@ -1726,8 +1748,9 @@ test('searchKnowledgeBase returns individualized pricing guidance for root canal
   })[0].json;
 
   assert.equal(searchResult.found, true);
-  assert.match(searchResult.answer, /ustalany indywidualnie/i);
-  assert.match(searchResult.answer, /konsultacja/i);
+  assert.match(searchResult.answer, /1000/);
+  assert.match(searchResult.answer, /liczba kanalow|kanalow/i);
+  assert.match(searchResult.answer, /powtorne leczenie|wiecej/i);
 });
 
 test('searchKnowledgeBase returns other-specialist handoff guidance', () => {
@@ -2077,13 +2100,13 @@ test('assistant renderer applies staging assistant overrides without changing th
   assert.equal(shared.assistant?.transcriber?.provider, 'openai');
   assert.equal(shared.assistant?.transcriber?.model, 'gpt-4o-transcribe');
   assert.equal(rendered.assistant?.name, 'Ola [staging]');
-  assert.equal(rendered.assistant?.transcriber?.provider, '11labs');
-  assert.equal(rendered.assistant?.transcriber?.model, 'scribe_v2');
+  assert.equal(rendered.assistant?.transcriber?.provider, 'openai');
+  assert.equal(rendered.assistant?.transcriber?.model, 'gpt-4o-transcribe');
   assert.equal(rendered.assistant?.transcriber?.language, 'pl');
-  assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.4);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.3);
   assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.5);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 1.4);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 1);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 1.0);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 0.8);
   assert.equal(rendered.assistant?.startSpeakingPlan?.smartEndpointingPlan?.provider, 'vapi');
   assert.equal(rendered.assistant?.silenceTimeoutSeconds, 60);
   assert.deepEqual(rendered.assistant?.hooks, []);

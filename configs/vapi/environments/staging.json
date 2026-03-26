@@ -5,16 +5,11 @@
   "assistantName": "Ola [staging]",
   "assistantOverrides": {
     "startSpeakingPlan": {
-      "waitSeconds": 0.4,
+      "waitSeconds": 0.3,
       "transcriptionEndpointingPlan": {
-        "onNoPunctuationSeconds": 1.4,
-        "onNumberSeconds": 1
+        "onNoPunctuationSeconds": 1.0,
+        "onNumberSeconds": 0.8
       }
-    },
-    "transcriber": {
-      "provider": "11labs",
-      "model": "scribe_v2",
-      "language": "pl"
     }
   },
   "publicBaseUrlEnv": "STAGING_N8N_PUBLIC_BASE_URL",

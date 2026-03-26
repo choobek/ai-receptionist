@@ -3,12 +3,11 @@
     "id": "kb_consultation_overview",
     "title": "Konsultacja stomatologiczna",
     "category": "consultation",
-    "sourceDocument": "konsultacja.odt",
+    "sourceDocument": "konsultacja-stomatologiczna/",
     "tags": [
       "konsultacja",
       "pierwsza wizyta",
       "plan leczenia",
-      "wywiad",
       "badanie",
       "cbct",
       "rtg"
@@ -16,15 +15,14 @@
     "queryExamples": [
       "Jak wyglada konsultacja stomatologiczna?",
       "Co obejmuje pierwsza konsultacja?",
-      "Czy na konsultacji robicie tomografie?"
+      "Czy na konsultacji robicie CBCT albo RTG?"
     ],
-    "answerPl": "Konsultacja stomatologiczna obejmuje wywiad z pacjentem, badanie jamy ustnej, a w razie potrzeby takze diagnostyke obrazowa, na przyklad RTG lub CBCT. Na koncu lekarz omawia wyniki i proponuje plan leczenia, czasem w kilku wariantach pod wzgledem ceny, trwalosci i estetyki.",
+    "answerPl": "Pierwsza konsultacja obejmuje przeglad jamy ustnej, diagnostyke i omowienie mozliwych kierunkow leczenia. W zaleznosci od potrzeb moze obejmowac m.in. badanie pod mikroskopem, ocene dziasel, zgryzu, stawu skroniowo-zuchwowego oraz diagnostyke RTG i CBCT.",
     "titleEn": "Dental consultation",
     "tagsEn": [
       "consultation",
       "first visit",
       "treatment plan",
-      "medical history",
       "exam",
       "cbct",
       "x-ray"
@@ -32,15 +30,15 @@
     "queryExamplesEn": [
       "What happens during a dental consultation?",
       "What is included in the first consultation?",
-      "Do you do a CT scan during the consultation?"
+      "Do you do CBCT or X-rays during the consultation?"
     ],
-    "answerEn": "A dental consultation includes a medical history review, an oral examination, and, when needed, imaging diagnostics such as an X-ray or CBCT scan. At the end, the doctor discusses the findings and proposes a treatment plan, sometimes in a few options that differ in price, durability, and aesthetics."
+    "answerEn": "The first consultation includes an oral examination, diagnostics, and a discussion of possible treatment directions. Depending on the case, it may include microscope-based examination, assessment of the gums, bite, temporomandibular joint, and imaging such as X-rays or CBCT."
   },
   {
     "id": "kb_consultation_interview",
     "title": "Wywiad i badanie podczas konsultacji",
     "category": "consultation",
-    "sourceDocument": "konsultacja.odt",
+    "sourceDocument": "konsultacja-stomatologiczna/",
     "tags": [
       "wywiad",
       "badanie",
@@ -70,459 +68,401 @@
     "answerEn": "During the consultation, the doctor usually asks about the reason for the visit, general health, medications, allergies, expectations, and previous dental treatment. The examination itself includes an assessment of the teeth, gums, supporting tissues, bite, and oral mucosa."
   },
   {
-    "id": "kb_implants_single_and_bridge",
-    "title": "Rodzaje implantow przy brakach jednego lub kilku zebow",
+    "id": "kb_consultation_packages_and_pricing",
+    "title": "Pakiety konsultacji i koszt pierwszej wizyty",
+    "category": "pricing",
+    "sourceDocument": "konsultacja-stomatologiczna/",
+    "tags": [
+      "konsultacja",
+      "cena",
+      "pakiet podstawowy",
+      "pakiet rozszerzony",
+      "pakiet premium"
+    ],
+    "queryExamples": [
+      "Ile kosztuje pierwsza konsultacja?",
+      "Jakie sa pakiety konsultacji?",
+      "Od jakiej kwoty zaczyna sie konsultacja?"
+    ],
+    "answerPl": "Konsultacja stomatologiczna zaczyna sie od 200 zl w pakiecie podstawowym. Dostepne sa tez bardziej rozbudowane warianty konsultacji, dlatego przy rejestracji warto dopytac, ktory pakiet najlepiej pasuje do problemu pacjenta.",
+    "titleEn": "Consultation packages and first visit cost",
+    "tagsEn": [
+      "consultation",
+      "price",
+      "basic package",
+      "extended package",
+      "premium package"
+    ],
+    "queryExamplesEn": [
+      "How much is the first consultation?",
+      "What consultation packages do you offer?",
+      "What is the starting price for a consultation?"
+    ],
+    "answerEn": "A dental consultation starts from PLN 200 in the basic package. More advanced consultation options are also available, so it is worth checking at booking which package best fits the patient's case."
+  },
+  {
+    "id": "kb_implants_overview",
+    "title": "Implanty stomatologiczne - na czym polega leczenie",
     "category": "implantology",
-    "sourceDocument": "implanty.odt",
+    "sourceDocument": "implanty-stomatologiczne/",
+    "tags": [
+      "implanty",
+      "implant",
+      "brak zeba",
+      "odbudowa zeba",
+      "korzen zeba"
+    ],
+    "queryExamples": [
+      "Co to sa implanty stomatologiczne?",
+      "Jak dziala implant zeba?",
+      "Czy implanty sa trwala metoda odbudowy?"
+    ],
+    "answerPl": "Implant stomatologiczny zastepuje korzen utraconego zeba i stanowi baze pod korone, most albo inna odbudowe protetyczna. To trwale rozwiazanie stosowane przy brakach zebowych, ktore pomaga przywrocic funkcje i estetyke usmiechu.",
+    "titleEn": "Dental implants - how the treatment works",
+    "tagsEn": [
+      "implants",
+      "implant",
+      "missing tooth",
+      "tooth replacement",
+      "tooth root"
+    ],
+    "queryExamplesEn": [
+      "What are dental implants?",
+      "How does a dental implant work?",
+      "Are implants a durable way to replace a tooth?"
+    ],
+    "answerEn": "A dental implant replaces the root of a missing tooth and serves as a base for a crown, bridge, or another prosthetic restoration. It is a durable solution for missing teeth that helps restore both function and aesthetics."
+  },
+  {
+    "id": "kb_implants_single_and_bridge",
+    "title": "Implant przy jednym zebie i przy kilku brakach",
+    "category": "implantology",
+    "sourceDocument": "implanty-stomatologiczne/",
     "tags": [
       "implant",
       "pojedynczy implant",
       "most na implantach",
       "kilka zebow",
-      "brak zeba"
+      "braki zebowe"
     ],
     "queryExamples": [
-      "Jakie sa rodzaje implantow?",
       "Co jesli brakuje jednego zeba?",
-      "Czy kilka zebow mozna uzupelnic mostem na implantach?"
+      "Czy kilka zebow mozna uzupelnic mostem na implantach?",
+      "Czy potrzebny jest implant pod kazdy zab?"
     ],
-    "answerPl": "Przy braku jednego zeba najczesciej stosuje sie pojedynczy implant z korona. Przy braku kilku zebow obok siebie mozna zastosowac implanty wielozebowe, czyli na przyklad most protetyczny oparty na dwoch lub trzech implantach zamiast wszczepiania implantu pod kazdy zab.",
-    "titleEn": "Implant options for one or several missing teeth",
+    "answerPl": "Przy braku jednego zeba najczesciej stosuje sie pojedynczy implant z korona. Przy kilku brakach obok siebie mozna czasem zaplanowac most oparty na implantach, wiec nie zawsze trzeba wszczepiac implant pod kazdy brakujacy zab.",
+    "titleEn": "Implant for one tooth and for several missing teeth",
     "tagsEn": [
       "implant",
       "single implant",
       "implant bridge",
-      "several missing teeth",
-      "missing tooth"
+      "multiple missing teeth",
+      "tooth loss"
     ],
     "queryExamplesEn": [
-      "What kinds of implants are available?",
       "What if I am missing one tooth?",
-      "Can several missing teeth be replaced with an implant bridge?"
+      "Can several teeth be replaced with a bridge on implants?",
+      "Do I need one implant for every missing tooth?"
     ],
-    "answerEn": "When one tooth is missing, the most common option is a single implant with a crown. When several neighboring teeth are missing, multi-tooth implant solutions can be used, for example a prosthetic bridge supported by two or three implants instead of placing one implant for every tooth."
+    "answerEn": "When one tooth is missing, the usual option is a single implant with a crown. When several neighboring teeth are missing, an implant-supported bridge may sometimes be planned, so not every gap needs its own implant."
   },
   {
     "id": "kb_implants_timing",
-    "title": "Implantacja natychmiastowa i dwuetapowa",
+    "title": "Implantacja natychmiastowa i leczenie etapowe",
     "category": "implantology",
-    "sourceDocument": "implanty.odt",
+    "sourceDocument": "implanty-stomatologiczne/",
     "tags": [
       "implantacja natychmiastowa",
-      "zabieg dwuetapowy",
       "po usunieciu zeba",
-      "czas leczenia",
-      "zintegrowanie z koscia"
+      "leczenie etapowe",
+      "czas leczenia"
     ],
     "queryExamples": [
-      "Co to jest implantacja natychmiastowa?",
-      "Czym rozni sie zabieg klasyczny od natychmiastowego?",
-      "Ile etapow ma leczenie implantologiczne?"
+      "Czy implant mozna zalozyc od razu po usunieciu zeba?",
+      "Na czym polega implantacja natychmiastowa?",
+      "Czy leczenie implantologiczne bywa kilkuetapowe?"
     ],
-    "answerPl": "Implantacja natychmiastowa polega na wszczepieniu implantu od razu po usunieciu zeba, podczas tej samej wizyty, co moze skrocic czas leczenia, ale wymaga odpowiednich warunkow kostnych. Zabieg dwuetapowy to klasyczny schemat: najpierw wszczepienie implantu, a po mniej wiecej trzech do szesciu miesiacach odsloniecie implantu i zalozenie korony.",
-    "titleEn": "Immediate and two-stage implantation",
+    "answerPl": "W niektorych przypadkach implant mozna wszczepic od razu po usunieciu zeba, ale zalezy to od warunkow anatomicznych i oceny lekarza. W innych sytuacjach leczenie przebiega etapowo, z osobnym etapem wszczepienia implantu i pozniejsza odbudowa protetyczna.",
+    "titleEn": "Immediate implantation and staged treatment",
     "tagsEn": [
       "immediate implantation",
-      "two-stage procedure",
-      "after tooth extraction",
-      "treatment duration",
-      "osseointegration"
+      "after extraction",
+      "staged treatment",
+      "treatment time"
     ],
     "queryExamplesEn": [
+      "Can an implant be placed right after tooth extraction?",
       "What is immediate implantation?",
-      "What is the difference between the classic and immediate procedure?",
-      "How many stages does implant treatment have?"
+      "Is implant treatment sometimes done in stages?"
     ],
-    "answerEn": "Immediate implantation means placing the implant right after the tooth is removed, during the same visit. That can shorten the treatment time, but it requires the right bone conditions. A two-stage procedure is the classic approach: first the implant is placed, and after roughly three to six months it is uncovered and fitted with a crown."
+    "answerEn": "In some cases, an implant can be placed immediately after tooth removal, but this depends on the anatomy and the doctor's assessment. In other cases, treatment is staged, with implant placement first and the prosthetic restoration done later."
   },
   {
     "id": "kb_implants_supporting_procedures",
-    "title": "Zabiegi przygotowujace do implantacji",
+    "title": "Zabiegi przygotowujace do implantow",
     "category": "implantology",
-    "sourceDocument": "implanty.odt",
+    "sourceDocument": "cennik-uslug-stomatologicznych/",
     "tags": [
       "augmentacja kosci",
       "regeneracja kosci",
       "sinus lift",
-      "podniesienie dna zatoki",
-      "plastyka dziasel"
+      "podniesienie dna zatoki"
     ],
     "queryExamples": [
-      "Jakie zabiegi dodatkowe moga byc potrzebne przed implantem?",
+      "Czy przed implantami trzeba odbudowac kosc?",
       "Co to jest sinus lift?",
-      "Czy przed implantami trzeba odbudowac kosc?"
+      "Jakie zabiegi dodatkowe moga byc potrzebne przed implantem?"
     ],
-    "answerPl": "Przed implantacja czasem potrzebne sa zabiegi przygotowujace, takie jak augmentacja kosci, czyli odbudowa zaniku kostnego, podniesienie dna zatoki szczekowej przy brakujacym miejscu w gornej szczekce, albo plastyka dziasel poprawiajaca warunki do osadzenia korony i efekt estetyczny.",
-    "titleEn": "Preparatory procedures before implantation",
+    "answerPl": "Przed implantacja czasem potrzebne sa zabiegi przygotowujace, na przyklad augmentacja lub regeneracja kosci albo podniesienie dna zatoki szczekowej. To zalezy od ilosci i jakosci kosci oraz od planowanej odbudowy.",
+    "titleEn": "Preparatory procedures before implants",
     "tagsEn": [
       "bone augmentation",
       "bone regeneration",
       "sinus lift",
-      "maxillary sinus lift",
-      "gum surgery"
+      "maxillary sinus lift"
     ],
     "queryExamplesEn": [
-      "What extra procedures might be needed before an implant?",
+      "Do I need bone rebuilding before implants?",
       "What is a sinus lift?",
-      "Do I need bone rebuilding before implants?"
+      "What extra procedures may be needed before an implant?"
     ],
-    "answerEn": "Before implantation, preparatory procedures are sometimes needed, such as bone augmentation to rebuild bone loss, a sinus lift when the missing tooth is in the upper jaw, or gum surgery to improve the conditions for placing the crown and achieving a better aesthetic result."
+    "answerEn": "Before implantation, some patients need preparatory procedures such as bone augmentation, bone regeneration, or a sinus lift. This depends on the amount and quality of bone and on the planned restoration."
   },
   {
-    "id": "kb_implants_advanced",
-    "title": "Implanty zygomatyczne i podokostnowe",
+    "id": "kb_implants_zygomatic",
+    "title": "Implanty zygomatyczne",
     "category": "implantology",
-    "sourceDocument": "implanty.odt",
+    "sourceDocument": "implanty-zygomatyczne/",
     "tags": [
       "implanty zygomatyczne",
-      "zygomy",
-      "implanty podokostnowe",
-      "subperiostalne",
-      "zanik kosci",
-      "bezzebie"
+      "implanty jarzmowe",
+      "bezzebie",
+      "zanik kosci szczeki"
     ],
     "queryExamples": [
       "Co to sa implanty zygomatyczne?",
-      "Czym sa implanty podokostnowe?",
-      "Jakie sa opcje przy bardzo duzym zaniku kosci?"
+      "Dla kogo sa implanty jarzmowe?",
+      "Czy przy duzym zaniku kosci szczeki sa jeszcze jakies opcje?"
     ],
-    "answerPl": "Implanty zygomatyczne to dlugie implanty kotwiczone w kosci jarzmowej, stosowane glownie przy bardzo duzym zaniku kosci szczeki gornej, kiedy klasyczne implanty nie sa mozliwe. Implanty podokostnowe to indywidualnie projektowana metalowa konstrukcja ukladana na powierzchni kosci pod okostna. Obie metody sa bardziej zaawansowane i wymagaja lekarza z duzym doswiadczeniem.",
-    "titleEn": "Zygomatic and subperiosteal implants",
+    "answerPl": "Implanty zygomatyczne, czyli jarzmowe, stosuje sie glownie przy bezzebiu i rozleglym zaniku kosci szczeki gornej. To zaawansowana opcja dla trudniejszych przypadkow, kiedy klasyczne leczenie implantologiczne moze byc niewystarczajace.",
+    "titleEn": "Zygomatic implants",
     "tagsEn": [
       "zygomatic implants",
-      "subperiosteal implants",
-      "bone loss",
-      "severe bone loss",
-      "edentulism"
+      "cheekbone implants",
+      "edentulism",
+      "upper jaw bone loss"
     ],
     "queryExamplesEn": [
       "What are zygomatic implants?",
-      "What are subperiosteal implants?",
-      "What are the options for very severe bone loss?"
+      "Who are cheekbone implants for?",
+      "Are there options for severe upper jaw bone loss?"
     ],
-    "answerEn": "Zygomatic implants are long implants anchored in the cheekbone and are mainly used in cases of very severe bone loss in the upper jaw, when standard implants are not possible. Subperiosteal implants are individually designed metal structures placed on the surface of the bone under the periosteum. Both methods are more advanced and require a very experienced doctor."
+    "answerEn": "Zygomatic implants are mainly used in cases of edentulism and severe bone loss in the upper jaw. They are an advanced option for difficult cases where standard implant treatment may not be enough."
+  },
+  {
+    "id": "kb_implants_subperiosteal",
+    "title": "Implanty podokostnowe",
+    "category": "implantology",
+    "sourceDocument": "implanty-podokostnowe/",
+    "tags": [
+      "implanty podokostnowe",
+      "subperiostalne",
+      "zanik kosci",
+      "brak mozliwosci regeneracji"
+    ],
+    "queryExamples": [
+      "Co to sa implanty podokostnowe?",
+      "Czy przy calkowitym zaniku kosci sa jeszcze opcje implantologiczne?",
+      "Kiedy rozwaza sie implanty podokostnowe?"
+    ],
+    "answerPl": "Implanty podokostnowe rozwaza sie wtedy, gdy zanik kosci jest tak duzy, ze klasyczne implanty moga nie byc mozliwe albo wymagalby bardzo rozleglej rekonstrukcji. To rozwiazanie dla najtrudniejszych przypadkow, kwalifikowane indywidualnie przez lekarza.",
+    "titleEn": "Subperiosteal implants",
+    "tagsEn": [
+      "subperiosteal implants",
+      "severe bone loss",
+      "no bone regeneration option"
+    ],
+    "queryExamplesEn": [
+      "What are subperiosteal implants?",
+      "Are there implant options in complete bone loss cases?",
+      "When are subperiosteal implants considered?"
+    ],
+    "answerEn": "Subperiosteal implants are considered when bone loss is so advanced that standard implants may not be possible or would require very extensive reconstruction. They are reserved for the most difficult cases and always require individual qualification."
   },
   {
     "id": "kb_all_on_4",
-    "title": "System All on four",
+    "title": "All-on-4 - pelny luk zebow na 4 implantach",
     "category": "implantology",
-    "sourceDocument": "reception-feedback-2026-03-21.md",
+    "sourceDocument": "implanty-all-on-4/",
     "tags": [
       "all-on-4",
       "all on 4",
       "all on four",
+      "pelny luk",
+      "zeby w jeden dzien",
+      "zeby w 1 dzien",
       "implanty w jeden dzien",
       "implanty w 1 dzien",
       "implanty jednego dnia",
-      "bezzebie",
-      "zeby w 1 dzien",
-      "zeby w jeden dzien",
       "leczenie w jeden dzien",
       "zeby tymczasowe w jeden dzien",
+      "bezzebie",
+      "rozlegle braki",
       "cztery implanty",
-      "pelny luk",
-      "wlasne zeby",
-      "usuniecie zebow",
-      "pojedyncze implanty"
+      "czy wykonujecie all on four"
     ],
     "queryExamples": [
-      "Na czym polega all on 4?",
+      "Na czym polega All-on-4?",
       "Co oznacza haslo zeby w jeden dzien?",
       "Co oznacza haslo implanty w jeden dzien?",
-      "Na czym polega leczenie implanty w jeden dzien?",
-      "Czy implanty w jeden dzien to All on four?",
-      "W reklamie macie haslo implanty w jeden dzien - o co chodzi?",
-      "Na czym polega leczenie zeby w jeden dzien?",
-      "Czy po All on four mozna miec zeby tymczasowe w jeden dzien?",
-      "Czy wykonujecie All on four?",
-      "Czy all on 4 mozna zrobic, jesli mam swoje zeby?",
-      "Czy przy all on 4 trzeba usuwac zeby?",
-      "Jakie sa zalety all on 4?"
+      "Czy na 4 implantach mozna odbudowac caly luk?",
+      "Czy wykonujecie All on four?"
     ],
-    "answerPl": "W praktyce haslo \"implanty w jeden dzien\" albo \"zeby w jeden dzien\" najczesciej odnosi sie do rozwiazan typu All on four lub podobnej odbudowy calego luku. To leczenie stosowane przede wszystkim przy bezzebiu albo bardzo rozleglych brakach, w ktorym na czterech strategicznie rozmieszczonych implantach mocuje sie tymczasowe uzupelnienie podczas jednej wizyty. To nie jest standardowy pojedynczy implant dla kazdego pacjenta. Do takiego leczenia kwalifikuje lekarz na pierwszej konsultacji. Jesli pacjent ma jeszcze swoje zeby, zwykle trzeba je usunac albo rozwazyc inne opcje, na przyklad pojedyncze implanty.",
-    "titleEn": "All on four system",
+    "answerPl": "W praktyce haslo implanty w jeden dzien albo zeby w jeden dzien najczesciej odnosi sie do rozwiazan typu All on four lub podobnej odbudowy pelnego luku. To leczenie stosowane przede wszystkim przy bezzebiu albo bardzo rozleglych brakach, w ktorym most jest oparty na czterech strategicznie rozmieszczonych implantach. W wielu przypadkach podczas jednej wizyty mozna uzyskac tymczasowe uzupelnienie i szybko odzyskac stale podparcie dla odbudowy.",
+    "titleEn": "All-on-4 - a full arch on 4 implants",
     "tagsEn": [
       "all-on-4",
       "all on 4",
       "all on four",
-      "implants in one day",
-      "implants one day",
       "full arch",
-      "edentulism",
       "teeth in one day",
-      "four implants",
+      "implants in one day",
+      "edentulism",
+      "four implants"
+    ],
+    "queryExamplesEn": [
+      "How does All-on-4 work?",
+      "What does teeth in one day mean?",
+      "What does implants in one day mean?",
+      "Can a whole arch be restored on 4 implants?",
+      "Do you offer All-on-4?"
+    ],
+    "answerEn": "In practice, the marketing phrase implants in one day or teeth in one day most often refers to All-on-4 or a similar full-arch solution. It is used mainly in cases of edentulism or very extensive tooth loss, where a bridge is supported by four strategically placed implants. In many cases, a temporary restoration can be provided during one visit to restore stable support quickly."
+  },
+  {
+    "id": "kb_all_on_4_candidates",
+    "title": "Dla kogo jest All-on-4",
+    "category": "implantology",
+    "sourceDocument": "implanty-all-on-4/",
+    "tags": [
+      "all-on-4",
+      "all on 4",
+      "all on four",
+      "bezzebie",
+      "rozlegle braki",
+      "kwalifikacja",
+      "pelny luk",
+      "wlasne zeby",
+      "usuniecie zebow",
+      "pojedyncze implanty",
+      "mam swoje zeby",
+      "czy all on 4 mozna zrobic jesli mam swoje zeby"
+    ],
+    "queryExamples": [
+      "Czy All-on-4 jest dla kazdego?",
+      "Czy to rozwiazanie dla bezzebia?",
+      "Czy moge miec All-on-4 jesli mam jeszcze swoje zeby?",
+      "Czy przy all on 4 trzeba usuwac zeby?",
+      "Czy all on 4 mozna zrobic, jesli mam swoje zeby?"
+    ],
+    "answerPl": "All-on-4 najczesciej rozwaza sie przy bezzebiu albo bardzo rozleglych brakach zebowych. Jesli pacjent ma jeszcze swoje zeby, lekarz musi ocenic, czy kwalifikuje sie do takiego leczenia. W praktyce przy leczeniu pelnego luku zwykle trzeba usunac zeby, ktore nie rokuja, albo rozwazyc inne opcje, na przyklad pojedyncze implanty, jesli pelnolukowa odbudowa nie jest najlepszym rozwiazaniem.",
+    "titleEn": "Who All-on-4 is for",
+    "tagsEn": [
+      "all-on-4",
+      "edentulism",
+      "extensive tooth loss",
+      "qualification",
+      "full arch",
       "existing teeth",
       "tooth removal",
       "single implants"
     ],
     "queryExamplesEn": [
-      "How does All on four work?",
-      "What do you mean by implants in one day?",
-      "Are implants in one day the same as All on four?",
-      "Do you offer All on four?",
-      "Can I have All on four if I still have my own teeth?",
-      "Do teeth need to be removed for All on four?",
-      "What are the benefits of All on four?"
+      "Is All-on-4 for everyone?",
+      "Is it used for edentulism?",
+      "Can I have All-on-4 if I still have some of my own teeth?",
+      "Do teeth need to be removed for All-on-4?"
     ],
-    "answerEn": "In practice, the marketing phrase \"implants in one day\" or \"teeth in one day\" most often refers to All on four or a similar full-arch solution, where a temporary restoration is attached to four strategically placed implants during one visit. It is not the standard single-implant path for every patient. The doctor decides whether a patient qualifies at the first consultation. If the patient still has their own teeth, those teeth usually need to be discussed for removal or other options such as single implants should be considered."
+    "answerEn": "All-on-4 is most often considered in cases of edentulism or very extensive tooth loss. If the patient still has natural teeth, the doctor needs to assess whether this treatment is appropriate. In practice, full-arch treatment often means removing teeth that have a poor prognosis, or considering other options such as single implants when a full-arch restoration is not the best fit."
   },
   {
     "id": "kb_all_on_4_pricing",
-    "title": "Koszt leczenia All on four",
+    "title": "Koszt leczenia All-on-4",
     "category": "pricing",
-    "sourceDocument": "reception-feedback-2026-03-21.md",
+    "sourceDocument": "cennik-uslug-stomatologicznych/",
     "tags": [
       "all-on-4",
       "all on 4",
       "all on four",
       "cena",
       "koszt",
-      "wycena",
-      "implanty caly luk"
+      "cena all on four",
+      "koszt all on four",
+      "czesc chirurgiczna",
+      "odbudowa protetyczna"
     ],
     "queryExamples": [
-      "Ile kosztuje all on 4?",
-      "Jaki jest koszt all on four?",
-      "Od jakiej kwoty zaczyna sie leczenie all on 4?"
+      "Ile kosztuje All-on-4?",
+      "Od jakiej kwoty zaczyna sie All-on-4?",
+      "Czy All-on-4 jest wyceniane indywidualnie?",
+      "Ile kosztuje All on four? Cena All on four w klinice ipokrzyku.pl."
     ],
-    "answerPl": "Leczenie All on four zaczyna sie od 30 000 zl, ale ostateczna wycena jest ustalana indywidualnie po konsultacji.",
-    "titleEn": "Cost of All on four treatment",
+    "answerPl": "W cenniku czesc chirurgiczna All-on-4 zaczyna sie od 28 000 zl, a ostateczna odbudowa protetyczna od 18 000 zl. Caly plan leczenia jest wyceniany indywidualnie po konsultacji.",
+    "titleEn": "Cost of All-on-4 treatment",
     "tagsEn": [
       "all-on-4",
-      "all on 4",
-      "all on four",
       "price",
       "cost",
-      "quote",
-      "full arch implants"
+      "surgical part",
+      "prosthetic restoration"
     ],
     "queryExamplesEn": [
-      "How much does All on four cost?",
-      "What is the price of All on four?",
-      "What does All on four treatment start from?"
+      "How much does All-on-4 cost?",
+      "What does All-on-4 start from?",
+      "Is All-on-4 priced individually?"
     ],
-    "answerEn": "All on four treatment starts from PLN 30,000, but the final price is quoted individually after a consultation."
+    "answerEn": "According to the price list, the surgical part of All-on-4 starts from PLN 28,000 and the final prosthetic restoration starts from PLN 18,000. The complete treatment plan is quoted individually after a consultation."
   },
   {
-    "id": "kb_root_canal_pricing",
-    "title": "Koszt leczenia kanalowego",
-    "category": "pricing",
-    "sourceDocument": "reception-feedback-2026-03-21.md",
+    "id": "kb_prosthetics_overview",
+    "title": "Protetyka - korony, mosty, protezy i licowki",
+    "category": "prosthetics_and_aesthetics",
+    "sourceDocument": "protetyka/",
     "tags": [
-      "leczenie kanalowe",
-      "endodoncja",
-      "kanaly",
-      "reendo",
-      "koszt",
-      "cena"
+      "protetyka",
+      "korony",
+      "mosty",
+      "protezy",
+      "licowki",
+      "pelnoceramiczne"
     ],
     "queryExamples": [
-      "Ile kosztuje leczenie kanalowe?",
-      "Od czego zalezy cena leczenia kanalowego?",
-      "Czy leczenie kanalowe jest wyceniane indywidualnie?"
+      "Co obejmuje protetyka?",
+      "Czy robicie korony, mosty i protezy?",
+      "Jakie uzupelnienia protetyczne sa dostepne?"
     ],
-    "answerPl": "Koszt leczenia kanalowego jest ustalany indywidualnie. Zalezy miedzy innymi od liczby kanalow w zebie oraz od tego, czy jest to leczenie pierwotne czy wtorne. Przed rozpoczeciem leczenia zawsze potrzebna jest konsultacja.",
-    "titleEn": "Cost of root canal treatment",
+    "answerPl": "Protetyka obejmuje m.in. korony, mosty, protezy, licowki oraz odbudowy implanto-protetyczne. Dobor rozwiazania zalezy od liczby brakow, stanu zebow, oczekiwan estetycznych i planu leczenia.",
+    "titleEn": "Prosthetics - crowns, bridges, dentures and veneers",
     "tagsEn": [
-      "root canal",
-      "endodontics",
-      "canals",
-      "retreatment",
-      "cost",
-      "price"
+      "prosthetics",
+      "crowns",
+      "bridges",
+      "dentures",
+      "veneers",
+      "ceramic"
     ],
     "queryExamplesEn": [
-      "How much does root canal treatment cost?",
-      "What does the price of root canal treatment depend on?",
-      "Is root canal treatment priced individually?"
+      "What does prosthetic dentistry include?",
+      "Do you do crowns, bridges and dentures?",
+      "What prosthetic restorations are available?"
     ],
-    "answerEn": "The cost of root canal treatment is quoted individually. It depends, among other things, on how many canals the tooth has and whether it is primary treatment or retreatment. A consultation is always needed before treatment begins."
-  },
-  {
-    "id": "kb_first_consultation_price",
-    "title": "Koszt pierwszej konsultacji",
-    "category": "pricing",
-    "sourceDocument": "reception-feedback-2026-03-21.md",
-    "tags": [
-      "pierwsza konsultacja",
-      "konsultacja",
-      "pierwsza wizyta",
-      "cena",
-      "koszt"
-    ],
-    "queryExamples": [
-      "Ile kosztuje pierwsza konsultacja?",
-      "Jaki jest koszt konsultacji?",
-      "Ile kosztuje pierwsza wizyta?"
-    ],
-    "answerPl": "Pierwsza konsultacja kosztuje 200 zl.",
-    "titleEn": "Cost of the first consultation",
-    "tagsEn": [
-      "first consultation",
-      "consultation",
-      "first visit",
-      "price",
-      "cost"
-    ],
-    "queryExamplesEn": [
-      "How much is the first consultation?",
-      "What is the consultation fee?",
-      "How much does the first visit cost?"
-    ],
-    "answerEn": "The first consultation costs PLN 200."
-  },
-  {
-    "id": "kb_hygiene_price",
-    "title": "Koszt higienizacji",
-    "category": "pricing",
-    "sourceDocument": "reception-feedback-2026-03-21.md",
-    "tags": [
-      "higienizacja",
-      "skaling",
-      "piaskowanie",
-      "czyszczenie zebow",
-      "cena",
-      "koszt"
-    ],
-    "queryExamples": [
-      "Ile kosztuje higienizacja?",
-      "Jaka jest cena higienizacji?",
-      "Ile kosztuje czyszczenie zebow?"
-    ],
-    "answerPl": "Higienizacja kosztuje 450 zl.",
-    "titleEn": "Cost of hygiene treatment",
-    "tagsEn": [
-      "hygiene",
-      "scaling",
-      "air polishing",
-      "teeth cleaning",
-      "price",
-      "cost"
-    ],
-    "queryExamplesEn": [
-      "How much does hygiene treatment cost?",
-      "What is the price of hygiene treatment?",
-      "How much does teeth cleaning cost?"
-    ],
-    "answerEn": "Hygiene treatment costs PLN 450."
-  },
-  {
-    "id": "kb_extraction_price",
-    "title": "Koszt ekstrakcji zeba i osemki",
-    "category": "pricing",
-    "sourceDocument": "reception-feedback-2026-03-21.md",
-    "tags": [
-      "ekstrakcja",
-      "usuniecie zeba",
-      "wyrwanie zeba",
-      "osemka",
-      "ekstrakcja 8",
-      "usuniecie osemki",
-      "cena",
-      "koszt"
-    ],
-    "queryExamples": [
-      "Ile kosztuje usuniecie zeba?",
-      "Ile kosztuje ekstrakcja osemki?",
-      "Jaka jest cena wyrwania zeba?"
-    ],
-    "answerPl": "Ekstrakcja zeba kosztuje 700 zl. Ekstrakcja osemki zaczyna sie od 1000 zl.",
-    "titleEn": "Cost of tooth extraction and wisdom tooth extraction",
-    "tagsEn": [
-      "extraction",
-      "tooth removal",
-      "tooth extraction",
-      "wisdom tooth",
-      "wisdom tooth extraction",
-      "price",
-      "cost"
-    ],
-    "queryExamplesEn": [
-      "How much does tooth extraction cost?",
-      "How much does wisdom tooth extraction cost?",
-      "What is the price of removing a tooth?"
-    ],
-    "answerEn": "A tooth extraction costs PLN 700. Wisdom tooth extraction starts from PLN 1,000."
-  },
-  {
-    "id": "kb_clinic_address",
-    "title": "Adres kliniki",
-    "category": "organization",
-    "sourceDocument": "reception-feedback-2026-03-21.md",
-    "tags": [
-      "adres",
-      "adres kliniki",
-      "adres gabinetu",
-      "lokalizacja",
-      "gdzie",
-      "gdzie znajduje sie klinika",
-      "krakow",
-      "dojazd"
-    ],
-    "queryExamples": [
-      "Jaki jest adres kliniki?",
-      "Gdzie znajduje sie klinika ipokrzyku.pl w Krakowie?",
-      "Jaki macie adres w Krakowie?"
-    ],
-    "answerPl": "Klinika ipokrzyku.pl znajduje sie przy ulicy Josepha Conrada 37, 31-357 Krakow.",
-    "titleEn": "Clinic address",
-    "tagsEn": [
-      "address",
-      "clinic address",
-      "office address",
-      "location",
-      "where is the clinic",
-      "krakow",
-      "directions"
-    ],
-    "queryExamplesEn": [
-      "What is the clinic address?",
-      "Where is the Ipokrzyku.pl clinic in Krakow?",
-      "What is your address in Krakow?"
-    ],
-    "answerEn": "The Ipokrzyku.pl clinic is located at 37 Josepha Conrada Street, 31-357 Krakow."
-  },
-  {
-    "id": "kb_specialist_booking_policy",
-    "title": "Umawianie pierwszych wizyt i innych specjalistow",
-    "category": "organization",
-    "sourceDocument": "reception-feedback-2026-03-21.md",
-    "tags": [
-      "dr szajnar",
-      "pierwsza wizyta",
-      "inny specjalista",
-      "specjalista",
-      "recepcja",
-      "kontakt z recepcja",
-      "oddzwoni"
-    ],
-    "queryExamples": [
-      "Czy moge umowic sie do innego specjalisty?",
-      "Czy pierwsza wizyta jest tylko do dr Szajnar?",
-      "Co jesli chce wizyte u innego lekarza?"
-    ],
-    "answerPl": "Obecnie przez asystenta umawiane sa tylko pierwsze wizyty do doktor Magdaleny Szajnar. Jesli pacjent chce wizyte u innego specjalisty, informacja trafia do recepcji, ktora kontaktuje sie z pacjentem w pierwszej wolnej chwili.",
-    "titleEn": "Booking first visits and other specialists",
-    "tagsEn": [
-      "doctor Szajnar",
-      "first visit",
-      "other specialist",
-      "specialist",
-      "reception",
-      "reception callback"
-    ],
-    "queryExamplesEn": [
-      "Can I book with another specialist?",
-      "Are first visits booked only with doctor Szajnar?",
-      "What happens if I want an appointment with a different doctor?"
-    ],
-    "answerEn": "At the moment, the assistant books only first visits with doctor Magdalena Szajnar. If a patient wants an appointment with another specialist, the information is passed to reception, which contacts the patient as soon as possible."
+    "answerEn": "Prosthetic dentistry includes crowns, bridges, dentures, veneers, and implant-supported restorations. The right option depends on the number of missing teeth, the condition of the teeth, the aesthetic goals, and the overall treatment plan."
   },
   {
     "id": "kb_veneers_vs_bonding",
     "title": "Licowki a bonding",
     "category": "prosthetics_and_aesthetics",
-    "sourceDocument": "protetyka.odt",
+    "sourceDocument": "protetyka/",
     "tags": [
       "licowki",
       "bonding",
@@ -536,7 +476,7 @@
       "Co jest trwalsze licowki czy bonding?",
       "Co lepsze do szybkiej poprawy estetyki?"
     ],
-    "answerPl": "Licowki to cienkie nakladki, najczesciej porcelanowe, przyklejane do przedniej powierzchni zeba. Daja bardzo estetyczny i trwaly efekt, zwykle nawet na dziesiec do pietnastu lat, ale sa drozsze i czesto wymagaja szlifowania zeba. Bonding polega na modelowaniu zeba kompozytem bezposrednio na zebie. Jest mniej inwazyjny, tanszy i daje szybki efekt, ale zwykle jest mniej trwaly, bardziej podatny na przebarwienia i scieranie.",
+    "answerPl": "Licowki to cienkie nakladki, najczesciej porcelanowe, przyklejane do przedniej powierzchni zeba. Daja bardzo estetyczny i trwaly efekt, ale sa drozsze i czesto wymagaja przygotowania zeba. Bonding polega na modelowaniu zeba kompozytem bezposrednio na zebie. Jest mniej inwazyjny, tanszy i daje szybki efekt, ale zwykle jest mniej trwaly oraz bardziej podatny na przebarwienia i scieranie.",
     "titleEn": "Veneers vs bonding",
     "tagsEn": [
       "veneers",
@@ -551,39 +491,629 @@
       "Which lasts longer, veneers or bonding?",
       "Which is better for a quick aesthetic improvement?"
     ],
-    "answerEn": "Veneers are thin shells, usually made of porcelain, bonded to the front surface of the tooth. They provide a very aesthetic and durable result, often lasting ten to fifteen years, but they are more expensive and often require the tooth to be prepared. Bonding means shaping the tooth directly with composite material. It is less invasive, less expensive, and gives a quick result, but it is usually less durable and more prone to discoloration and wear."
+    "answerEn": "Veneers are thin shells, usually porcelain, bonded to the front surface of the tooth. They provide a more aesthetic and durable effect, but they are more expensive and often require tooth preparation. Bonding means shaping the tooth directly with composite material. It is less invasive, less expensive, and gives a quick result, but it is usually less durable and more prone to discoloration and wear."
   },
   {
-    "id": "kb_veneers_vs_bonding_use_cases",
-    "title": "Kiedy rozwazyc licowki, a kiedy bonding",
+    "id": "kb_veneers_use_cases",
+    "title": "Kiedy rozwaza sie licowki",
     "category": "prosthetics_and_aesthetics",
-    "sourceDocument": "protetyka.odt",
+    "sourceDocument": "protetyka/",
     "tags": [
-      "hollywood smile",
-      "pekiecia",
+      "licowki",
       "przebarwienia",
-      "ksztalt zebow",
-      "kolor zebow"
+      "wyszczerbienia",
+      "diastema",
+      "estetyka"
     ],
     "queryExamples": [
-      "Kiedy wybrac bonding?",
-      "Kiedy lepiej sprawdza sie licowka?",
-      "Co na drobne pekniecia i przebarwienia?"
+      "Kiedy warto rozwazyc licowki?",
+      "Czy licowki sa dobre na przebarwienia albo pekniecia?",
+      "Czy licowki pomagaja przy diastemie?"
     ],
-    "answerPl": "Bonding bywa dobrym rozwiazaniem przy szybkiej poprawie estetyki nizszym kosztem oraz przy maskowaniu drobnych pekniec i przebarwien. Licowki czesciej rozwaza sie wtedy, gdy celem jest bardziej trwaly i naturalny efekt albo zmiana ksztaltu, koloru i ustawienia zebow.",
-    "titleEn": "When to consider veneers vs bonding",
+    "answerPl": "Licowki rozwaza sie m.in. przy przebarwieniach, ktore nie reaguja na wybielanie, przy drobnych uszkodzeniach szkliwa, nierownym ksztalcie zebow albo przy diastemie. To rozwiazanie estetyczne, ktore kwalifikuje sie po konsultacji i ocenie warunkow w jamie ustnej.",
+    "titleEn": "When veneers are considered",
     "tagsEn": [
-      "hollywood smile",
-      "cracks",
+      "veneers",
       "discoloration",
-      "tooth shape",
-      "tooth color"
+      "chips",
+      "diastema",
+      "aesthetics"
     ],
     "queryExamplesEn": [
-      "When should I choose bonding?",
-      "When are veneers a better option?",
-      "What works for small cracks and discoloration?"
+      "When are veneers worth considering?",
+      "Are veneers good for discoloration or small cracks?",
+      "Can veneers help with a diastema?"
     ],
-    "answerEn": "Bonding can be a good option for a quick aesthetic improvement at a lower cost and for masking small cracks or discoloration. Veneers are more often considered when the goal is a more durable and natural-looking effect or a change in tooth shape, color, and alignment."
+    "answerEn": "Veneers are considered for discoloration that does not respond to whitening, small enamel defects, uneven tooth shape, or a diastema. It is an aesthetic solution that requires consultation and qualification after examining the mouth."
+  },
+  {
+    "id": "kb_orthodontics_overview",
+    "title": "Ortodoncja - leczenie wad zgryzu",
+    "category": "orthodontics",
+    "sourceDocument": "ortodoncja/",
+    "tags": [
+      "ortodoncja",
+      "wady zgryzu",
+      "ustawienie zebow",
+      "plan leczenia",
+      "diagnostyka"
+    ],
+    "queryExamples": [
+      "Na czym polega leczenie ortodontyczne?",
+      "Czy ortodoncja jest tylko kwestia estetyki?",
+      "Jak ustalany jest plan leczenia ortodontycznego?"
+    ],
+    "answerPl": "Leczenie ortodontyczne pomaga skorygowac ustawienie zebow i wady zgryzu, ale ma znaczenie nie tylko estetyczne. Po dokladnej diagnostyce obrazowej i klinicznej ortodonta przedstawia indywidualny plan leczenia dopasowany do problemu pacjenta.",
+    "titleEn": "Orthodontics - bite correction treatment",
+    "tagsEn": [
+      "orthodontics",
+      "malocclusion",
+      "tooth alignment",
+      "treatment plan",
+      "diagnostics"
+    ],
+    "queryExamplesEn": [
+      "How does orthodontic treatment work?",
+      "Is orthodontics only about aesthetics?",
+      "How is the orthodontic treatment plan decided?"
+    ],
+    "answerEn": "Orthodontic treatment helps correct tooth position and bite problems, and it matters for more than aesthetics alone. After detailed imaging and clinical diagnostics, the orthodontist presents an individual treatment plan suited to the patient's case."
+  },
+  {
+    "id": "kb_invisalign_overview",
+    "title": "Invisalign - nakladki ortodontyczne",
+    "category": "orthodontics",
+    "sourceDocument": "invisalign-krakow/",
+    "tags": [
+      "invisalign",
+      "nakladki",
+      "alignery",
+      "bez aparatu stalego",
+      "itero"
+    ],
+    "queryExamples": [
+      "Czym jest Invisalign?",
+      "Czy prostujecie zeby nakladkami?",
+      "Jak dziala leczenie Invisalign?"
+    ],
+    "answerPl": "Invisalign to leczenie ortodontyczne za pomoca indywidualnie projektowanych przezroczystych nakladek, ktore stopniowo przesuwaja zeby. System pozwala tez pokazac przewidywany efekt leczenia cyfrowo, a pacjent zwykle wymienia kolejne nakladki samodzielnie co 1-2 tygodnie.",
+    "titleEn": "Invisalign - clear aligners",
+    "tagsEn": [
+      "invisalign",
+      "aligners",
+      "clear aligners",
+      "without braces",
+      "itero"
+    ],
+    "queryExamplesEn": [
+      "What is Invisalign?",
+      "Do you straighten teeth with aligners?",
+      "How does Invisalign treatment work?"
+    ],
+    "answerEn": "Invisalign is orthodontic treatment based on individually designed clear aligners that gradually move the teeth. The system also allows a digital preview of the expected result, and patients usually switch to the next aligners themselves every 1-2 weeks."
+  },
+  {
+    "id": "kb_orthognathic_surgery",
+    "title": "Chirurgia ortognatyczna",
+    "category": "surgery",
+    "sourceDocument": "chirurgia-ortognatyczna/",
+    "tags": [
+      "chirurgia ortognatyczna",
+      "wady twarzowo-czaszkowe",
+      "zlozone wady zgryzu",
+      "kamuflaz ortodontyczny"
+    ],
+    "queryExamples": [
+      "Na czym polega chirurgia ortognatyczna?",
+      "Kiedy potrzebna jest chirurgia ortognatyczna?",
+      "Czy sama ortodoncja zawsze wystarcza przy duzej wadzie?"
+    ],
+    "answerPl": "Chirurgia ortognatyczna jest stosowana przy zlozonych wadach twarzowo-czaszkowych i bardziej skomplikowanych deformacjach ortodontycznych. W takich przypadkach sama ortodoncja moze nie wystarczyc, dlatego leczenie planuje sie lacznie z komponentem chirurgicznym.",
+    "titleEn": "Orthognathic surgery",
+    "tagsEn": [
+      "orthognathic surgery",
+      "craniofacial defects",
+      "complex malocclusion",
+      "orthodontic camouflage"
+    ],
+    "queryExamplesEn": [
+      "What is orthognathic surgery?",
+      "When is orthognathic surgery needed?",
+      "Is orthodontics alone always enough in severe cases?"
+    ],
+    "answerEn": "Orthognathic surgery is used for complex craniofacial problems and more advanced orthodontic deformities. In these cases, orthodontics alone may not be enough, so treatment is planned together with a surgical component."
+  },
+  {
+    "id": "kb_oral_surgery_overview",
+    "title": "Chirurgia stomatologiczna",
+    "category": "surgery",
+    "sourceDocument": "chirurgia-stomatologiczna/",
+    "tags": [
+      "chirurgia stomatologiczna",
+      "ekstrakcje",
+      "osemki",
+      "resekcje",
+      "znieczulenie"
+    ],
+    "queryExamples": [
+      "Jakie zabiegi obejmuje chirurgia stomatologiczna?",
+      "Czy usuwacie osemki?",
+      "Czy zabiegi chirurgiczne sa wykonywane w znieczuleniu?"
+    ],
+    "answerPl": "Chirurgia stomatologiczna obejmuje m.in. ekstrakcje, usuwanie osemek, resekcje, zabiegi na tkankach miekkich, regeneracje kosci i procedury implantologiczne. Zabiegi sa wykonywane w skutecznym znieczuleniu, a w wybranych przypadkach takze pod opieka anestezjologa.",
+    "titleEn": "Oral surgery",
+    "tagsEn": [
+      "oral surgery",
+      "extractions",
+      "wisdom teeth",
+      "apicoectomy",
+      "anesthesia"
+    ],
+    "queryExamplesEn": [
+      "What procedures are included in oral surgery?",
+      "Do you remove wisdom teeth?",
+      "Are surgical procedures done under anesthesia?"
+    ],
+    "answerEn": "Oral surgery includes extractions, wisdom tooth removal, apicoectomies, soft tissue procedures, bone regeneration, and implant procedures. Treatment is performed with effective anesthesia and, in selected cases, with anesthesiologist support."
+  },
+  {
+    "id": "kb_aesthetic_dentistry_overview",
+    "title": "Wybielanie i stomatologia estetyczna",
+    "category": "prosthetics_and_aesthetics",
+    "sourceDocument": "wybielanie-i-stomatologia-estetyczna/",
+    "tags": [
+      "wybielanie",
+      "stomatologia estetyczna",
+      "diastema",
+      "korony",
+      "licowki"
+    ],
+    "queryExamples": [
+      "Co obejmuje stomatologia estetyczna?",
+      "Czy robicie tylko wybielanie, czy cos wiecej?",
+      "Czy mozna poprawic estetyke usmiechu bez aparatu?"
+    ],
+    "answerPl": "Stomatologia estetyczna obejmuje nie tylko wybielanie, ale tez rozwiazania poprawiajace ksztalt, kolor i proporcje usmiechu, na przyklad licowki, korony czy zamykanie diastemy. Zabiegi estetyczne planuje sie po ocenie stanu zdrowia zebow i dziasel.",
+    "titleEn": "Whitening and aesthetic dentistry",
+    "tagsEn": [
+      "whitening",
+      "aesthetic dentistry",
+      "diastema",
+      "crowns",
+      "veneers"
+    ],
+    "queryExamplesEn": [
+      "What does aesthetic dentistry include?",
+      "Do you do only whitening or more than that?",
+      "Can smile aesthetics be improved without braces?"
+    ],
+    "answerEn": "Aesthetic dentistry includes not only whitening but also treatments that improve the shape, color, and proportions of the smile, such as veneers, crowns, or closing a diastema. These treatments are planned after checking the health of the teeth and gums."
+  },
+  {
+    "id": "kb_periodontology_symptoms",
+    "title": "Objawy chorob dziasel i przyzebia",
+    "category": "periodontology",
+    "sourceDocument": "periodontologia/",
+    "tags": [
+      "periodontologia",
+      "krwawienie dziasel",
+      "obrzek dziasel",
+      "nieprzyjemny zapach",
+      "kamien"
+    ],
+    "queryExamples": [
+      "Jakie objawy powinny zaniepokoic przy dziaslach?",
+      "Czy krwawienie dziasel to powod do wizyty?",
+      "Po czym poznac, ze warto isc do periodontologa?"
+    ],
+    "answerPl": "Do niepokojacych objawow naleza m.in. krwawienie podczas szczotkowania, obrzek lub zaczerwienienie dziasel, nieprzyjemny zapach z ust i nagromadzony kamien nazebny. Takie sygnaly warto skonsultowac, bo nieleczone choroby przyzebia moga prowadzic do rozchwiania i utraty zebow.",
+    "titleEn": "Symptoms of gum and periodontal disease",
+    "tagsEn": [
+      "periodontology",
+      "bleeding gums",
+      "swollen gums",
+      "bad breath",
+      "calculus"
+    ],
+    "queryExamplesEn": [
+      "What gum symptoms should worry me?",
+      "Is bleeding gums a reason to book a visit?",
+      "How do I know I should see a periodontist?"
+    ],
+    "answerEn": "Warning signs include bleeding while brushing, swollen or red gums, bad breath, and heavy tartar buildup. These symptoms should be checked because untreated periodontal disease can lead to tooth mobility and tooth loss."
+  },
+  {
+    "id": "kb_periodontology_treatment",
+    "title": "Jak wyglada leczenie periodontologiczne",
+    "category": "periodontology",
+    "sourceDocument": "periodontologia/",
+    "tags": [
+      "periodontologia",
+      "diagnostyka",
+      "profilaktyka",
+      "antybiotykoterapia",
+      "mikrochirurgia dziasel"
+    ],
+    "queryExamples": [
+      "Jak wyglada leczenie periodontologiczne?",
+      "Czy periodontologia zaczyna sie od konsultacji?",
+      "Czy przy chorobach dziasel czasem potrzebny jest zabieg chirurgiczny?"
+    ],
+    "answerPl": "Leczenie periodontologiczne zaczyna sie od konsultacji, diagnostyki i oceny stanu przyzebia. W zaleznosci od przypadku moze obejmowac higienizacje, leczenie zachowawcze, leczenie farmakologiczne albo bardziej zaawansowane zabiegi z zakresu mikrochirurgii dziasel.",
+    "titleEn": "What periodontal treatment looks like",
+    "tagsEn": [
+      "periodontology",
+      "diagnostics",
+      "prevention",
+      "antibiotics",
+      "gum microsurgery"
+    ],
+    "queryExamplesEn": [
+      "What does periodontal treatment involve?",
+      "Does periodontology start with a consultation?",
+      "Is surgery sometimes needed for gum disease?"
+    ],
+    "answerEn": "Periodontal treatment starts with a consultation, diagnostics, and assessment of the supporting tissues. Depending on the case, it may involve hygiene treatment, conservative care, medication, or more advanced gum microsurgery."
+  },
+  {
+    "id": "kb_bruxism_overview",
+    "title": "Leczenie bruksizmu",
+    "category": "bruxism",
+    "sourceDocument": "leczenie-bruksizmu/",
+    "tags": [
+      "bruksizm",
+      "zaciskanie zebow",
+      "zgrzytanie zebami",
+      "staw skroniowo-zuchwowy",
+      "botoks"
+    ],
+    "queryExamples": [
+      "Co to jest bruksizm?",
+      "Czy leczcie zgrzytanie zebami?",
+      "Jakie sa skutki nieleczonego bruksizmu?"
+    ],
+    "answerPl": "Bruksizm to patologiczne zaciskanie i tarcie zebami, najczesciej wystepujace we snie. Nieleczony moze prowadzic do scierania zebow, przeciuzen stawow skroniowo-zuchwowych i przewleklych boli glowy, dlatego wymaga diagnostyki i dobrania odpowiedniej terapii.",
+    "titleEn": "Bruxism treatment",
+    "tagsEn": [
+      "bruxism",
+      "teeth clenching",
+      "teeth grinding",
+      "tmj",
+      "botox"
+    ],
+    "queryExamplesEn": [
+      "What is bruxism?",
+      "Do you treat teeth grinding?",
+      "What happens if bruxism is left untreated?"
+    ],
+    "answerEn": "Bruxism is pathological clenching and grinding of the teeth, usually during sleep. If left untreated, it can lead to tooth wear, overload of the temporomandibular joints, and chronic headaches, so it requires proper diagnosis and treatment planning."
+  },
+  {
+    "id": "kb_conservative_treatment",
+    "title": "Leczenie zachowawcze",
+    "category": "conservative_dentistry",
+    "sourceDocument": "leczenie-zachowawcze/",
+    "tags": [
+      "leczenie zachowawcze",
+      "prochnica",
+      "wypelnienia",
+      "mikroskop",
+      "koferdam"
+    ],
+    "queryExamples": [
+      "Na czym polega leczenie zachowawcze?",
+      "Czy leczcie prochnice pod mikroskopem?",
+      "Czy robicie wypelnienia estetyczne?"
+    ],
+    "answerPl": "Leczenie zachowawcze sluzy zachowaniu wlasnych zebow i obejmuje m.in. usuwanie prochnicy oraz wykonywanie wypelnien. Klinika podkresla prace pod mikroskopem i dbalosc o precyzje, zeby ograniczyc ryzyko dalszych problemow i potrzeby leczenia kanalowego.",
+    "titleEn": "Conservative dentistry",
+    "tagsEn": [
+      "conservative dentistry",
+      "caries",
+      "fillings",
+      "microscope",
+      "rubber dam"
+    ],
+    "queryExamplesEn": [
+      "What is conservative dental treatment?",
+      "Do you treat caries under a microscope?",
+      "Do you do aesthetic fillings?"
+    ],
+    "answerEn": "Conservative treatment is focused on preserving natural teeth and includes removing caries and placing fillings. The clinic emphasizes microscope-assisted precision to reduce the risk of further problems and the need for root canal treatment."
+  },
+  {
+    "id": "kb_endodontics_overview",
+    "title": "Leczenie kanalowe - endodoncja",
+    "category": "endodontics",
+    "sourceDocument": "uslugi-stomatologiczne/",
+    "tags": [
+      "leczenie kanalowe",
+      "endodoncja",
+      "mikroskop",
+      "tomografia",
+      "ultradzwieki"
+    ],
+    "queryExamples": [
+      "Czy robicie leczenie kanalowe?",
+      "Jak wyglada endodoncja w klinice?",
+      "Czy leczenie kanalowe odbywa sie pod mikroskopem?"
+    ],
+    "answerPl": "Leczenie kanalowe ma na celu uratowanie zeba, gdy problem dotyczy miazgi lub kanalow korzeniowych. Klinika opisuje endodoncje jako leczenie prowadzone z wykorzystaniem mikroskopu, urzadzen ultradzwiekowych i tomografii.",
+    "titleEn": "Root canal treatment - endodontics",
+    "tagsEn": [
+      "root canal",
+      "endodontics",
+      "microscope",
+      "tomography",
+      "ultrasound"
+    ],
+    "queryExamplesEn": [
+      "Do you do root canal treatment?",
+      "What is endodontic treatment like at the clinic?",
+      "Is root canal treatment done under a microscope?"
+    ],
+    "answerEn": "Root canal treatment is meant to save a tooth when the pulp or root canals are affected. The clinic describes its endodontic care as using a microscope, ultrasonic devices, and tomography."
+  },
+  {
+    "id": "kb_root_canal_pricing",
+    "title": "Koszt leczenia kanalowego",
+    "category": "pricing",
+    "sourceDocument": "cennik-uslug-stomatologicznych/",
+    "tags": [
+      "leczenie kanalowe",
+      "endodoncja",
+      "cena",
+      "koszt",
+      "reendo"
+    ],
+    "queryExamples": [
+      "Ile kosztuje leczenie kanalowe?",
+      "Od jakiej kwoty zaczyna sie leczenie kanalowe?",
+      "Czy cena zalezy od liczby kanalow?"
+    ],
+    "answerPl": "Leczenie kanalowe zaczyna sie od 1000 zl za zab jednokanalowy, a cena rosnie wraz z liczba kanalow i stopniem skomplikowania. Powtorne leczenie kanalowe jest wyceniane oddzielnie i zwykle kosztuje wiecej.",
+    "titleEn": "Cost of root canal treatment",
+    "tagsEn": [
+      "root canal",
+      "endodontics",
+      "price",
+      "cost",
+      "retreatment"
+    ],
+    "queryExamplesEn": [
+      "How much does root canal treatment cost?",
+      "What is the starting price for root canal treatment?",
+      "Does the price depend on the number of canals?"
+    ],
+    "answerEn": "Root canal treatment starts from PLN 1,000 for a single-canal tooth, and the price increases with the number of canals and the complexity of the case. Retreatment is priced separately and is usually more expensive."
+  },
+  {
+    "id": "kb_prophylaxis_overview",
+    "title": "Profilaktyka stomatologiczna i higienizacja",
+    "category": "hygiene",
+    "sourceDocument": "profilaktyka-stomatologiczna/",
+    "tags": [
+      "profilaktyka",
+      "higienizacja",
+      "kamien",
+      "osad",
+      "zdrowie dziasel"
+    ],
+    "queryExamples": [
+      "Na czym polega higienizacja?",
+      "Czy robicie profesjonalne czyszczenie zebow?",
+      "Po co wykonywac profilaktyke stomatologiczna?"
+    ],
+    "answerPl": "Profilaktyka stomatologiczna obejmuje profesjonalne oczyszczanie zebow z kamienia i osadow oraz dbanie o zdrowie dziasel. To wazny element zapobiegania prochnicy, stanom zapalnym, chorobom przyzebia i nieprzyjemnemu zapachowi z ust.",
+    "titleEn": "Dental prevention and hygiene treatment",
+    "tagsEn": [
+      "prevention",
+      "hygiene",
+      "tartar",
+      "plaque",
+      "gum health"
+    ],
+    "queryExamplesEn": [
+      "What does hygiene treatment involve?",
+      "Do you do professional teeth cleaning?",
+      "Why is dental prevention important?"
+    ],
+    "answerEn": "Dental prevention includes professional cleaning to remove tartar and deposits and to support gum health. It is an important part of preventing caries, inflammation, periodontal disease, and bad breath."
+  },
+  {
+    "id": "kb_hygiene_price",
+    "title": "Koszt higienizacji",
+    "category": "pricing",
+    "sourceDocument": "cennik-uslug-stomatologicznych/",
+    "tags": [
+      "higienizacja",
+      "profilaktyka",
+      "czyszczenie zebow",
+      "cena",
+      "koszt"
+    ],
+    "queryExamples": [
+      "Ile kosztuje higienizacja?",
+      "Jaka jest cena profesjonalnego czyszczenia zebow?",
+      "Ile kosztuje profilaktyka w klinice?"
+    ],
+    "answerPl": "Higienizacja kosztuje 450 zl.",
+    "titleEn": "Cost of hygiene treatment",
+    "tagsEn": [
+      "hygiene",
+      "prevention",
+      "teeth cleaning",
+      "price",
+      "cost"
+    ],
+    "queryExamplesEn": [
+      "How much does hygiene treatment cost?",
+      "What is the price of professional teeth cleaning?",
+      "How much does prevention treatment cost?"
+    ],
+    "answerEn": "Hygiene treatment costs PLN 450."
+  },
+  {
+    "id": "kb_physiotherapy_overview",
+    "title": "Fizjoterapia stomatologiczna",
+    "category": "physiotherapy",
+    "sourceDocument": "fizjoterapia-stomatologiczna/",
+    "tags": [
+      "fizjoterapia stomatologiczna",
+      "staw skroniowo-zuchwowy",
+      "szumy uszne",
+      "migreny",
+      "przeskakiwanie szczeki"
+    ],
+    "queryExamples": [
+      "Na czym polega fizjoterapia stomatologiczna?",
+      "Czy fizjoterapia pomaga przy stawie skroniowo-zuchwowym?",
+      "Czy przy przeskakiwaniu szczeki albo migrenach warto to sprawdzic?"
+    ],
+    "answerPl": "Fizjoterapia stomatologiczna zajmuje sie zaburzeniami ukladu stomatognatycznego, zwlaszcza okolicy zuchwy i stawow skroniowo-zuchwowych. Moze byc pomocna m.in. przy bolu stawu, przeskakiwaniu szczeki, problemach z szerokim otwieraniem ust, migrenach, szumach usznych czy napieciach miesniowych.",
+    "titleEn": "Dental physiotherapy",
+    "tagsEn": [
+      "dental physiotherapy",
+      "tmj",
+      "tinnitus",
+      "migraines",
+      "jaw clicking"
+    ],
+    "queryExamplesEn": [
+      "What is dental physiotherapy?",
+      "Can physiotherapy help with the temporomandibular joint?",
+      "Should I check it if my jaw clicks or I have migraines?"
+    ],
+    "answerEn": "Dental physiotherapy deals with disorders of the stomatognathic system, especially the jaw and temporomandibular joints. It may help with joint pain, jaw clicking, limited opening, migraines, tinnitus, or muscular tension."
+  },
+  {
+    "id": "kb_extraction_price",
+    "title": "Koszt ekstrakcji zeba i osemki",
+    "category": "pricing",
+    "sourceDocument": "cennik-uslug-stomatologicznych/",
+    "tags": [
+      "ekstrakcja",
+      "usuniecie zeba",
+      "osemka",
+      "cena",
+      "koszt"
+    ],
+    "queryExamples": [
+      "Ile kosztuje usuniecie zeba?",
+      "Ile kosztuje ekstrakcja osemki?",
+      "Od jakiej kwoty zaczyna sie zabieg chirurgiczny usuniecia zeba?"
+    ],
+    "answerPl": "Ekstrakcja zeba jednokorzeniowego kosztuje 500 zl, zeba wielokorzeniowego 700 zl, a ekstrakcja osemki zaczyna sie od 1000 zl.",
+    "titleEn": "Cost of tooth extraction and wisdom tooth extraction",
+    "tagsEn": [
+      "extraction",
+      "tooth removal",
+      "wisdom tooth",
+      "price",
+      "cost"
+    ],
+    "queryExamplesEn": [
+      "How much does tooth extraction cost?",
+      "How much does wisdom tooth extraction cost?",
+      "What is the starting price for surgical tooth removal?"
+    ],
+    "answerEn": "Extraction of a single-root tooth costs PLN 500, a multi-root tooth PLN 700, and wisdom tooth extraction starts from PLN 1,000."
+  },
+  {
+    "id": "kb_clinic_address",
+    "title": "Adres kliniki",
+    "category": "organization",
+    "sourceDocument": "kontakt/",
+    "tags": [
+      "adres",
+      "lokalizacja",
+      "krakow",
+      "dojazd",
+      "gdzie"
+    ],
+    "queryExamples": [
+      "Jaki jest adres kliniki?",
+      "Gdzie znajduje sie klinika w Krakowie?",
+      "Jaki macie adres?"
+    ],
+    "answerPl": "Klinika ipokrzyku.pl znajduje sie przy ulicy Josepha Conrada 37, 31-357 Krakow.",
+    "titleEn": "Clinic address",
+    "tagsEn": [
+      "address",
+      "location",
+      "krakow",
+      "directions",
+      "where"
+    ],
+    "queryExamplesEn": [
+      "What is the clinic address?",
+      "Where is the clinic in Krakow?",
+      "What is your address?"
+    ],
+    "answerEn": "The ipokrzyku.pl clinic is located at 37 Josepha Conrada Street, 31-357 Krakow."
+  },
+  {
+    "id": "kb_clinic_phone",
+    "title": "Telefon do kliniki",
+    "category": "organization",
+    "sourceDocument": "uslugi-stomatologiczne/",
+    "tags": [
+      "telefon",
+      "numer telefonu",
+      "kontakt",
+      "zadzwonic"
+    ],
+    "queryExamples": [
+      "Jaki jest numer telefonu do kliniki?",
+      "Pod jaki numer moge zadzwonic?",
+      "Jak skontaktowac sie telefonicznie?"
+    ],
+    "answerPl": "Numer telefonu do kliniki to +48 530 88 00 33.",
+    "titleEn": "Clinic phone number",
+    "tagsEn": [
+      "phone",
+      "phone number",
+      "contact",
+      "call"
+    ],
+    "queryExamplesEn": [
+      "What is the clinic phone number?",
+      "What number can I call?",
+      "How can I contact the clinic by phone?"
+    ],
+    "answerEn": "The clinic phone number is +48 530 88 00 33."
+  },
+  {
+    "id": "kb_specialist_booking_policy",
+    "title": "Umawianie pierwszych wizyt i innych specjalistow",
+    "category": "organization",
+    "sourceDocument": "reception-policy-internal",
+    "tags": [
+      "dr szajnar",
+      "pierwsza wizyta",
+      "inny specjalista",
+      "recepcja",
+      "oddzwoni"
+    ],
+    "queryExamples": [
+      "Czy moge umowic sie do innego specjalisty?",
+      "Czy pierwsza wizyta jest tylko do dr Szajnar?",
+      "Co jesli chce wizyte u innego lekarza?"
+    ],
+    "answerPl": "Obecnie przez asystenta umawiane sa tylko pierwsze wizyty do doktor Magdaleny Szajnar. Jesli pacjent chce wizyte u innego specjalisty, informacja trafia do recepcji, ktora kontaktuje sie z pacjentem w pierwszej wolnej chwili.",
+    "titleEn": "Booking first visits and other specialists",
+    "tagsEn": [
+      "doctor Szajnar",
+      "first visit",
+      "other specialist",
+      "reception",
+      "callback"
+    ],
+    "queryExamplesEn": [
+      "Can I book with another specialist?",
+      "Are first visits booked only with doctor Szajnar?",
+      "What happens if I want an appointment with another doctor?"
+    ],
+    "answerEn": "At the moment, the assistant books only first visits with doctor Magdalena Szajnar. If a patient wants another specialist, the information is passed to reception, which contacts the patient as soon as possible."
   }
 ]

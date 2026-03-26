@@ -19,6 +19,13 @@ load_root_env
 API_BASE_URL="${VAPI_API_BASE_URL:-https://api.vapi.ai}"
 API_KEY="$(get_context_value "$ENVIRONMENT" "VAPI_API_KEY" "VAPI_API_KEY")"
 BINDINGS_PATH="$ROOT_DIR/configs/vapi/environments/$ENVIRONMENT.json"
+DEFAULT_MESSAGES_JSON='[
+  {
+    "type": "request-start",
+    "blocking": false
+  }
+]'
+MESSAGES_JSON="$DEFAULT_MESSAGES_JSON"
 
 if ! command -v jq >/dev/null 2>&1; then
   echo "jq is required" >&2
@@ -50,11 +57,64 @@ case "$TOOL_NAME" in
     TOOL_DESCRIPTION="Check real appointment availability for the dental clinic and return up to a few valid slots. The clinic books visits only Monday-Friday between 09:00 and 21:00 in Europe/Warsaw. Use this only when the visit type is known and you already know either a preferred date, a preferred time window, or that the caller wants the first available appointment. Use only these service.id values: consultation, urgent_consultation, implant_consultation, orthodontic_consultation, aesthetic_consultation, hygiene. For first-time patients or when unsure about the exact procedure, use service.id = consultation. Always use timezone = Europe/Warsaw. Use timePreference = specific_time when the caller gave an exact hour, morning/afternoon/evening for broad preferences, and first_available for the nearest available term. If the caller gives no time-of-day preference, the backend may prioritize one earlier and one later slot and prefers options adjacent to existing bookings when possible. If the caller asks for the nearest available appointment and gives no date, requestedDate may be omitted."
     SCHEMA_PATH="$ROOT_DIR/schemas/checkAvailability.vapi.request.json"
     TOOL_ENDPOINT="/webhook/ai-receptionist/check-availability"
+    MESSAGES_JSON='[
+      {
+        "type": "request-start",
+        "content": "Już sprawdzam dostępne terminy.",
+        "blocking": false
+      },
+      {
+        "type": "request-response-delayed",
+        "content": "Jeszcze chwila, sprawdzam kalendarz.",
+        "timingMilliseconds": 3000
+      },
+      {
+        "type": "request-failed",
+        "content": "Przepraszam, mam chwilowy problem ze sprawdzeniem terminów."
+      }
+    ]'
+    ;;
+  searchKnowledgeBase)
+    TOOL_DESCRIPTION="Use this tool to answer general non-medical clinic questions from the local knowledge base. It currently covers consultation flow, implant types, All-on-4, veneers, and bonding. Use it for informational questions only. If it does not return a reliable answer, say so clearly and do not invent details."
+    SCHEMA_PATH="$ROOT_DIR/schemas/searchKnowledgeBase.request.json"
+    TOOL_ENDPOINT="/webhook/ai-receptionist/search-knowledge-base"
+    MESSAGES_JSON='[
+      {
+        "type": "request-start",
+        "content": "Już sprawdzam informacje.",
+        "blocking": false
+      },
+      {
+        "type": "request-response-delayed",
+        "content": "Jeszcze chwila, wyszukuję potrzebne informacje.",
+        "timingMilliseconds": 3000
+      },
+      {
+        "type": "request-failed",
+        "content": "Przepraszam, mam chwilowy problem z wyszukaniem tej informacji."
+      }
+    ]'
     ;;
   createEvent)
     TOOL_DESCRIPTION="Use this tool to create a booking only after the caller chose one specific slot and confirmed the final summary. The clinic books visits only Monday-Friday between 09:00 and 21:00 in Europe/Warsaw. Required details include service, slotStart, slotEnd, timezone, language, patient full name, and patient phone number. When the slot came from checkAvailability, copy slotStart and slotEnd exactly from that selected slot. Do not compute slotEnd from duration, label, or default service length. After booking, n8n automatically attempts the booking-confirmation SMS to the live caller number from telephony metadata when available, so do not call any separate patient-SMS tool. Never say the appointment is booked until this tool returns success."
     SCHEMA_PATH="$ROOT_DIR/schemas/createEvent.vapi.request.json"
     TOOL_ENDPOINT="/webhook/ai-receptionist/create-event"
+    MESSAGES_JSON='[
+      {
+        "type": "request-start",
+        "content": "Już zapisuję wizytę w kalendarzu.",
+        "blocking": false
+      },
+      {
+        "type": "request-response-delayed",
+        "content": "Jeszcze moment, finalizuję rezerwację wizyty.",
+        "timingMilliseconds": 3000
+      },
+      {
+        "type": "request-failed",
+        "content": "Przepraszam, nie udało mi się teraz zapisać wizyty."
+      }
+    ]'
     ;;
   createReceptionTask)
     TOOL_DESCRIPTION="Use this tool to queue a receptionist follow-up only after the caller's phone number has been repeated and confirmed. Required details include taskType, patient full name, and patient phone number. Use structured fields only: if it is operationally helpful, you may include serviceBucket or preferredCallbackWindow, but do not create free-text summary or notes fields. Never say the reception team will follow up until this tool returns success."
@@ -147,6 +207,7 @@ PAYLOAD="$(
     --arg tool_description "$TOOL_DESCRIPTION" \
     --arg server_url "$SERVER_URL" \
     --argjson schema "$SCHEMA_JSON" \
+    --argjson messages "$MESSAGES_JSON" \
     '{
       type: "function",
       function: {
@@ -158,12 +219,7 @@ PAYLOAD="$(
         url: $server_url,
         timeoutSeconds: 20
       },
-      messages: [
-        {
-          type: "request-start",
-          blocking: false
-        }
-      ],
+      messages: $messages,
       variableExtractionPlan: {
         schema: {
           type: "object",
