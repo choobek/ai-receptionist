@@ -78,6 +78,7 @@
         -40
       ],
       "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
       "parameters": {
         "resource": "calendar",
         "operation": "availability",
@@ -104,7 +105,7 @@
         -40
       ],
       "parameters": {
-        "jsCode": "const request = $('Parse Request').first().json;\nconst events = $input.all().map((item) => item.json).filter((item) => item.start || item.end);\nconst requestedStart = new Date(request.slotStart);\nconst requestedEnd = new Date(request.slotEnd);\nconst hasConflict = events.some((event) => {\n  const start = new Date(event.start?.dateTime || event.start || request.slotStart);\n  const end = new Date(event.end?.dateTime || event.end || request.slotEnd);\n  return requestedStart < end && requestedEnd > start;\n});\nreturn [{ json: {\n  ...request,\n  slotAvailable: !hasConflict\n} }];"
+        "jsCode": "const request = $('Parse Request').first().json;\nconst items = $input.all().map((item) => item.json || {});\nconst summarizeProviderError = (value) => {\n  if (!value) return '';\n  if (typeof value === 'string') return value.slice(0, 500);\n  if (typeof value.message === 'string') return value.message.slice(0, 500);\n  if (typeof value.description === 'string') return value.description.slice(0, 500);\n  try {\n    return JSON.stringify(value).slice(0, 500);\n  } catch (error) {\n    return '';\n  }\n};\nconst providerFailure = items.find((item) => item.error);\nif (providerFailure) {\n  const detail = summarizeProviderError(providerFailure.error) || 'Google Calendar request failed';\n  return [{ json: {\n    ...request,\n    slotAvailable: false,\n    error: {\n      code: 'CALENDAR_PROVIDER_REJECTED',\n      details: [detail]\n    }\n  } }];\n}\nconst events = items.filter((item) => item.start || item.end);\nconst requestedStart = new Date(request.slotStart);\nconst requestedEnd = new Date(request.slotEnd);\nconst hasConflict = events.some((event) => {\n  const start = new Date(event.start?.dateTime || event.start || request.slotStart);\n  const end = new Date(event.end?.dateTime || event.end || request.slotEnd);\n  return requestedStart < end && requestedEnd > start;\n});\nreturn [{ json: {\n  ...request,\n  slotAvailable: !hasConflict\n} }];"
       }
     },
     {
@@ -362,7 +363,7 @@
         40
       ],
       "parameters": {
-        "jsCode": "const result = {\n  requestId: $json.requestId,\n  created: false,\n  message: 'Ten termin nie jest juz dostepny. Sprawdz prosze inne opcje.',\n  error: {\n    code: 'SLOT_UNAVAILABLE',\n    details: ['Requested slot overlaps with an existing calendar event']\n  }\n};\nconst body = $json.toolCallId\n  ? { results: [{ toolCallId: $json.toolCallId, result }] }\n  : result;\nreturn [{ json: body }];"
+        "jsCode": "const providerError = $json.error && $json.error.code === 'CALENDAR_PROVIDER_REJECTED'\n  ? $json.error\n  : null;\nconst result = providerError\n  ? {\n      requestId: $json.requestId,\n      created: false,\n      message: 'Kalendarz wizyt jest tymczasowo niedostepny. Przekaz prosbe do recepcji.',\n      error: providerError\n    }\n  : {\n      requestId: $json.requestId,\n      created: false,\n      message: 'Ten termin nie jest juz dostepny. Sprawdz prosze inne opcje.',\n      error: {\n        code: 'SLOT_UNAVAILABLE',\n        details: ['Requested slot overlaps with an existing calendar event']\n      }\n    };\nconst body = $json.toolCallId\n  ? { results: [{ toolCallId: $json.toolCallId, result }] }\n  : result;\nreturn [{ json: body }];"
       }
     },
     {
