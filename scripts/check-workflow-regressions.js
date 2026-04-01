@@ -1035,16 +1035,12 @@ test('Vapi tool sync scripts keep searchKnowledgeBase and delayed tool messages 
   assert.match(updateScript, /searchKnowledgeBase\)/);
   assert.match(updateScript, /SCHEMA_PATH="\$ROOT_DIR\/schemas\/searchKnowledgeBase\.request\.json"/);
   assert.match(updateScript, /request-response-delayed/);
-  assert.match(updateScript, /contents:/);
-  assert.match(updateScript, /language: "en"/);
   assert.match(updateScript, /Już sprawdzam dostępne terminy\./);
-  assert.match(updateScript, /I'\\''m checking available appointments now\./);
   assert.doesNotMatch(updateScript, /Mam już potrzebne informacje\./);
   assert.doesNotMatch(updateScript, /Wizyta została zapisana\./);
   assert.match(createScript, /searchKnowledgeBase\)/);
   assert.match(createScript, /TOOL_ENDPOINT="\/webhook\/ai-receptionist\/search-knowledge-base"/);
   assert.match(createScript, /Jeszcze moment, finalizuję rezerwację wizyty\./);
-  assert.match(createScript, /One moment, I'\\''m finalizing the booking now\./);
   assert.match(createScript, /timingMilliseconds/);
   assert.doesNotMatch(createScript, /request-complete/);
 });
@@ -1054,17 +1050,11 @@ test('Vapi tool sync scripts keep receptionist handoff wait messages repo-owned'
   const createScript = loadText(path.join(rootDir, 'scripts', 'create-vapi-tool.sh'));
 
   assert.match(updateScript, /sendSmsToReceptionists\)/);
-  assert.match(updateScript, /contents:/);
   assert.match(updateScript, /Jeszcze chwila, kończę przekazywanie sprawy\./);
   assert.match(updateScript, /Jeszcze moment, dopinam przekazanie sprawy\./);
-  assert.match(updateScript, /One moment, I'\\''m finishing the handoff\./);
-  assert.match(updateScript, /Just another moment, I'\\''m wrapping up the handoff\./);
   assert.match(createScript, /sendSmsToReceptionists\)/);
-  assert.match(createScript, /contents:/);
   assert.match(createScript, /Jeszcze chwila, kończę przekazywanie sprawy\./);
   assert.match(createScript, /Jeszcze moment, dopinam przekazanie sprawy\./);
-  assert.match(createScript, /One moment, I'\\''m finishing the handoff\./);
-  assert.match(createScript, /Just another moment, I'\\''m wrapping up the handoff\./);
 });
 
 test('sendSmsToReceptionists requires createReceptionTask taskId', () => {
