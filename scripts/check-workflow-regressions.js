@@ -1757,6 +1757,27 @@ test('searchKnowledgeBase matches long veneers-versus-bonding questions with dur
   assert.match(searchResult.answer, /trwaly|przebarwienia|kompozyt/i);
 });
 
+test('searchKnowledgeBase matches the assistant paraphrase for veneers versus bonding', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'różnica między licówkami a bondingiem',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.equal(searchResult.matches[0].id, 'kb_veneers_vs_bonding');
+  assert.match(searchResult.answer, /Licowki|Bonding/i);
+});
+
 test('searchKnowledgeBase matches the long natural-language live query about zeby w jeden dzien', () => {
   const workflow = loadWorkflow('tool_search-knowledge-base.json');
   const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
