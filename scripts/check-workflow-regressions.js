@@ -449,17 +449,21 @@ test('checkAvailability broad weekend requests roll to the next open clinic day'
 });
 
 test('calendar availability nodes use timeMin/timeMax fields expected by n8n import', () => {
+  const checkAvailabilityWorkflow = loadWorkflow('tool_check-availability.json');
   const checkAvailabilityParams = getNodeParameters('tool_check-availability.json', 'Get Busy Events');
   assert.equal(checkAvailabilityParams.timeMin, '={{ $json.windowStart }}');
   assert.equal(checkAvailabilityParams.timeMax, '={{ $json.windowEnd }}');
   assert.equal(checkAvailabilityParams.start, undefined);
   assert.equal(checkAvailabilityParams.end, undefined);
+  assert.equal(getNode(checkAvailabilityWorkflow, 'Get Busy Events').onError, 'continueRegularOutput');
 
+  const createEventWorkflow = loadWorkflow('tool_create-event.json');
   const createEventParams = getNodeParameters('tool_create-event.json', 'Re-check Busy Events');
   assert.equal(createEventParams.timeMin, '={{ $json.slotStart }}');
   assert.equal(createEventParams.timeMax, '={{ $json.slotEnd }}');
   assert.equal(createEventParams.start, undefined);
   assert.equal(createEventParams.end, undefined);
+  assert.equal(getNode(createEventWorkflow, 'Re-check Busy Events').onError, 'continueRegularOutput');
 });
 
 test('checkAvailability returns only weekday slots inside clinic hours', () => {
@@ -583,6 +587,46 @@ test('checkAvailability keeps morning searches inside the morning window across 
   assert.ok(result.slots.every((slot) => slot.end.slice(11, 16) <= '13:00'));
 });
 
+test('checkAvailability preserves calendar provider failures as structured unavailable results', () => {
+  const parseResult = {
+    requestId: 'req_calendar_provider_error',
+    toolCallId: 'tool_call_calendar_provider_error',
+    calendarId: 'primary',
+    timezone: 'Europe/Warsaw',
+    service: { id: 'consultation' },
+    requestedDate: '2026-03-16',
+    requestedTime: null,
+    timePreference: 'first_available',
+    durationMinutes: 45,
+    limit: 3,
+    incrementMinutes: 15,
+    slotSearchIncrementMinutes: 15,
+    searchDays: 1,
+    workingStart: '09:00',
+    workingEnd: '21:00',
+    openWeekdays: [1, 2, 3, 4, 5],
+    windowStart: '2026-03-16T08:00:00.000Z',
+    windowEnd: '2026-03-16T20:00:00.000Z'
+  };
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    [{ error: { message: 'EAUTH: invalid_grant' } }],
+    defaultEnv
+  );
+  assert.equal(result.available, false);
+  assert.deepEqual(result.slots, []);
+  assert.equal(result.error?.code, 'CALENDAR_PROVIDER_REJECTED');
+  assert.match(result.error?.details?.[0] || '', /EAUTH/i);
+
+  const formatted = executeCode(getNodeCode(loadWorkflow('tool_check-availability.json'), 'Format Success'), {
+    $json: result
+  })[0].json;
+  assert.equal(formatted.results[0].result.error.code, 'CALENDAR_PROVIDER_REJECTED');
+  assert.match(formatted.results[0].result.message, /Kalendarz wizyt jest tymczasowo niedostepny/i);
+});
+
 test('createEvent rejects reversed slots', () => {
   const result = runParse(
     'tool_create-event.json',
@@ -691,6 +735,35 @@ test('createEvent rejects slots outside clinic working hours', () => {
     defaultEnv
   );
   expectValidationError(result, 'slot must be within clinic working hours');
+});
+
+test('createEvent preserves calendar provider failures for reception fallback', () => {
+  const parseResult = {
+    requestId: 'req_create_event_provider_error',
+    toolCallId: 'tool_call_create_event_provider_error',
+    calendarId: 'primary',
+    timezone: 'Europe/Warsaw',
+    service: { id: 'consultation', name: 'Consultation' },
+    slotStart: '2026-03-16T10:00:00+01:00',
+    slotEnd: '2026-03-16T10:45:00+01:00',
+    patient: { fullName: 'Jan Testowy', phoneE164: '+48500100200' }
+  };
+  const availabilityResult = runCodeNode(
+    'tool_create-event.json',
+    'Slot Available?',
+    { 'Parse Request': parseResult },
+    [{ error: { message: 'EAUTH: invalid_grant' } }],
+    defaultEnv
+  );
+  assert.equal(availabilityResult.slotAvailable, false);
+  assert.equal(availabilityResult.error?.code, 'CALENDAR_PROVIDER_REJECTED');
+  assert.match(availabilityResult.error?.details?.[0] || '', /EAUTH/i);
+
+  const formatted = executeCode(getNodeCode(loadWorkflow('tool_create-event.json'), 'Format Conflict'), {
+    $json: availabilityResult
+  })[0].json;
+  assert.equal(formatted.results[0].result.error.code, 'CALENDAR_PROVIDER_REJECTED');
+  assert.match(formatted.results[0].result.message, /Kalendarz wizyt jest tymczasowo niedostepny/i);
 });
 
 test('createEvent captures caller phone metadata from Vapi tool payloads', () => {
@@ -1660,6 +1733,28 @@ test('searchKnowledgeBase matches teeth-in-one-day marketing questions with extr
   assert.equal(searchResult.found, true);
   assert.match(searchResult.answer, /All on four|implant/i);
   assert.match(searchResult.answer, /bezzebiu|mostu|implantach/i);
+});
+
+test('searchKnowledgeBase matches long veneers-versus-bonding questions with durability context', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Czym różnią się licówki od bondingu? Różnice, zastosowanie, trwałość.',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.equal(searchResult.matches[0].id, 'kb_veneers_vs_bonding');
+  assert.match(searchResult.answer, /Licowki|Bonding/i);
+  assert.match(searchResult.answer, /trwaly|przebarwienia|kompozyt/i);
 });
 
 test('searchKnowledgeBase matches the long natural-language live query about zeby w jeden dzien', () => {
