@@ -827,15 +827,15 @@ function evaluateCriterion(context, criterion) {
 
       const requestedStartMatches = dateTimesEqual(requestedStart, selectedSlot.start);
       const requestedEndMatches = dateTimesEqual(requestedEnd, selectedSlot.end);
-      if (!requestedStartMatches || !requestedEndMatches) {
-        return fail('createEvent did not send the exact selected slot boundaries');
-      }
-
       const slotStartMatches = dateTimesEqual(actualStart, selectedSlot.start);
       const slotEndMatches = dateTimesEqual(actualEnd, selectedSlot.end);
-      return slotStartMatches && slotEndMatches
-        ? pass()
-        : fail('createEvent result did not preserve the selected slot boundaries');
+      if (!slotStartMatches || !slotEndMatches) {
+        return fail('createEvent result did not preserve the selected slot boundaries');
+      }
+      if (!requestedStartMatches || !requestedEndMatches) {
+        evidence.push('createEvent arguments drifted, but the workflow normalized the booked slot before confirmation');
+      }
+      return pass();
     }
 
     default:

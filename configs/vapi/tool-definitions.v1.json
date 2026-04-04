@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "tools": {
+    "checkAvailability": {
+      "schemaPath": "schemas/checkAvailability.vapi.request.json",
+      "endpoint": "/webhook/ai-receptionist/check-availability",
+      "description": "Return real appointment availability after the visit type is known and the caller gave a preferred date, time window, exact hour, or asked for the first available slot. Always use timezone Europe/Warsaw. Use specific_time for exact hours, morning/afternoon/evening for broad preferences, first_available for nearest slots, and consultation when the exact service is still unclear.",
+      "messages": [
+        {
+          "type": "request-start",
+          "content": "Już sprawdzam dostępne terminy.",
+          "blocking": false
+        },
+        {
+          "type": "request-response-delayed",
+          "content": "Jeszcze chwila, sprawdzam kalendarz.",
+          "timingMilliseconds": 3000
+        },
+        {
+          "type": "request-failed",
+          "content": "Przepraszam, mam chwilowy problem ze sprawdzeniem terminów."
+        }
+      ]
+    },
+    "searchKnowledgeBase": {
+      "schemaPath": "schemas/searchKnowledgeBase.request.json",
+      "endpoint": "/webhook/ai-receptionist/search-knowledge-base",
+      "description": "Answer non-medical clinic questions from the local knowledge base, including organizational details, services, and confirmed pricing. If the result is missing or uncertain, say so and do not invent details.",
+      "messages": [
+        {
+          "type": "request-start",
+          "content": "Już sprawdzam informacje.",
+          "blocking": false
+        },
+        {
+          "type": "request-response-delayed",
+          "content": "Jeszcze chwila, wyszukuję potrzebne informacje.",
+          "timingMilliseconds": 3000
+        },
+        {
+          "type": "request-failed",
+          "content": "Przepraszam, mam chwilowy problem z wyszukaniem tej informacji."
+        }
+      ]
+    },
+    "createEvent": {
+      "schemaPath": "schemas/createEvent.vapi.request.json",
+      "endpoint": "/webhook/ai-receptionist/create-event",
+      "description": "Create a booking only after the caller selected one slot and confirmed the summary. Pass that slot's slotStart and slotEnd exactly; slotEnd must come from the selected slot, never from a default duration. Include service, timezone, language, patient full name, and confirmed phone number. Never say the visit is booked before this tool succeeds.",
+      "messages": [
+        {
+          "type": "request-start",
+          "content": "Już zapisuję wizytę w kalendarzu.",
+          "blocking": false
+        },
+        {
+          "type": "request-response-delayed",
+          "content": "Jeszcze moment, finalizuję rezerwację wizyty.",
+          "timingMilliseconds": 3000
+        },
+        {
+          "type": "request-failed",
+          "content": "Przepraszam, nie udało mi się teraz zapisać wizyty."
+        }
+      ]
+    },
+    "createReceptionTask": {
+      "schemaPath": "schemas/createReceptionTask.request.json",
+      "endpoint": "/webhook/ai-receptionist/create-reception-task",
+      "description": "Create a receptionist follow-up only after the caller's full name and repeated phone number are confirmed. Pass taskType, patient full name, patient phone, and only structured optional fields such as serviceBucket or preferredCallbackWindow. Do not add free-text notes.",
+      "messages": [
+        {
+          "type": "request-start",
+          "content": "Już zapisuję prośbę dla recepcji.",
+          "blocking": false
+        },
+        {
+          "type": "request-response-delayed",
+          "content": "Jeszcze chwila, kończę zapisywać prośbę dla recepcji.",
+          "timingMilliseconds": 3000
+        },
+        {
+          "type": "request-failed",
+          "content": "Przepraszam, nie udało mi się teraz zapisać prośby dla recepcji."
+        }
+      ]
+    },
+    "sendSmsToReceptionists": {
+      "schemaPath": "schemas/sendSmsToReceptionists.request.json",
+      "endpoint": "/webhook/ai-receptionist/send-sms-to-receptionists",
+      "description": "Send the internal receptionist SMS only after createReceptionTask returned success and you have its taskId. This is internal-only. If it fails, the saved reception task still exists.",
+      "messages": [
+        {
+          "type": "request-start",
+          "content": "Jeszcze chwila, kończę przekazywanie sprawy.",
+          "blocking": false
+        },
+        {
+          "type": "request-response-delayed",
+          "content": "Jeszcze moment, dopinam przekazanie sprawy.",
+          "timingMilliseconds": 3000
+        }
+      ]
+    },
+    "sendSmsToPatient": {
+      "schemaPath": "schemas/sendSmsToPatient.request.json",
+      "endpoint": "/webhook/ai-receptionist/send-sms-to-patient",
+      "description": "Send a manual booking-confirmation SMS only after createEvent succeeded. Pass the calendarEventId, patient identity, appointment timing, booked service, and target the live caller number when telephony metadata is available."
+    }
+  }
+}

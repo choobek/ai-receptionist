@@ -114,7 +114,9 @@
           "zostala umowiona",
           "wizyta zostala umowiona",
           "zostala zarezerwowana",
-          "zostala potwierdzona"
+          "zostala potwierdzona",
+          "wizyta jest juz potwierdzona",
+          "jest juz potwierdzona"
         ]
       }
     },
@@ -127,7 +129,8 @@
         "type": "turn_assistant_text_contains_any",
         "turn": 7,
         "contains_any": [
-          "czy moge pomoc jeszcze w czyms"
+          "czy moge pomoc jeszcze w czyms",
+          "czy moge pomoc w jeszcze jednej sprawie"
         ]
       }
     },

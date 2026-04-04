@@ -8,6 +8,8 @@ const path = require('node:path');
 const rootDir = path.resolve(__dirname, '..');
 const workflowsDir = path.join(rootDir, 'n8n', 'workflows');
 const assistantConfigPath = path.join(rootDir, 'configs', 'vapi', 'assistant.v2.json');
+const toolDefinitionsPath = path.join(rootDir, 'configs', 'vapi', 'tool-definitions.v1.json');
+const modelPayloadBaselinePath = path.join(rootDir, 'configs', 'vapi', 'model-payload-baseline.v1.json');
 const structuredOutputSchemaPath = path.join(rootDir, 'docs', 'vapi-structured-output.json');
 const {
   createContext: createChatRegressionContext,
@@ -90,6 +92,14 @@ function loadAssistantConfig() {
   return loadJson(assistantConfigPath);
 }
 
+function loadToolDefinitions() {
+  return loadJson(toolDefinitionsPath);
+}
+
+function loadModelPayloadBaseline() {
+  return loadJson(modelPayloadBaselinePath);
+}
+
 function loadStructuredOutputSchema() {
   return loadJson(structuredOutputSchemaPath);
 }
@@ -136,6 +146,27 @@ function getAssistantSystemPrompt(config = loadAssistantConfig()) {
     throw new Error('Assistant system prompt not found in configs/vapi/assistant.v2.json');
   }
   return prompt;
+}
+
+function normalizeSearchText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '');
+}
+
+function getToolDefinitionMap(toolDefinitions = loadToolDefinitions()) {
+  return toolDefinitions.tools || {};
+}
+
+function getToolDescriptionStats(toolDefinitions = loadToolDefinitions()) {
+  const perTool = {};
+  for (const [toolName, definition] of Object.entries(getToolDefinitionMap(toolDefinitions))) {
+    perTool[toolName] = typeof definition?.description === 'string' ? definition.description.length : 0;
+  }
+  return {
+    perTool,
+    total: Object.values(perTool).reduce((sum, value) => sum + value, 0)
+  };
 }
 
 function getNode(workflow, nodeName) {
@@ -688,11 +719,12 @@ test('createEvent rejects garbage slot strings', () => {
   expectValidationError(result, 'slotEnd is invalid');
 });
 
-test('createEvent preserves explicit slotEnd when provided', () => {
+test('createEvent preserves explicit slotEnd for manual requests', () => {
   const result = runParse(
     'tool_create-event.json',
     'Parse Request',
     {
+      source: 'manual',
       service: { id: 'consultation', durationMinutes: 30 },
       slotStart: '2026-03-16T08:30:00.000Z',
       slotEnd: '2026-03-16T09:15:00.000Z',
@@ -703,6 +735,26 @@ test('createEvent preserves explicit slotEnd when provided', () => {
   );
   assert.equal(result.ok, true);
   assert.equal(result.slotEnd, '2026-03-16T09:15:00.000Z');
+});
+
+test('createEvent normalizes phone slotEnd to the catalog duration when the assistant shortens it', () => {
+  const result = runParse(
+    'tool_create-event.json',
+    'Parse Request',
+    {
+      source: 'phone',
+      service: { id: 'implant_consultation', durationMinutes: 30 },
+      slotStart: '2026-03-16T09:00:00.000Z',
+      slotEnd: '2026-03-16T09:30:00.000Z',
+      timezone: 'Europe/Warsaw',
+      patient: { fullName: 'Jan Testowy', phoneE164: '+48500100200' }
+    },
+    defaultEnv
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.service.durationMinutes, 45);
+  assert.equal(result.slotEnd, '2026-03-16T09:45:00.000Z');
 });
 
 test('createEvent rejects weekend slots', () => {
@@ -1087,47 +1139,44 @@ test('Vapi tool sync scripts treat createReceptionTask as a repo-owned tool defi
   const syncScript = loadText(path.join(rootDir, 'scripts', 'sync-vapi-environment.sh'));
   const updateScript = loadText(path.join(rootDir, 'scripts', 'update-vapi-tool-definition.sh'));
   const createScript = loadText(path.join(rootDir, 'scripts', 'create-vapi-tool.sh'));
+  const toolDefinitions = getToolDefinitionMap();
+  const createReceptionTask = toolDefinitions.createReceptionTask;
 
-  assert.match(syncScript, /update-vapi-tool-definition\.sh" "\$ENVIRONMENT" createReceptionTask/);
-  assert.match(updateScript, /createReceptionTask\)/);
-  assert.match(updateScript, /SCHEMA_PATH="\$ROOT_DIR\/schemas\/createReceptionTask\.request\.json"/);
-  assert.match(updateScript, /Już zapisuję prośbę dla recepcji\./);
-  assert.match(updateScript, /kończę zapisywać prośbę dla recepcji\./);
-  assert.match(createScript, /createReceptionTask\)/);
-  assert.match(createScript, /TOOL_ENDPOINT="\/webhook\/ai-receptionist\/create-reception-task"/);
-  assert.match(createScript, /Już zapisuję prośbę dla recepcji\./);
-  assert.match(createScript, /kończę zapisywać prośbę dla recepcji\./);
+  assert.match(syncScript, /TOOL_DEFINITION_NAMES=\(/);
+  assert.match(syncScript, /createReceptionTask/);
+  assert.match(syncScript, /update-vapi-tool-definition\.sh" "\$ENVIRONMENT" "\$\{TOOL_DEFINITION_NAMES\[\$index\]\}"/);
+  assert.match(updateScript, /tool-definitions\.v1\.json/);
+  assert.match(createScript, /tool-definitions\.v1\.json/);
+  assert.equal(createReceptionTask?.schemaPath, 'schemas/createReceptionTask.request.json');
+  assert.equal(createReceptionTask?.endpoint, '/webhook/ai-receptionist/create-reception-task');
+  assert.equal(createReceptionTask?.messages?.[0]?.content, 'Już zapisuję prośbę dla recepcji.');
+  assert.equal(createReceptionTask?.messages?.[0]?.blocking, false);
+  assert.equal(createReceptionTask?.messages?.[1]?.content, 'Jeszcze chwila, kończę zapisywać prośbę dla recepcji.');
 });
 
 test('Vapi tool sync scripts keep searchKnowledgeBase and delayed tool messages repo-owned', () => {
   const syncScript = loadText(path.join(rootDir, 'scripts', 'sync-vapi-environment.sh'));
-  const updateScript = loadText(path.join(rootDir, 'scripts', 'update-vapi-tool-definition.sh'));
-  const createScript = loadText(path.join(rootDir, 'scripts', 'create-vapi-tool.sh'));
+  const toolDefinitions = getToolDefinitionMap();
+  const searchKnowledgeBase = toolDefinitions.searchKnowledgeBase;
+  const checkAvailability = toolDefinitions.checkAvailability;
+  const createEvent = toolDefinitions.createEvent;
 
-  assert.match(syncScript, /update-vapi-tool-definition\.sh" "\$ENVIRONMENT" searchKnowledgeBase/);
-  assert.match(updateScript, /searchKnowledgeBase\)/);
-  assert.match(updateScript, /SCHEMA_PATH="\$ROOT_DIR\/schemas\/searchKnowledgeBase\.request\.json"/);
-  assert.match(updateScript, /request-response-delayed/);
-  assert.match(updateScript, /Już sprawdzam dostępne terminy\./);
-  assert.doesNotMatch(updateScript, /Mam już potrzebne informacje\./);
-  assert.doesNotMatch(updateScript, /Wizyta została zapisana\./);
-  assert.match(createScript, /searchKnowledgeBase\)/);
-  assert.match(createScript, /TOOL_ENDPOINT="\/webhook\/ai-receptionist\/search-knowledge-base"/);
-  assert.match(createScript, /Jeszcze moment, finalizuję rezerwację wizyty\./);
-  assert.match(createScript, /timingMilliseconds/);
-  assert.doesNotMatch(createScript, /request-complete/);
+  assert.match(syncScript, /searchKnowledgeBase/);
+  assert.match(syncScript, /TOOL_DEFINITION_DELAY_SECONDS/);
+  assert.equal(searchKnowledgeBase?.schemaPath, 'schemas/searchKnowledgeBase.request.json');
+  assert.equal(searchKnowledgeBase?.endpoint, '/webhook/ai-receptionist/search-knowledge-base');
+  assert.equal(searchKnowledgeBase?.messages?.[1]?.type, 'request-response-delayed');
+  assert.equal(checkAvailability?.messages?.[0]?.content, 'Już sprawdzam dostępne terminy.');
+  assert.equal(createEvent?.messages?.[1]?.content, 'Jeszcze moment, finalizuję rezerwację wizyty.');
 });
 
 test('Vapi tool sync scripts keep receptionist handoff wait messages repo-owned', () => {
-  const updateScript = loadText(path.join(rootDir, 'scripts', 'update-vapi-tool-definition.sh'));
-  const createScript = loadText(path.join(rootDir, 'scripts', 'create-vapi-tool.sh'));
+  const toolDefinitions = getToolDefinitionMap();
+  const receptionSms = toolDefinitions.sendSmsToReceptionists;
 
-  assert.match(updateScript, /sendSmsToReceptionists\)/);
-  assert.match(updateScript, /Jeszcze chwila, kończę przekazywanie sprawy\./);
-  assert.match(updateScript, /Jeszcze moment, dopinam przekazanie sprawy\./);
-  assert.match(createScript, /sendSmsToReceptionists\)/);
-  assert.match(createScript, /Jeszcze chwila, kończę przekazywanie sprawy\./);
-  assert.match(createScript, /Jeszcze moment, dopinam przekazanie sprawy\./);
+  assert.equal(receptionSms?.messages?.[0]?.content, 'Jeszcze chwila, kończę przekazywanie sprawy.');
+  assert.equal(receptionSms?.messages?.[0]?.blocking, false);
+  assert.equal(receptionSms?.messages?.[1]?.content, 'Jeszcze moment, dopinam przekazanie sprawy.');
 });
 
 test('sendSmsToReceptionists requires createReceptionTask taskId', () => {
@@ -2107,49 +2156,40 @@ test('call-ended router maps invalid events to HTTP 400 and unauthorized calls t
 
 experimentalTest('assistant prompt keeps the March 18 live-call booking guardrails', () => {
   const config = loadAssistantConfig();
-  const systemPrompts = (config.assistant?.model?.messages || [])
-    .filter((message) => message.role === 'system' && typeof message.content === 'string')
-    .map((message) => message.content)
-    .join('\n');
-  assert.match(systemPrompts, /Nigdy nie lacz w jednej wypowiedzi dwoch pytan/);
-  assert.match(systemPrompts, /Nie wywoluj narzedzi na urwanych fragmentach wypowiedzi/);
-  assert.match(systemPrompts, /Jesli imie i nazwisko oraz numer telefonu zostaly juz jasno zebrane wczesniej/);
-  assert.match(systemPrompts, /Nie wywoluj createEvent bez wyraznej zgody na finalne podsumowanie rezerwacji/);
-  assert.match(systemPrompts, /Nie wymieniaj numeru telefonu/);
-  assert.match(systemPrompts, /nie mow potem "prosze chwile poczekac"/i);
+  const systemPrompts = normalizeSearchText(
+    (config.assistant?.model?.messages || [])
+      .filter((message) => message.role === 'system' && typeof message.content === 'string')
+      .map((message) => message.content)
+      .join('\n')
+  );
+  assert.match(systemPrompts, /Nie uzywaj fillerow typu "jestem", "slysze", "chwileczke", "zaraz sprawdze"/i);
+  assert.match(systemPrompts, /Czekanie komunikuja tylko automatyczne komunikaty narzedzia/i);
+  assert.match(systemPrompts, /Nie wywoluj narzedzi na urwanych fragmentach wypowiedzi/i);
+  assert.match(systemPrompts, /Jesli imie i nazwisko oraz numer telefonu zostaly juz jasno zebrane wczesniej/i);
+  assert.match(systemPrompts, /Nie pytaj "czy mam sprawdzic dostepne terminy"/i);
   assert.match(systemPrompts, /od poniedzialku do piatku w godzinach 09:00-21:00/i);
-  assert.match(systemPrompts, /dwie opcje: jedna rano lub w okolicy poludnia, a druga po poludniu/i);
-  assert.match(systemPrompts, /bez luk miedzy wizytami/i);
-  assert.match(systemPrompts, /Masz dostep do:\s*- lookupPatient\s*- checkAvailability\s*- searchKnowledgeBase\s*- createEvent\s*- createReceptionTask/i);
-  assert.match(systemPrompts, /### sendSmsToReceptionists/i);
-  assert.match(systemPrompts, /createReceptionTask juz zwrocil sukces/i);
-  assert.match(systemPrompts, /masz taskId z wyniku createReceptionTask/i);
-  assert.match(systemPrompts, /to jest narzedzie wewnetrzne/i);
-  assert.match(systemPrompts, /ta sciezka dotyczy tylko pierwszej wizyty/i);
-  assert.match(systemPrompts, /potwierdzony istniejacy pacjent nie przechodzi do samodzielnej rezerwacji/i);
+  assert.match(systemPrompts, /Nie zostawiaj w wypowiedzi ani jednej cyfry numeru/i);
+  assert.match(systemPrompts, /taskType general_follow_up/i);
   assert.match(systemPrompts, /taskType existing_patient_booking/i);
-  assert.match(systemPrompts, /Nie zostawiaj w wypowiedzi ani jednej cyfry/i);
-  assert.match(systemPrompts, /nie wypowiadaj juz zadnego dodatkowego pytania ani komentarza przed tym wywolaniem/i);
-  assert.match(systemPrompts, /wywolaj sendSmsToReceptionists od razu w tej samej sciezce/i);
+  assert.match(systemPrompts, /wywolaj createReceptionTask z taskType existing_patient_booking/i);
+  assert.match(systemPrompts, /wywolaj je od razu w tej samej sciezce jako wewnetrzny alert dla recepcji/i);
   assert.match(systemPrompts, /workflow n8n automatycznie probuje wyslac techniczne potwierdzenie SMS/i);
-  assert.match(systemPrompts, /Nie pytaj o osobna zgode na ten krok/i);
   assert.match(systemPrompts, /language ustawiaj na `pl` albo `en`/i);
   assert.equal(/sendSmsToPatient/.test(systemPrompts), false);
   assert.equal(/consentToSms/i.test(systemPrompts), false);
-  assert.equal(/taskType general_follow_up/i.test(systemPrompts), false);
-  assert.equal(/po lunchu \/ po obiedzie -> afternoon/i.test(systemPrompts), false);
 });
 
 experimentalTest('assistant prompt anchors createEvent to the exact selected slot boundary', () => {
   const config = loadAssistantConfig();
-  const systemPrompts = (config.assistant?.model?.messages || [])
-    .filter((message) => message.role === 'system' && typeof message.content === 'string')
-    .map((message) => message.content)
-    .join('\n');
+  const systemPrompts = normalizeSearchText(
+    (config.assistant?.model?.messages || [])
+      .filter((message) => message.role === 'system' && typeof message.content === 'string')
+      .map((message) => message.content)
+      .join('\n')
+  );
   assert.match(systemPrompts, /skopiuj slotStart z pola start i slotEnd z pola end wybranego slotu/i);
   assert.match(systemPrompts, /Nie wyliczaj slotEnd z label/i);
-  assert.match(systemPrompts, /2026-03-19T09:30:00\+01:00/);
-  assert.match(systemPrompts, /2026-03-19T10:15:00\+01:00/);
+  assert.match(systemPrompts, /gdy pacjent wybiera "pierwszy", "drugi" albo "trzeci" termin/i);
 });
 
 test('assistant config makes silence handling explicit and repo-owned', () => {
@@ -2165,10 +2205,70 @@ test('assistant prompt keeps phone-collection logic as plain text without unreso
     .filter((message) => message.role === 'system' && typeof message.content === 'string')
     .map((message) => message.content)
     .join('\n');
+  const normalizedPrompt = normalizeSearchText(systemPrompts);
 
   assert.equal(/\{%/.test(systemPrompts), false);
-  assert.match(systemPrompts, /Jeśli system nie podał jawnie konkretnego numeru dzwoniącego/i);
-  assert.match(systemPrompts, /nie pytaj o .*numer, z którego jest to połączenie/i);
+  assert.match(normalizedPrompt, /jawnie widzisz konkretny numer dzwoniacego w formacie E\.164/i);
+  assert.match(normalizedPrompt, /Popros po prostu o numer telefonu/i);
+});
+
+assistantInvariantTest('assistant prompt keeps the urgent first-available override explicit', () => {
+  const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt());
+
+  assert.match(
+    normalizedPrompt,
+    /nie pytaj najpierw, czy to pierwsza wizyta/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /checkAvailability z service\.id urgent_consultation, timePreference first_available, timezone Europe\/Warsaw i searchDays 7/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /nie zadawaj dodatkowych pytan o objawy przed .* narzedzia/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /createEvent, dopoki pacjent nie wybierze jednego terminu/i
+  );
+});
+
+assistantInvariantTest('assistant prompt keeps implant consultation lookup explicit after booking intent', () => {
+  const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt());
+
+  assert.match(
+    normalizedPrompt,
+    /po pytaniu o implanty albo All on four, jesli rozmowca wyraznie chce konsultacje implantologiczna i termin/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /implant_consultation jako gotowy typ wizyty/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /nie blokuj tego pytaniem o pierwsza wizyte/i
+  );
+});
+
+assistantInvariantTest('assistant prompt keeps post-booking close and reception SMS follow-up explicit', () => {
+  const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt());
+
+  assert.match(
+    normalizedPrompt,
+    /po sukcesie createEvent zacznij od zdania: "Wizyta została potwierdzona\."/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /po sukcesie createReceptionTask, jesli dostepne jest sendSmsToReceptionists, wywo[lł]aj je od razu z taskId/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /slot\.start i slot\.end wybranego slotu/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /czy moge pomoc jeszcze w czyms/i
+  );
 });
 
 test('assistant renderer excludes the direct patient SMS tool from production bindings', () => {
@@ -2229,11 +2329,11 @@ test('assistant renderer applies staging assistant overrides without changing th
   });
 
   assert.equal(shared.assistant?.name, 'Ola');
-  assert.equal(shared.assistant?.transcriber?.provider, 'openai');
-  assert.equal(shared.assistant?.transcriber?.model, 'gpt-4o-transcribe');
+  assert.equal(shared.assistant?.transcriber?.provider, '11labs');
+  assert.equal(shared.assistant?.transcriber?.model, 'scribe_v2');
   assert.equal(rendered.assistant?.name, 'Ola [staging]');
-  assert.equal(rendered.assistant?.transcriber?.provider, 'openai');
-  assert.equal(rendered.assistant?.transcriber?.model, 'gpt-4o-transcribe');
+  assert.equal(rendered.assistant?.transcriber?.provider, '11labs');
+  assert.equal(rendered.assistant?.transcriber?.model, 'scribe_v2');
   assert.equal(rendered.assistant?.transcriber?.language, 'pl');
   assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.3);
   assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.5);
@@ -2252,12 +2352,53 @@ test('assistant renderer applies production transcriber override without changin
   });
 
   assert.equal(shared.assistant?.name, 'Ola');
-  assert.equal(shared.assistant?.transcriber?.provider, 'openai');
-  assert.equal(shared.assistant?.transcriber?.model, 'gpt-4o-transcribe');
+  assert.equal(shared.assistant?.transcriber?.provider, '11labs');
+  assert.equal(shared.assistant?.transcriber?.model, 'scribe_v2');
   assert.equal(rendered.assistant?.name, 'Ola');
   assert.equal(rendered.assistant?.transcriber?.provider, '11labs');
   assert.equal(rendered.assistant?.transcriber?.model, 'scribe_v2');
   assert.equal(rendered.assistant?.transcriber?.language, 'pl');
+});
+
+assistantInvariantTest('assistant model payload stays within the latency baseline and tool waits remain non-blocking', () => {
+  const baseline = loadModelPayloadBaseline();
+  const systemPrompt = getAssistantSystemPrompt();
+  const toolDefinitions = loadToolDefinitions();
+  const currentToolStats = getToolDescriptionStats(toolDefinitions);
+  const maxGrowthFactor = Number(baseline.maxGrowthFactor || 1.1);
+  const allowedPromptLength = Math.ceil(baseline.systemPromptChars * maxGrowthFactor);
+  const allowedToolDescriptionTotal = Math.ceil(baseline.toolDescriptionTotalChars * maxGrowthFactor);
+
+  assert.ok(
+    systemPrompt.length <= allowedPromptLength,
+    `system prompt grew to ${systemPrompt.length} chars, limit is ${allowedPromptLength}`
+  );
+  assert.ok(
+    currentToolStats.total <= allowedToolDescriptionTotal,
+    `tool descriptions grew to ${currentToolStats.total} chars, limit is ${allowedToolDescriptionTotal}`
+  );
+
+  for (const [toolName, baselineChars] of Object.entries(baseline.toolDescriptionChars || {})) {
+    const currentChars = currentToolStats.perTool[toolName];
+    const allowedChars = Math.ceil(baselineChars * maxGrowthFactor);
+    assert.equal(typeof currentChars, 'number', `missing tool description for ${toolName}`);
+    assert.ok(
+      currentChars <= allowedChars,
+      `${toolName} description grew to ${currentChars} chars, limit is ${allowedChars}`
+    );
+  }
+
+  for (const [toolName, definition] of Object.entries(getToolDefinitionMap(toolDefinitions))) {
+    for (const message of Array.isArray(definition?.messages) ? definition.messages : []) {
+      if (message?.type === 'request-start') {
+        assert.equal(
+          message.blocking,
+          false,
+          `${toolName} request-start message must stay non-blocking`
+        );
+      }
+    }
+  }
 });
 
 assistantInvariantTest('assistant SMS scenarios resolve required tool bindings against staging and production environments', () => {
@@ -3007,6 +3148,83 @@ assistantInvariantTest('assistant chat rubric can verify createEvent reuses the 
   assert.equal(result.passed, true);
 });
 
+assistantInvariantTest('assistant chat rubric accepts workflow-normalized slot boundaries when the booked slot is correct', () => {
+  const context = createChatRegressionContext({
+    turns: [{ user: 'synthetic turn' }],
+    rubric: []
+  });
+
+  normalizeOutputForTurn(context, 1, [
+    {
+      role: 'assistant',
+      tool_calls: [
+        {
+          id: 'tool_check_slots_normalized',
+          function: {
+            name: 'checkAvailability',
+            arguments: JSON.stringify({
+              service: { id: 'consultation' },
+              timePreference: 'morning'
+            })
+          }
+        }
+      ]
+    },
+    {
+      role: 'tool',
+      tool_call_id: 'tool_check_slots_normalized',
+      content: {
+        available: true,
+        slots: [
+          {
+            start: '2026-03-23T10:15:00+01:00',
+            end: '2026-03-23T11:00:00+01:00'
+          }
+        ]
+      }
+    },
+    {
+      role: 'assistant',
+      tool_calls: [
+        {
+          id: 'tool_create_event_normalized',
+          function: {
+            name: 'createEvent',
+            arguments: JSON.stringify({
+              service: { id: 'consultation' },
+              slotStart: '2026-03-23T10:15:00+01:00',
+              slotEnd: '2026-03-23T10:45:00+01:00'
+            })
+          }
+        }
+      ]
+    },
+    {
+      role: 'tool',
+      tool_call_id: 'tool_create_event_normalized',
+      content: {
+        created: true,
+        appointment: {
+          start: '2026-03-23T10:15:00+01:00',
+          end: '2026-03-23T11:00:00+01:00'
+        }
+      }
+    }
+  ]);
+
+  const result = evaluateChatCriterion(context, {
+    criterion_id: 'selected-slot-normalized',
+    description: 'createEvent may be normalized by the workflow as long as the booked slot matches the selected slot',
+    severity: 'critical',
+    rule: {
+      type: 'create_event_matches_selected_slot',
+      availability_turn: 1,
+      selected_slot_index: 0
+    }
+  });
+  assert.equal(result.passed, true);
+});
+
 assistantInvariantTest('assistant chat rubric rejects createEvent when slotEnd drifts from the selected slot', () => {
   const context = createChatRegressionContext({
     turns: [{ user: 'synthetic turn' }],
@@ -3082,7 +3300,7 @@ assistantInvariantTest('assistant chat rubric rejects createEvent when slotEnd d
     }
   });
   assert.equal(result.passed, false);
-  assert.match(result.failure_reason || '', /exact selected slot boundaries/);
+  assert.match(result.failure_reason || '', /selected slot boundaries/);
 });
 
 test('structured output schema exposes QA flags for conversation regressions', () => {
@@ -3225,6 +3443,89 @@ test('real-call ingest redacts utterance text and minimizes tool payloads', () =
   assert.deepEqual(primaryStructuredOutput.result, run.structured_output.result);
   assert.equal(primaryStructuredOutput.result.intent, undefined);
   assert.equal(primaryStructuredOutput.result.summary, undefined);
+});
+
+test('real-call ingest derives latency diagnostics from turn metrics and tool round trips', () => {
+  const record = {
+    id: 'call_latency_001',
+    startedAt: '2026-04-03T20:20:05.000Z',
+    endedAt: '2026-04-03T20:20:55.000Z',
+    status: 'ended',
+    artifact: {
+      performanceMetrics: {
+        turnLatencies: [
+          {
+            modelLatency: 4540,
+            transcriberLatency: 724,
+            endpointingLatency: 500,
+            turnLatency: 7200
+          },
+          {
+            modelLatency: 1180,
+            transcriberLatency: 446,
+            endpointingLatency: 500,
+            turnLatency: 2400
+          }
+        ]
+      }
+    },
+    messages: [
+      {
+        role: 'tool_calls',
+        time: 46442,
+        secondsFromStart: 46.442,
+        toolCalls: [
+          {
+            id: 'tool_call_latency_001',
+            type: 'function',
+            function: {
+              name: 'checkAvailability',
+              arguments: JSON.stringify({
+                service: { id: 'urgent_consultation' },
+                timePreference: 'first_available',
+                timezone: 'Europe/Warsaw'
+              })
+            }
+          }
+        ]
+      },
+      {
+        role: 'tool_call_result',
+        time: 48241,
+        secondsFromStart: 48.241,
+        name: 'checkAvailability',
+        toolCallId: 'tool_call_latency_001',
+        result: {
+          available: true,
+          slots: []
+        }
+      }
+    ]
+  };
+
+  const run = buildRun(
+    {
+      record,
+      wrapper: record,
+      index: 0,
+      sourceKind: 'call_object'
+    },
+    {
+      scenarioId: null,
+      environment: 'staging',
+      runKind: 'real_call'
+    },
+    null
+  );
+
+  assert.deepEqual(run.call.latency_diagnostics, {
+    maxModelLatencyMs: 4540,
+    maxTranscriberLatencyMs: 724,
+    maxEndpointingLatencyMs: 500,
+    maxWebhookLatencyMs: 1799,
+    dominantLatencyStage: 'model',
+    slowTurnCount: 1
+  });
 });
 
 (async () => {

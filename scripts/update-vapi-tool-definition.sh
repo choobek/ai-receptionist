@@ -19,6 +19,7 @@ load_root_env
 API_BASE_URL="${VAPI_API_BASE_URL:-https://api.vapi.ai}"
 API_KEY="$(get_context_value "$ENVIRONMENT" "VAPI_API_KEY" "VAPI_API_KEY")"
 BINDINGS_PATH="$ROOT_DIR/configs/vapi/environments/$ENVIRONMENT.json"
+TOOL_DEFINITIONS_PATH="$ROOT_DIR/configs/vapi/tool-definitions.v1.json"
 RENDERED_CONFIG_FILE=""
 DEFAULT_MESSAGES_JSON='[
   {
@@ -51,112 +52,23 @@ fi
 RENDERED_CONFIG_FILE="$(mktemp)"
 "$ROOT_DIR/scripts/render-vapi-assistant-config.sh" "$ENVIRONMENT" "$RENDERED_CONFIG_FILE"
 
-case "$TOOL_NAME" in
-  checkAvailability)
-    TOOL_DESCRIPTION="Check real appointment availability for the dental clinic and return up to a few valid slots. The clinic books visits only Monday-Friday between 09:00 and 21:00 in Europe/Warsaw. Use this only when the visit type is known and you already know either a preferred date, a preferred time window, or that the caller wants the first available appointment. Use only these service.id values: consultation, urgent_consultation, implant_consultation, orthodontic_consultation, aesthetic_consultation, hygiene. For first-time patients or when unsure about the exact procedure, use service.id = consultation. Always use timezone = Europe/Warsaw. Use timePreference = specific_time when the caller gave an exact hour, morning/afternoon/evening for broad preferences, and first_available for the nearest available term. If the caller gives no time-of-day preference, the backend may prioritize one earlier and one later slot and prefers options adjacent to existing bookings when possible. If the caller asks for the nearest available appointment and gives no date, requestedDate may be omitted."
-    SCHEMA_PATH="$ROOT_DIR/schemas/checkAvailability.vapi.request.json"
-    MESSAGES_JSON='[
-      {
-        "type": "request-start",
-        "content": "Już sprawdzam dostępne terminy.",
-        "blocking": false
-      },
-      {
-        "type": "request-response-delayed",
-        "content": "Jeszcze chwila, sprawdzam kalendarz.",
-        "timingMilliseconds": 3000
-      },
-      {
-        "type": "request-failed",
-        "content": "Przepraszam, mam chwilowy problem ze sprawdzeniem terminów."
-      }
-    ]'
-    ;;
-  searchKnowledgeBase)
-    TOOL_DESCRIPTION="Use this tool to answer general non-medical clinic questions from the local knowledge base. It currently covers consultation flow, implant types, All-on-4, veneers, and bonding. Use it for informational questions only. If it does not return a reliable answer, say so clearly and do not invent details."
-    SCHEMA_PATH="$ROOT_DIR/schemas/searchKnowledgeBase.request.json"
-    MESSAGES_JSON='[
-      {
-        "type": "request-start",
-        "content": "Już sprawdzam informacje.",
-        "blocking": false
-      },
-      {
-        "type": "request-response-delayed",
-        "content": "Jeszcze chwila, wyszukuję potrzebne informacje.",
-        "timingMilliseconds": 3000
-      },
-      {
-        "type": "request-failed",
-        "content": "Przepraszam, mam chwilowy problem z wyszukaniem tej informacji."
-      }
-    ]'
-    ;;
-  createEvent)
-    TOOL_DESCRIPTION="Use this tool to create a booking only after the caller chose one specific slot and confirmed the final summary. The clinic books visits only Monday-Friday between 09:00 and 21:00 in Europe/Warsaw. Required details include service, slotStart, slotEnd, timezone, language, patient full name, and patient phone number. If the caller confirmed using the number they are calling from, pass that exact confirmed number as patient.phoneE164 and never invent placeholder or test numbers. When the slot came from checkAvailability, copy slotStart and slotEnd exactly from that selected slot. Do not compute slotEnd from duration, label, or default service length. After booking, n8n automatically attempts the booking-confirmation SMS to the live caller number from telephony metadata when available, so do not call any separate patient-SMS tool. Never say the appointment is booked until this tool returns success."
-    SCHEMA_PATH="$ROOT_DIR/schemas/createEvent.vapi.request.json"
-    MESSAGES_JSON='[
-      {
-        "type": "request-start",
-        "content": "Już zapisuję wizytę w kalendarzu.",
-        "blocking": false
-      },
-      {
-        "type": "request-response-delayed",
-        "content": "Jeszcze moment, finalizuję rezerwację wizyty.",
-        "timingMilliseconds": 3000
-      },
-      {
-        "type": "request-failed",
-        "content": "Przepraszam, nie udało mi się teraz zapisać wizyty."
-      }
-    ]'
-    ;;
-  createReceptionTask)
-    TOOL_DESCRIPTION="Use this tool to queue a receptionist follow-up only after the caller's phone number has been repeated and confirmed. Required details include taskType, patient full name, and patient phone number. Use structured fields only: if it is operationally helpful, you may include serviceBucket or preferredCallbackWindow, but do not create free-text summary or notes fields. If the caller confirmed using the number they are calling from, pass that exact confirmed number as patient.phoneE164 and never invent placeholder or test numbers. Never say the reception team will follow up until this tool returns success."
-    SCHEMA_PATH="$ROOT_DIR/schemas/createReceptionTask.request.json"
-    MESSAGES_JSON='[
-      {
-        "type": "request-start",
-        "content": "Już zapisuję prośbę dla recepcji.",
-        "blocking": false
-      },
-      {
-        "type": "request-response-delayed",
-        "content": "Jeszcze chwila, kończę zapisywać prośbę dla recepcji.",
-        "timingMilliseconds": 3000
-      },
-      {
-        "type": "request-failed",
-        "content": "Przepraszam, nie udało mi się teraz zapisać prośby dla recepcji."
-      }
-    ]'
-    ;;
-  sendSmsToReceptionists)
-    TOOL_DESCRIPTION="Use this tool only after createReceptionTask has already returned success and you have the taskId from that result. It prepares or sends an internal receptionist SMS alert based on the saved follow-up task. Do not mention the internal SMS to the caller unless they ask. If this tool fails, the saved receptionist task still exists."
-    SCHEMA_PATH="$ROOT_DIR/schemas/sendSmsToReceptionists.request.json"
-    MESSAGES_JSON='[
-      {
-        "type": "request-start",
-        "content": "Jeszcze chwila, kończę przekazywanie sprawy.",
-        "blocking": false
-      },
-      {
-        "type": "request-response-delayed",
-        "content": "Jeszcze moment, dopinam przekazanie sprawy.",
-        "timingMilliseconds": 3000
-      }
-    ]'
-    ;;
-  sendSmsToPatient)
-    TOOL_DESCRIPTION="Use this tool only for direct/manual booking-confirmation SMS probes after createEvent has already returned success. Required details include the calendarEventId returned by createEvent, patient name and phone, appointment start/timezone, and the booked service. When live caller metadata is available, the SMS must target that caller number rather than any separately declared callback number. If this tool fails, the booking still exists."
-    SCHEMA_PATH="$ROOT_DIR/schemas/sendSmsToPatient.request.json"
-    ;;
-  *)
-    echo "Unsupported tool definition sync target: $TOOL_NAME" >&2
-    exit 1
-    ;;
-esac
+if [ ! -f "$TOOL_DEFINITIONS_PATH" ]; then
+  echo "Tool definitions file not found: $TOOL_DEFINITIONS_PATH" >&2
+  exit 1
+fi
+
+TOOL_CONFIG_JSON="$(
+  jq -cer --arg tool_name "$TOOL_NAME" '.tools[$tool_name] // empty' "$TOOL_DEFINITIONS_PATH"
+)" || {
+  echo "Unsupported tool definition sync target: $TOOL_NAME" >&2
+  exit 1
+}
+
+TOOL_DESCRIPTION="$(jq -er '.description' <<<"$TOOL_CONFIG_JSON")"
+SCHEMA_PATH="$ROOT_DIR/$(jq -er '.schemaPath' <<<"$TOOL_CONFIG_JSON")"
+MESSAGES_JSON="$(
+  jq -c '.messages // [{"type":"request-start","blocking":false}]' <<<"$TOOL_CONFIG_JSON"
+)"
 
 if [ ! -f "$SCHEMA_PATH" ]; then
   echo "Schema file not found: $SCHEMA_PATH" >&2
@@ -192,33 +104,37 @@ EXPECTED_SERVER_URL="$(
   ' "$RENDERED_CONFIG_FILE"
 )"
 
-CURRENT_TOOL_FILE="$(mktemp)"
-CURRENT_TOOL_STATUS="$(
-  curl -sS \
-    -o "$CURRENT_TOOL_FILE" \
-    -w '%{http_code}' \
-    "$API_BASE_URL/tool/$TOOL_ID" \
-    -H "Authorization: Bearer $API_KEY"
-)"
+CURRENT_TOOL_FILE=""
+SERVER_JSON=""
+if [ -n "$EXPECTED_SERVER_URL" ]; then
+  SERVER_JSON="$(jq -cn --arg expected_url "$EXPECTED_SERVER_URL" '{url: $expected_url}')"
+else
+  CURRENT_TOOL_FILE="$(mktemp)"
+  CURRENT_TOOL_STATUS="$(
+    curl -sS \
+      -o "$CURRENT_TOOL_FILE" \
+      -w '%{http_code}' \
+      "$API_BASE_URL/tool/$TOOL_ID" \
+      -H "Authorization: Bearer $API_KEY"
+  )"
 
-if [ "$CURRENT_TOOL_STATUS" -lt 200 ] || [ "$CURRENT_TOOL_STATUS" -ge 300 ]; then
-  echo "Failed to fetch current tool state for $TOOL_NAME ($TOOL_ID) with HTTP $CURRENT_TOOL_STATUS" >&2
-  cat "$CURRENT_TOOL_FILE" >&2
-  rm -f "$CURRENT_TOOL_FILE"
-  exit 1
+  if [ "$CURRENT_TOOL_STATUS" -lt 200 ] || [ "$CURRENT_TOOL_STATUS" -ge 300 ]; then
+    echo "Failed to fetch current tool state for $TOOL_NAME ($TOOL_ID) with HTTP $CURRENT_TOOL_STATUS" >&2
+    cat "$CURRENT_TOOL_FILE" >&2
+    rm -f "$CURRENT_TOOL_FILE"
+    exit 1
+  fi
+
+  SERVER_JSON="$(
+    jq -c '
+      if (.server | type) == "object" and (.server | length) > 0 then
+        .server
+      else
+        null
+      end
+    ' "$CURRENT_TOOL_FILE"
+  )"
 fi
-
-SERVER_JSON="$(
-  jq -c --arg expected_url "$EXPECTED_SERVER_URL" '
-    if (.server | type) == "object" and (.server | length) > 0 then
-      .server
-    elif ($expected_url | length) > 0 then
-      {url: $expected_url}
-    else
-      null
-    end
-  ' "$CURRENT_TOOL_FILE"
-)"
 
 PAYLOAD="$(
   jq -cn \
@@ -239,20 +155,84 @@ PAYLOAD="$(
 )"
 
 RESPONSE_BODY_FILE="$(mktemp)"
+RESPONSE_HEADERS_FILE="$(mktemp)"
 cleanup() {
-  rm -f "$CURRENT_TOOL_FILE" "$RESPONSE_BODY_FILE" "$RENDERED_CONFIG_FILE"
+  rm -f "$CURRENT_TOOL_FILE" "$RESPONSE_BODY_FILE" "$RESPONSE_HEADERS_FILE" "$RENDERED_CONFIG_FILE"
 }
 trap cleanup EXIT
 
-HTTP_STATUS="$(
-  curl -sS \
-    -o "$RESPONSE_BODY_FILE" \
-    -w '%{http_code}' \
-    -X PATCH "$API_BASE_URL/tool/$TOOL_ID" \
-    -H "Authorization: Bearer $API_KEY" \
-    -H "Content-Type: application/json" \
-    -d "$PAYLOAD"
-)"
+is_retryable_http_status() {
+  case "$1" in
+    429|500|502|503|504)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+extract_retry_after_seconds() {
+  awk '
+    BEGIN { IGNORECASE = 1 }
+    /^Retry-After:/ {
+      gsub("\r", "", $2)
+      if ($2 ~ /^[0-9]+$/) {
+        print $2
+      }
+      exit
+    }
+  ' "$RESPONSE_HEADERS_FILE"
+}
+
+patch_tool_definition_with_retry() {
+  local max_attempts="${VAPI_TOOL_DEFINITION_MAX_ATTEMPTS:-5}"
+  local attempt=1
+  local http_status=""
+
+  while true; do
+    : >"$RESPONSE_HEADERS_FILE"
+    : >"$RESPONSE_BODY_FILE"
+    http_status="$(
+      curl -sS \
+        -D "$RESPONSE_HEADERS_FILE" \
+        -o "$RESPONSE_BODY_FILE" \
+        -w '%{http_code}' \
+        -X PATCH "$API_BASE_URL/tool/$TOOL_ID" \
+        -H "Authorization: Bearer $API_KEY" \
+        -H "Content-Type: application/json" \
+        -d "$PAYLOAD"
+    )"
+
+    if [ "$http_status" -ge 200 ] && [ "$http_status" -lt 300 ]; then
+      printf '%s' "$http_status"
+      return 0
+    fi
+
+    if ! is_retryable_http_status "$http_status" || [ "$attempt" -ge "$max_attempts" ]; then
+      printf '%s' "$http_status"
+      return 1
+    fi
+
+    retry_after_seconds="$(extract_retry_after_seconds)"
+    if [ -z "$retry_after_seconds" ]; then
+      retry_after_seconds=$(( attempt * 2 ))
+    fi
+
+    printf \
+      'Retrying tool definition update for %s (%s) after HTTP %s; waiting %ss (attempt %s/%s)\n' \
+      "$TOOL_NAME" \
+      "$TOOL_ID" \
+      "$http_status" \
+      "$retry_after_seconds" \
+      "$attempt" \
+      "$max_attempts" >&2
+    sleep "$retry_after_seconds"
+    attempt=$(( attempt + 1 ))
+  done
+}
+
+HTTP_STATUS="$(patch_tool_definition_with_retry)" || true
 
 if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
   echo "Tool definition update failed for $TOOL_NAME ($TOOL_ID) with HTTP $HTTP_STATUS" >&2

@@ -25,9 +25,26 @@ export VAPI_API_KEY="$api_key"
 "$ROOT_DIR/scripts/update-vapi-assistant.sh" "$ENVIRONMENT"
 "$ROOT_DIR/scripts/sync-vapi-phone-number.sh" "$ENVIRONMENT"
 "$ROOT_DIR/scripts/update-vapi-tool-bindings.sh" "$ENVIRONMENT"
-"$ROOT_DIR/scripts/update-vapi-tool-definition.sh" "$ENVIRONMENT" checkAvailability
-"$ROOT_DIR/scripts/update-vapi-tool-definition.sh" "$ENVIRONMENT" searchKnowledgeBase
-"$ROOT_DIR/scripts/update-vapi-tool-definition.sh" "$ENVIRONMENT" createEvent
-"$ROOT_DIR/scripts/update-vapi-tool-definition.sh" "$ENVIRONMENT" createReceptionTask
-"$ROOT_DIR/scripts/update-vapi-tool-definition.sh" "$ENVIRONMENT" sendSmsToReceptionists
-"$ROOT_DIR/scripts/update-vapi-tool-definition.sh" "$ENVIRONMENT" sendSmsToPatient
+
+TOOL_DEFINITION_INITIAL_DELAY_SECONDS="${VAPI_TOOL_DEFINITION_INITIAL_DELAY_SECONDS:-5}"
+TOOL_DEFINITION_DELAY_SECONDS="${VAPI_TOOL_DEFINITION_DELAY_SECONDS:-2}"
+TOOL_DEFINITION_NAMES=(
+  checkAvailability
+  searchKnowledgeBase
+  createEvent
+  createReceptionTask
+  sendSmsToReceptionists
+  sendSmsToPatient
+)
+
+if [ "$TOOL_DEFINITION_INITIAL_DELAY_SECONDS" != "0" ]; then
+  printf 'Waiting %ss before tool definition sync to avoid Vapi burst limiting\n' "$TOOL_DEFINITION_INITIAL_DELAY_SECONDS"
+  sleep "$TOOL_DEFINITION_INITIAL_DELAY_SECONDS"
+fi
+
+for index in "${!TOOL_DEFINITION_NAMES[@]}"; do
+  if [ "$index" -gt 0 ] && [ "$TOOL_DEFINITION_DELAY_SECONDS" != "0" ]; then
+    sleep "$TOOL_DEFINITION_DELAY_SECONDS"
+  fi
+  "$ROOT_DIR/scripts/update-vapi-tool-definition.sh" "$ENVIRONMENT" "${TOOL_DEFINITION_NAMES[$index]}"
+done

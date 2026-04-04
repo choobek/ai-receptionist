@@ -1143,6 +1143,60 @@ function computeDurationSeconds(record, messages) {
   return last;
 }
 
+function maxLatencyValue(turnLatencies, key) {
+  const values = turnLatencies
+    .map((turn) => toNumber(safeObject(turn)?.[key]))
+    .filter((value) => value !== null);
+  if (values.length === 0) {
+    return null;
+  }
+  return Math.max(...values);
+}
+
+function deriveLatencyDiagnostics(record, toolTrace) {
+  const artifactMetrics = safeObject(record?.artifact?.performanceMetrics) || safeObject(record?.performanceMetrics) || {};
+  const turnLatencies = safeArray(artifactMetrics.turnLatencies).map((turn) => safeObject(turn)).filter(Boolean);
+  const maxModelLatencyMs = maxLatencyValue(turnLatencies, 'modelLatency');
+  const maxTranscriberLatencyMs = maxLatencyValue(turnLatencies, 'transcriberLatency');
+  const maxEndpointingLatencyMs = maxLatencyValue(turnLatencies, 'endpointingLatency');
+  const completedToolLatencies = safeArray(toolTrace)
+    .map((trace) => {
+      const requestedAt = toNumber(trace?.requested_at_ms);
+      const completedAt = toNumber(trace?.completed_at_ms);
+      if (requestedAt === null || completedAt === null || completedAt < requestedAt) {
+        return null;
+      }
+      return completedAt - requestedAt;
+    })
+    .filter((value) => value !== null);
+  const maxWebhookLatencyMs = completedToolLatencies.length > 0 ? Math.max(...completedToolLatencies) : null;
+  const dominantCandidates = [
+    { stage: 'model', value: maxModelLatencyMs, priority: 4 },
+    { stage: 'webhook', value: maxWebhookLatencyMs, priority: 3 },
+    { stage: 'endpointing', value: maxEndpointingLatencyMs, priority: 2 },
+    { stage: 'transcriber', value: maxTranscriberLatencyMs, priority: 1 }
+  ].filter((candidate) => candidate.value !== null);
+  dominantCandidates.sort((left, right) => {
+    const byValue = right.value - left.value;
+    if (byValue !== 0) {
+      return byValue;
+    }
+    return right.priority - left.priority;
+  });
+
+  return {
+    maxModelLatencyMs,
+    maxTranscriberLatencyMs,
+    maxEndpointingLatencyMs,
+    maxWebhookLatencyMs,
+    dominantLatencyStage: dominantCandidates[0]?.stage || null,
+    slowTurnCount: turnLatencies.filter((turn) => {
+      const turnLatency = toNumber(turn?.turnLatency);
+      return turnLatency !== null && turnLatency >= 4000;
+    }).length
+  };
+}
+
 function hasValidationError(result) {
   const details = safeArray(result?.error?.details).map(String);
   return details.some((detail) => detail.includes(' is required') || detail.includes('webhook request is unauthorized'));
@@ -1375,6 +1429,7 @@ function buildRun(entry, options, inputPath) {
   };
   const structuredOutput = detectStructuredOutput(entry.record, entry.wrapper, structuredOutputs);
   const { conversation, tool_trace } = normalizeConversation(entry.record);
+  const latencyDiagnostics = deriveLatencyDiagnostics(entry.record, tool_trace);
   const runId = makeRunId(entry.record, options.scenarioId, options.environment);
 
   const run = {
@@ -1402,6 +1457,7 @@ function buildRun(entry, options, inputPath) {
       status: entry.record?.status || null,
       cost: toNumber(entry.record?.cost),
       cost_breakdown: safeObject(entry.record?.costBreakdown),
+      latency_diagnostics: latencyDiagnostics,
       transcript: typeof entry.record?.transcript === 'string' ? entry.record.transcript : null,
       recording_url: typeof entry.record?.recordingUrl === 'string' ? entry.record.recordingUrl : null,
       web_call_url: typeof entry.record?.webCallUrl === 'string' ? entry.record.webCallUrl : null
@@ -1499,6 +1555,7 @@ function main() {
 module.exports = {
   buildRun,
   detectStructuredOutput,
+  deriveLatencyDiagnostics,
   deriveEvaluation,
   normalizeScorecards,
   normalizeStructuredOutputs,

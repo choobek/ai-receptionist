@@ -4,10 +4,12 @@
   "assistantId": "6db99c99-3f93-41e3-ae4e-fefe3974e2d6",
   "assistantName": "Ola",
   "assistantOverrides": {
-    "transcriber": {
-      "provider": "11labs",
-      "model": "scribe_v2",
-      "language": "pl"
+    "startSpeakingPlan": {
+      "waitSeconds": 0.3,
+      "transcriptionEndpointingPlan": {
+        "onNoPunctuationSeconds": 1.0,
+        "onNumberSeconds": 0.8
+      }
     }
   },
   "publicBaseUrlEnv": "PRODUCTION_N8N_PUBLIC_BASE_URL",

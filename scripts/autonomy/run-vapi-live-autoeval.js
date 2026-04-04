@@ -12,6 +12,8 @@ const RUNS_ROOT = path.join(ROOT_DIR, 'autonomy', 'runs', 'generated', 'vapi-liv
 const REPORTS_ROOT = path.join(ROOT_DIR, 'autonomy', 'reports', 'generated', 'vapi-live-autoeval');
 const POLICY_PATH = path.join(ROOT_DIR, 'configs', 'vapi', 'autoevaluation-policy.v1.json');
 const ENVIRONMENTS_DIR = path.join(ROOT_DIR, 'configs', 'vapi', 'environments');
+const MODEL_DOMINANT_REVIEW_THRESHOLD_MS = 4000;
+const MODEL_DOMINANT_HIGH_THRESHOLD_MS = 7000;
 
 function usage() {
   console.log(`Usage:
@@ -111,6 +113,14 @@ function parseArgs(argv) {
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function safeObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : null;
+}
+
+function safeArray(value) {
+  return Array.isArray(value) ? value : [];
 }
 
 function writeJson(filePath, payload) {
@@ -250,6 +260,8 @@ function renderReasonMessage(reason) {
       return `${reason.output_name} returned true`;
     case 'scorecard_threshold':
       return `${reason.scorecard_name} scored ${reason.score_normalized} below ${reason.threshold}`;
+    case 'latency_dominant_pause':
+      return `model dominated a slow turn (${reason.max_latency_ms}ms max, ${reason.slow_turn_count} slow turns)`;
     case 'scorecards_missing':
       return 'no Vapi scorecards were attached to the call artifact';
     default:
@@ -262,6 +274,7 @@ function evaluateRunAgainstPolicy(run, policy) {
   const coverageWarnings = [];
   let severity = 'none';
   const evaluation = run?.evaluation?.result || {};
+  const latency = safeObject(run?.call?.latency_diagnostics) || {};
   const failureCategory = typeof evaluation.failure_category === 'string'
     ? evaluation.failure_category
     : 'other';
@@ -330,6 +343,23 @@ function evaluateRunAgainstPolicy(run, policy) {
     }
   }
 
+  if (
+    latency.dominantLatencyStage === 'model'
+    && typeof latency.maxModelLatencyMs === 'number'
+    && latency.maxModelLatencyMs >= MODEL_DOMINANT_REVIEW_THRESHOLD_MS
+  ) {
+    const latencySeverity =
+      latency.maxModelLatencyMs >= MODEL_DOMINANT_HIGH_THRESHOLD_MS ? 'high' : 'medium';
+    reasons.push({
+      type: 'latency_dominant_pause',
+      dominant_stage: 'model',
+      max_latency_ms: latency.maxModelLatencyMs,
+      slow_turn_count: typeof latency.slowTurnCount === 'number' ? latency.slowTurnCount : 0,
+      severity: latencySeverity
+    });
+    severity = maxSeverity(severity, latencySeverity);
+  }
+
   return {
     status: reasons.length > 0 ? 'review' : 'pass',
     requires_review: reasons.length > 0,
@@ -369,6 +399,11 @@ function summarizeSuite({ suiteRunId, environment, assistantId, calls, reviews, 
   const reasonCounts = new Map();
   const coverageWarningCounts = new Map();
   const scorecardBuckets = new Map();
+  const dominantLatencyStageCounts = new Map();
+  const maxModelLatencies = [];
+  const maxTranscriberLatencies = [];
+  const maxEndpointingLatencies = [];
+  const maxWebhookLatencies = [];
 
   for (const call of calls) {
     if (call.review.requires_review) {
@@ -397,6 +432,26 @@ function summarizeSuite({ suiteRunId, environment, assistantId, calls, reviews, 
       bucket.push(scorecard.score_normalized);
       scorecardBuckets.set(scorecard.name_canonical, bucket);
     }
+
+    const latency = safeObject(call.latency_diagnostics);
+    if (latency?.dominantLatencyStage) {
+      dominantLatencyStageCounts.set(
+        latency.dominantLatencyStage,
+        (dominantLatencyStageCounts.get(latency.dominantLatencyStage) || 0) + 1
+      );
+    }
+    if (typeof latency?.maxModelLatencyMs === 'number') {
+      maxModelLatencies.push(latency.maxModelLatencyMs);
+    }
+    if (typeof latency?.maxTranscriberLatencyMs === 'number') {
+      maxTranscriberLatencies.push(latency.maxTranscriberLatencyMs);
+    }
+    if (typeof latency?.maxEndpointingLatencyMs === 'number') {
+      maxEndpointingLatencies.push(latency.maxEndpointingLatencyMs);
+    }
+    if (typeof latency?.maxWebhookLatencyMs === 'number') {
+      maxWebhookLatencies.push(latency.maxWebhookLatencyMs);
+    }
   }
 
   return {
@@ -411,6 +466,15 @@ function summarizeSuite({ suiteRunId, environment, assistantId, calls, reviews, 
     review_required_count: reviews.length,
     pass_count: calls.length - reviews.length,
     review_counts: reviewCounts,
+    latency_summary: {
+      average_max_model_latency_ms: roundMaybe(average(maxModelLatencies)),
+      average_max_transcriber_latency_ms: roundMaybe(average(maxTranscriberLatencies)),
+      average_max_endpointing_latency_ms: roundMaybe(average(maxEndpointingLatencies)),
+      average_max_webhook_latency_ms: roundMaybe(average(maxWebhookLatencies)),
+      dominant_latency_stage_counts: Array.from(dominantLatencyStageCounts.entries())
+        .map(([stage, count]) => ({ stage, count }))
+        .sort((left, right) => right.count - left.count || left.stage.localeCompare(right.stage))
+    },
     average_scorecards: Array.from(scorecardBuckets.entries()).map(([name, values]) => ({
       name,
       average_score_normalized: roundMaybe(average(values))
@@ -432,6 +496,7 @@ function summarizeSuite({ suiteRunId, environment, assistantId, calls, reviews, 
       severity: call.review.severity,
       requires_review: call.review.requires_review,
       scorecards: call.scorecards,
+      latency_diagnostics: call.latency_diagnostics,
       summary: call.summary,
       coverage_warnings: call.review.coverage_warnings.map((warning) => ({
         ...warning,
@@ -465,6 +530,33 @@ function renderSuiteReport(summary) {
     lines.push('## Average Scorecards', '');
     for (const scorecard of summary.average_scorecards) {
       lines.push(`- ${scorecard.name}: ${scorecard.average_score_normalized}`);
+    }
+    lines.push('');
+  }
+
+  const latencySummary = safeObject(summary.latency_summary) || {};
+  if (
+    typeof latencySummary.average_max_model_latency_ms === 'number'
+    || typeof latencySummary.average_max_transcriber_latency_ms === 'number'
+    || typeof latencySummary.average_max_endpointing_latency_ms === 'number'
+    || typeof latencySummary.average_max_webhook_latency_ms === 'number'
+    || safeArray(latencySummary.dominant_latency_stage_counts).length > 0
+  ) {
+    lines.push('## Latency Summary', '');
+    if (typeof latencySummary.average_max_model_latency_ms === 'number') {
+      lines.push(`- Average max model latency: ${latencySummary.average_max_model_latency_ms}ms`);
+    }
+    if (typeof latencySummary.average_max_transcriber_latency_ms === 'number') {
+      lines.push(`- Average max transcriber latency: ${latencySummary.average_max_transcriber_latency_ms}ms`);
+    }
+    if (typeof latencySummary.average_max_endpointing_latency_ms === 'number') {
+      lines.push(`- Average max endpointing latency: ${latencySummary.average_max_endpointing_latency_ms}ms`);
+    }
+    if (typeof latencySummary.average_max_webhook_latency_ms === 'number') {
+      lines.push(`- Average max webhook latency: ${latencySummary.average_max_webhook_latency_ms}ms`);
+    }
+    for (const item of safeArray(latencySummary.dominant_latency_stage_counts)) {
+      lines.push(`- Dominant stage ${item.stage}: ${item.count}`);
     }
     lines.push('');
   }
@@ -507,6 +599,31 @@ function renderSuiteReport(summary) {
       }
       if (call.scorecards.length > 0) {
         lines.push(`- Scorecards: ${call.scorecards.map((scorecard) => `${scorecard.name_canonical || scorecard.name}=${scorecard.score_normalized}`).join(', ')}`);
+      }
+      if (call.latency_diagnostics) {
+        const latency = call.latency_diagnostics;
+        const latencyParts = [];
+        if (typeof latency.maxModelLatencyMs === 'number') {
+          latencyParts.push(`model=${latency.maxModelLatencyMs}ms`);
+        }
+        if (typeof latency.maxTranscriberLatencyMs === 'number') {
+          latencyParts.push(`transcriber=${latency.maxTranscriberLatencyMs}ms`);
+        }
+        if (typeof latency.maxEndpointingLatencyMs === 'number') {
+          latencyParts.push(`endpointing=${latency.maxEndpointingLatencyMs}ms`);
+        }
+        if (typeof latency.maxWebhookLatencyMs === 'number') {
+          latencyParts.push(`webhook=${latency.maxWebhookLatencyMs}ms`);
+        }
+        if (latency.dominantLatencyStage) {
+          latencyParts.push(`dominant=${latency.dominantLatencyStage}`);
+        }
+        if (typeof latency.slowTurnCount === 'number') {
+          latencyParts.push(`slow_turns=${latency.slowTurnCount}`);
+        }
+        if (latencyParts.length > 0) {
+          lines.push(`- Latency: ${latencyParts.join(', ')}`);
+        }
       }
       lines.push(`- Run path: \`${call.run_path}\``);
       if (call.raw_call_path) {
@@ -603,6 +720,7 @@ async function main() {
       failure_category: run.evaluation?.result?.failure_category || 'other',
       summary: run.evaluation?.result?.summary || null,
       scorecards: buildScorecardSummary(run),
+      latency_diagnostics: run.call?.latency_diagnostics || null,
       review
     });
   }

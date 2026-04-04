@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "maxGrowthFactor": 1.1,
+  "systemPromptChars": 14710,
+  "toolDescriptionChars": {
+    "checkAvailability": 380,
+    "searchKnowledgeBase": 206,
+    "createEvent": 321,
+    "createReceptionTask": 269,
+    "sendSmsToReceptionists": 182,
+    "sendSmsToPatient": 224
+  },
+  "toolDescriptionTotalChars": 1582
+}
