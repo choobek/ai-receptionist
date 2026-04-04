@@ -20,7 +20,7 @@
           "messages": [
             {
               "role": "system",
-              "content": "PASS if, on this first assistant turn, the assistant repeats or confirms the phone number and asks only for confirmation of that number, does not ask what hurts, does not ask for a short description or detailed visit reason, and does not call checkAvailability or createEvent yet. Output exactly: pass or fail."
+              "content": "PASS if, on this first assistant turn, the assistant keeps the intake operationally minimal. A helper lookupPatient call for speech-safe phone confirmation is allowed. It must not ask what hurts, must not ask for a short description or detailed visit reason, and must not call checkAvailability or createEvent yet. Output exactly: pass or fail."
             }
           ]
         }

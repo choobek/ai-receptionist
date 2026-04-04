@@ -2,7 +2,7 @@
   "version": 1,
   "tools": {
     "lookupPatient": {
-      "schemaPath": "schemas/lookupPatient.request.json",
+      "schemaPath": "schemas/lookupPatient.vapi.request.json",
       "endpoint": "/webhook/ai-receptionist/lookup-patient",
       "description": "Normalize a caller phone snippet and optionally match the proof-of-concept patient registry. Use it after the caller says a number to get phone.readbackPrompt and phone.normalizedE164. found=false must not block handoff.",
       "messages": [

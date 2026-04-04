@@ -20,7 +20,7 @@
           "messages": [
             {
               "role": "system",
-              "content": "PASS if, on this first assistant turn, the assistant stays in the existing-patient handoff branch: it should repeat or confirm the phone number and ask for confirmation, it must not ask for a short description or more treatment details, and it must not call checkAvailability, createEvent, or createReceptionTask yet. Output exactly: pass or fail."
+              "content": "PASS if, on this first assistant turn, the assistant stays in the existing-patient handoff branch. A helper lookupPatient call for speech-safe phone confirmation is allowed. It must not ask for a short description or more treatment details, and it must not call checkAvailability, createEvent, or createReceptionTask yet. Output exactly: pass or fail."
             }
           ]
         }

@@ -20,7 +20,7 @@
           "messages": [
             {
               "role": "system",
-              "content": "PASS if, on this first assistant turn, the assistant repeats or confirms the phone number and asks for confirmation, does not ask why the caller wants to reschedule or cancel, and does not call createReceptionTask or createEvent yet. Output exactly: pass or fail."
+              "content": "PASS if, on this first assistant turn, the assistant stays in the reschedule handoff branch. A helper lookupPatient call for speech-safe phone confirmation is allowed. It must not ask why the caller wants to reschedule or cancel, and it must not call createReceptionTask or createEvent yet. Output exactly: pass or fail."
             }
           ]
         }
