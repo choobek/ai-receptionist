@@ -4,18 +4,34 @@
     "lookupPatient": {
       "schemaPath": "schemas/lookupPatient.vapi.request.json",
       "endpoint": "/webhook/ai-receptionist/lookup-patient",
-      "description": "Normalize a caller phone snippet and prepare a speech-safe phone confirmation helper. Use it after the caller says a number to get phone.readbackPrompt and phone.normalizedE164 for downstream tools.",
+      "description": "Use only when a phone number is ambiguous or incomplete and you need deterministic normalization or repair. If result.message exists, say it verbatim.",
       "messages": [
         {
           "type": "request-start",
           "blocking": false
+        },
+        {
+          "type": "request-failed",
+          "content": "Przepraszam, nie udało mi się teraz potwierdzić numeru telefonu."
         }
-      ]
+      ],
+      "variableExtractionPlan": {
+        "aliases": [
+          {
+            "key": "confirmedPatientPhoneE164",
+            "value": "{{ $.phone.normalizedE164 }}"
+          },
+          {
+            "key": "confirmedPatientPhoneReadbackPrompt",
+            "value": "{{ $.phone.readbackPrompt }}"
+          }
+        ]
+      }
     },
     "checkAvailability": {
       "schemaPath": "schemas/checkAvailability.vapi.request.json",
       "endpoint": "/webhook/ai-receptionist/check-availability",
-      "description": "Return appointment availability for a known visit type and date/time preference in Europe/Warsaw. Use specific_time for exact hours, morning/afternoon/evening for broad windows, first_available for nearest slots, and consultation when service is unclear. spokenLabel/spokenTime are preferred, and label stays speech-safe.",
+      "description": "Return appointment availability for a known visit type and time preference in Europe/Warsaw. Use specific_time for exact hours, broad windows for morning/afternoon/evening, or first_available for nearest slots. Prefer spokenLabel or spokenTime. If result.message exists, say it verbatim.",
       "messages": [
         {
           "type": "request-start",
@@ -25,7 +41,7 @@
         {
           "type": "request-response-delayed",
           "content": "Jeszcze chwila, sprawdzam kalendarz.",
-          "timingMilliseconds": 3000
+          "timingMilliseconds": 1800
         },
         {
           "type": "request-failed",
@@ -57,7 +73,13 @@
     "createEvent": {
       "schemaPath": "schemas/createEvent.vapi.request.json",
       "endpoint": "/webhook/ai-receptionist/create-event",
-      "description": "Create a booking only after the caller selected one slot and confirmed the summary. Pass the selected slot's slotStart and slotEnd exactly. Include service, timezone, language, patient full name, and confirmed phone number. Never confirm booking before success.",
+      "description": "Create a booking only after the caller selected one slot and confirmed the summary. Pass slotStart and slotEnd exactly with service, timezone, language, patient full name, and either a normalized phone or a clear raw phone number. Never confirm booking before success. Booking SMS must stay non-blocking. If result.message exists, say it verbatim.",
+      "parameters": [
+        {
+          "key": "patientPhoneE164",
+          "value": "{{ confirmedPatientPhoneE164 }}"
+        }
+      ],
       "messages": [
         {
           "type": "request-start",
@@ -67,7 +89,7 @@
         {
           "type": "request-response-delayed",
           "content": "Jeszcze moment, finalizuję rezerwację wizyty.",
-          "timingMilliseconds": 3000
+          "timingMilliseconds": 1800
         },
         {
           "type": "request-failed",
@@ -78,7 +100,13 @@
     "createReceptionTask": {
       "schemaPath": "schemas/createReceptionTask.request.json",
       "endpoint": "/webhook/ai-receptionist/create-reception-task",
-      "description": "Create a receptionist follow-up only after the caller's full name and repeated phone number are confirmed. Pass taskType, patient full name, patient phone, and only structured optional fields such as serviceBucket or preferredCallbackWindow. Do not add free-text notes.",
+      "description": "Create a receptionist follow-up only after the caller name and phone are confirmed. Pass taskType, patient full name, and either a normalized phone or a clear raw phone number, plus only structured optional fields such as serviceBucket or preferredCallbackWindow. Do not add free-text notes.",
+      "parameters": [
+        {
+          "key": "patientPhoneE164",
+          "value": "{{ confirmedPatientPhoneE164 }}"
+        }
+      ],
       "messages": [
         {
           "type": "request-start",
@@ -88,7 +116,7 @@
         {
           "type": "request-response-delayed",
           "content": "Jeszcze chwila, kończę zapisywać prośbę dla recepcji.",
-          "timingMilliseconds": 3000
+          "timingMilliseconds": 1800
         },
         {
           "type": "request-failed",
@@ -109,7 +137,7 @@
         {
           "type": "request-response-delayed",
           "content": "Jeszcze moment, dopinam przekazanie sprawy.",
-          "timingMilliseconds": 3000
+          "timingMilliseconds": 1800
         }
       ]
     },

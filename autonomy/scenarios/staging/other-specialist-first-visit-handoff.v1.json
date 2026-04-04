@@ -2,7 +2,7 @@
   "schema_version": "staging-chat-scenario.v1",
   "scenario_id": "other-specialist-first-visit-handoff",
   "title": "First visit request for another specialist becomes a reception handoff",
-  "description": "The caller wants a first visit with an orthodontist, provides synthetic identity details in the first turn, confirms the repeated phone number, and should end in the reception-task branch with no direct scheduling attempt.",
+  "description": "The caller wants a first visit with an orthodontist and provides complete synthetic identity details in the first turn. For latency, the assistant may create the reception task immediately on that first turn instead of inserting a separate phone-confirmation turn. The flow should still end in the reception-task branch with no direct scheduling attempt.",
   "status": "active",
   "environment": "staging",
   "language": "pl",
@@ -29,17 +29,6 @@
       "user": "Chcialbym umowic pierwsza wizyte do ortodonty. Mam na imie Test Inny Specjalista, moj numer to siedem zero dwa, zero zero trzy, zero zero osiem.",
       "assertions": [
         {
-          "criterion_id": "no-handoff-before-number-confirmation",
-          "description": "The assistant should not create the reception task before the caller confirms the repeated phone number.",
-          "severity": "high",
-          "root_cause_hint": "assistant skipped the phone confirmation step before createReceptionTask",
-          "rule": {
-            "type": "turn_tool_not_called",
-            "turn": 1,
-            "tool_name": "createReceptionTask"
-          }
-        },
-        {
           "criterion_id": "no-availability-check-before-handoff",
           "description": "The assistant should not try direct scheduling for another specialist.",
           "severity": "critical",
@@ -59,13 +48,13 @@
   ],
   "rubric": [
     {
-      "criterion_id": "reception-task-created-on-confirmation-turn",
-      "description": "The assistant should create the reception task immediately after the caller confirms the repeated phone number.",
+      "criterion_id": "reception-task-created-on-first-turn",
+      "description": "With complete identity data in the first turn, the assistant should create the reception task immediately.",
       "severity": "critical",
-      "root_cause_hint": "assistant delayed the other-specialist handoff instead of creating the task on turn 2",
+      "root_cause_hint": "assistant added an avoidable confirmation turn instead of using the clear first-turn identity data",
       "rule": {
         "type": "turn_tool_called",
-        "turn": 2,
+        "turn": 1,
         "tool_name": "createReceptionTask"
       }
     },

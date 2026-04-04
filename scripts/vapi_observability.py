@@ -476,12 +476,50 @@ def poll_eval_run(
 def evaluation_passed(result: dict[str, Any]) -> bool:
     if result.get("status") != "ended":
         return False
-    if result.get("endedReason") and result.get("endedReason") != "mockConversation.done":
-        return False
+        if result.get("endedReason") and result.get("endedReason") != "mockConversation.done":
+            return False
     for item in result.get("results", []):
         if item.get("status") != "pass":
             return False
     return True
+
+
+def prune_evals_command(args: argparse.Namespace) -> int:
+    if not args.name:
+        raise VapiApiError("At least one --name is required")
+
+    available = ensure_unique_by_name(list_resources("/eval", args.api_key, args.base_url), "eval")
+    deleted: list[dict[str, str]] = []
+    missing: list[str] = []
+
+    for name in args.name:
+        current = available.get(name)
+        if not current:
+            missing.append(name)
+            continue
+
+        if not args.dry_run:
+            api_request("DELETE", f"/eval/{current['id']}", args.api_key, args.base_url)
+
+        deleted.append(
+            {
+                "name": name,
+                "id": str(current["id"]),
+            }
+        )
+
+    action = "Would delete" if args.dry_run else "Deleted"
+    lines = [f"{action} {len(deleted)} saved Vapi eval(s)."]
+    for item in deleted:
+        lines.append(f"- {item['name']} ({item['id']})")
+
+    if missing:
+        lines.append(f"Already absent: {len(missing)}")
+        for name in missing:
+            lines.append(f"- {name}")
+
+    print("\n".join(lines))
+    return 0
 
 
 def render_eval_report(
@@ -673,6 +711,13 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--timeout-seconds", type=int, default=30)
     run_parser.add_argument("--poll-interval-seconds", type=int, default=2)
     run_parser.set_defaults(func=run_evals_command)
+
+    prune_parser = subparsers.add_parser("prune-evals", help="Delete specific saved Vapi evals by exact name.")
+    prune_parser.add_argument("--api-key", required=True)
+    prune_parser.add_argument("--base-url", default="https://api.vapi.ai")
+    prune_parser.add_argument("--name", action="append", help="Exact saved eval name to delete. Repeatable.")
+    prune_parser.add_argument("--dry-run", action="store_true")
+    prune_parser.set_defaults(func=prune_evals_command)
 
     return parser
 

@@ -53,10 +53,11 @@ n8n should respond with a Vapi-compatible wrapper:
   "results": [
     {
       "toolCallId": "call_123",
-      "result": {
-        "message": "Najblizsze terminy sa gotowe.",
-        "available": true,
-        "slots": []
+      "name": "checkAvailability",
+      "result": "{\"message\":\"Najbliższe terminy są gotowe.\",\"available\":true,\"slots\":[]}",
+      "message": {
+        "type": "request-complete",
+        "content": "Najbliższe terminy są gotowe."
       }
     }
   ]
@@ -78,6 +79,7 @@ Defined in [`schemas/lookupPatient.request.json`](../schemas/lookupPatient.reque
 Key fields:
 
 - `phoneE164` or `phoneRaw`
+- optional `language`
 - optional `fullName` for assistant-side context only
 
 ### Workflow behavior
@@ -97,7 +99,7 @@ Important fields:
 - `phone.normalizedE164`
 - `phone.spoken`
 - `phone.readbackPrompt`
-- `message`
+- `message` as the exact speech-safe completion or retry line
 
 ## Tool: `checkAvailability`
 
@@ -115,6 +117,7 @@ Key fields:
 - `requestedDate` in `YYYY-MM-DD` for date-specific searches, optional for `first_available`
 - `requestedTime` in `HH:MM` or `timePreference`
 - `timezone`
+- optional `language`
 - optional `searchDays` for multi-day `first_available` lookup or broad multi-day morning/afternoon/evening ranges
 - optional `limit`
 
@@ -129,7 +132,8 @@ Key fields:
 7. Search across one or more working days while skipping overnight hours and past slots on the current day.
 8. Read busy events from Google Calendar.
 9. Build up to `limit` valid slots.
-10. Return both machine-friendly slot boundaries plus speech-safe Polish wording for voice playback.
+10. Return both machine-friendly slot boundaries plus speech-safe wording for voice playback.
+11. Return an exact tool-completion line that offers the slots or explains the calendar fallback without raw digits.
 
 ### Success response
 
@@ -142,7 +146,7 @@ Important fields:
 - `slots[].label` as a speech-safe fallback mirror of `spokenLabel`
 - `slots[].spokenDate`, `slots[].spokenTime`, `slots[].spokenLabel` for TTS-safe wording without digits
 - `normalizedRequest`
-- `message`
+- `message` as the exact speech-safe slot offer or fallback line
 
 ## Tool: `searchKnowledgeBase`
 

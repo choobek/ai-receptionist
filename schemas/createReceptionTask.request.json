@@ -24,8 +24,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "fullName",
-        "phoneE164"
+        "fullName"
       ],
       "properties": {
         "fullName": {
@@ -35,10 +34,22 @@
           "type": "string",
           "pattern": "^\\+[1-9]\\d{7,14}$"
         },
+        "phoneRaw": {
+          "type": "string",
+          "maxLength": 64
+        },
         "isExistingPatient": {
           "type": "boolean"
         }
       }
+    },
+    "patientPhoneE164": {
+      "type": "string",
+      "pattern": "^\\+[1-9]\\d{7,14}$"
+    },
+    "patientPhoneRaw": {
+      "type": "string",
+      "maxLength": 64
     },
     "serviceBucket": {
       "type": "string",
@@ -90,7 +101,7 @@
       "taskType": "existing_patient_booking",
       "patient": {
         "fullName": "Anna Kowalska",
-        "phoneE164": "+48500111001",
+        "phoneRaw": "500111001",
         "isExistingPatient": true
       },
       "serviceBucket": "hygiene",

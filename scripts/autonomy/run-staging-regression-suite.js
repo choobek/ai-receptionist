@@ -406,17 +406,18 @@ function normalizeOutputForTurn(context, turnIndex, output) {
       const trace = item?.tool_call_id
         ? unresolved.get(item.tool_call_id) || context.toolTrace.find((candidate) => candidate.tool_call_id === item.tool_call_id)
         : null;
+      const parsedResult = parseMaybeJson(item.content) || (item.content ?? null);
 
       if (trace) {
         trace.status = 'completed';
-        trace.result = item.content ?? null;
+        trace.result = parsedResult;
       }
 
       const toolName = trace?.tool_name || null;
       turnState.tool_results.push({
         tool_name: toolName,
         tool_call_id: item?.tool_call_id || null,
-        result: item.content ?? null
+        result: parsedResult
       });
 
       recordTranscriptEntry(context, {
@@ -427,7 +428,7 @@ function normalizeOutputForTurn(context, turnIndex, output) {
         tool_name: toolName,
         tool_call_id: item?.tool_call_id || null,
         arguments: null,
-        result: item.content ?? null
+        result: parsedResult
       });
       continue;
     }

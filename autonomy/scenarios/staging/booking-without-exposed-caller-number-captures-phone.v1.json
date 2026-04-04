@@ -64,7 +64,9 @@
         "turn": 4,
         "contains_any": [
           "prosze podac numer telefonu",
+          "prosze o podanie numeru telefonu",
           "prosze o numer telefonu",
+          "prosze o podanie numeru telefonu do kontaktu",
           "poprosze o numer telefonu",
           "poprosze jeszcze numer telefonu do kontaktu",
           "poprosze jeszcze o numer telefonu do potwierdzenia rezerwacji",

@@ -18,7 +18,7 @@ This repo now keeps a repo-backed Vapi observability pack beside the assistant c
 - two scorecards attached to each assistant:
   - `Core Call Quality`
   - `Conversation Discipline`
-- six saved Vapi chat evals for urgent routing, handoff behavior, phone capture, new-patient minimal intake, and medical-safety refusal
+- three saved Vapi chat evals for urgent routing, phone capture, and medical-safety refusal
 - one live-call autoevaluation runner that fetches recent ended calls, ingests them into `run.v1`, and renders a review queue report
 
 ## Sync commands
@@ -49,6 +49,14 @@ Mirror-only sync for the readable call-intake schema:
 ./scripts/run-vapi-eval-suite.sh staging
 ./scripts/run-vapi-eval-suite.sh staging --eval-key urgentFirstAvailableLookup
 ./scripts/run-vapi-eval-suite.sh staging --list
+```
+
+Prune retired saved eval definitions from Vapi by exact name:
+
+```bash
+./scripts/prune-vapi-evals.sh staging --name "Existing Patient Booking Handoff"
+./scripts/prune-vapi-evals.sh staging --name "Existing Patient Reschedule Handoff"
+./scripts/prune-vapi-evals.sh staging --name "New Patient Minimal Intake"
 ```
 
 Artifacts are written to:

@@ -930,7 +930,11 @@ function flattenToolCalls(message) {
     return directToolCalls.map((toolCall) => {
       const functionPart = safeObject(toolCall.function) || {};
       return {
-        tool_name: typeof functionPart.name === 'string' ? functionPart.name : null,
+        tool_name: typeof functionPart.name === 'string'
+          ? functionPart.name
+          : typeof toolCall?.name === 'string'
+            ? toolCall.name
+            : null,
         tool_call_id: typeof toolCall.id === 'string' ? toolCall.id : null,
         arguments: parseMaybeJson(functionPart.arguments || functionPart.parameters)
       };
@@ -940,7 +944,11 @@ function flattenToolCalls(message) {
   const toolCallList = safeArray(message.toolCallList);
   if (toolCallList.length > 0) {
     return toolCallList.map((toolCall) => ({
-      tool_name: typeof toolCall?.function?.name === 'string' ? toolCall.function.name : null,
+      tool_name: typeof toolCall?.function?.name === 'string'
+        ? toolCall.function.name
+        : typeof toolCall?.name === 'string'
+          ? toolCall.name
+          : null,
       tool_call_id: typeof toolCall?.id === 'string' ? toolCall.id : null,
       arguments: parseMaybeJson(toolCall?.function?.arguments || toolCall?.parameters)
     }));
@@ -948,7 +956,11 @@ function flattenToolCalls(message) {
 
   const wrapped = safeArray(message.toolWithToolCallList);
   return wrapped.map((item) => ({
-    tool_name: typeof item?.toolCall?.function?.name === 'string' ? item.toolCall.function.name : null,
+    tool_name: typeof item?.toolCall?.function?.name === 'string'
+      ? item.toolCall.function.name
+      : typeof item?.toolCall?.name === 'string'
+        ? item.toolCall.name
+        : null,
     tool_call_id: typeof item?.toolCall?.id === 'string' ? item.toolCall.id : null,
     arguments: parseMaybeJson(item?.toolCall?.function?.arguments || item?.toolCall?.parameters)
   }));
@@ -959,14 +971,17 @@ function flattenToolResults(message) {
   if (resultEntries.length > 0) {
     return resultEntries.map((entry) => ({
       tool_call_id: typeof entry?.toolCallId === 'string' ? entry.toolCallId : null,
-      result: entry?.result ?? null
+      result: entry?.result ?? entry?.error ?? null
     }));
   }
 
-  if (Object.prototype.hasOwnProperty.call(message, 'result')) {
+  if (
+    Object.prototype.hasOwnProperty.call(message, 'result')
+    || Object.prototype.hasOwnProperty.call(message, 'error')
+  ) {
     return [{
       tool_call_id: typeof message?.toolCallId === 'string' ? message.toolCallId : null,
-      result: message.result ?? null
+      result: message.result ?? message.error ?? null
     }];
   }
 
@@ -1067,9 +1082,10 @@ function normalizeConversation(record) {
       }
       for (const resultEntry of results) {
         const trace = consumePending(resultEntry.tool_call_id);
+        const parsedResult = parseMaybeJson(resultEntry.result) || resultEntry.result;
         if (trace) {
           trace.status = 'completed';
-          trace.result = resultEntry.result;
+          trace.result = parsedResult;
           trace.completed_at_ms = typeof message?.time === 'number' ? message.time : null;
         }
         pushMessage({
@@ -1081,7 +1097,7 @@ function normalizeConversation(record) {
           tool_name: trace?.tool_name || null,
           tool_call_id: trace?.tool_call_id || resultEntry.tool_call_id || null,
           arguments: null,
-          result: resultEntry.result ?? null
+          result: parsedResult ?? null
         });
       }
       continue;

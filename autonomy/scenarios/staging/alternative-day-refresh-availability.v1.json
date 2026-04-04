@@ -1,8 +1,8 @@
 {
   "schema_version": "staging-chat-scenario.v1",
   "scenario_id": "alternative-day-refresh-availability",
-  "title": "Alternative-day ambiguity refreshes availability after correction",
-  "description": "The caller starts with a Tuesday-or-Wednesday afternoon preference and explicitly confirms it is the first visit. The assistant may pick one candidate day first, but after the caller corrects to Wednesday it must issue a fresh checkAvailability call instead of reusing stale Tuesday availability.",
+  "title": "Alternative-day ambiguity waits for clarification before lookup",
+  "description": "The caller starts with a Tuesday-or-Wednesday afternoon preference and explicitly confirms it is the first visit. For latency, the assistant may clarify the target day first. After the caller picks Wednesday, it should issue a single fresh checkAvailability call for Wednesday afternoon instead of spending a first lookup on the ambiguous input.",
   "status": "active",
   "environment": "staging",
   "language": "pl",
@@ -35,34 +35,21 @@
   ],
   "rubric": [
     {
-      "criterion_id": "two-availability-lookups",
-      "description": "The assistant should issue a second availability lookup after the caller picks Wednesday.",
+      "criterion_id": "no-eager-availability-before-clarification",
+      "description": "The assistant may wait for clarification instead of spending a first lookup on the ambiguous day pair.",
       "severity": "critical",
-      "root_cause_hint": "assistant is not refreshing availability after the caller changes the preferred day",
+      "root_cause_hint": "assistant is still spending an avoidable lookup before the caller chooses the final day",
       "rule": {
-        "type": "tool_call_count_at_least",
-        "tool_name": "checkAvailability",
-        "min": 2
+        "type": "turn_tool_not_called",
+        "turn": 1,
+        "tool_name": "checkAvailability"
       }
     },
     {
-      "criterion_id": "first-lookup-uses-afternoon-window",
-      "description": "The first lookup should preserve the afternoon window.",
+      "criterion_id": "clarified-lookup-uses-afternoon-window",
+      "description": "The clarified lookup should preserve the afternoon window.",
       "severity": "medium",
       "root_cause_hint": "time preference normalization drifted for phrases such as po lunchu",
-      "rule": {
-        "type": "turn_tool_arg_equals",
-        "turn": 1,
-        "tool_name": "checkAvailability",
-        "path": "timePreference",
-        "equals": "afternoon"
-      }
-    },
-    {
-      "criterion_id": "second-lookup-uses-afternoon-window",
-      "description": "The refreshed Wednesday lookup should preserve the afternoon window.",
-      "severity": "critical",
-      "root_cause_hint": "assistant lost the time window after the caller corrected the day",
       "rule": {
         "type": "turn_tool_arg_equals",
         "turn": 2,
@@ -72,16 +59,16 @@
       }
     },
     {
-      "criterion_id": "requested-date-updated-after-correction",
-      "description": "The second availability request should change the requested date after the caller picks Wednesday.",
-      "severity": "medium",
-      "root_cause_hint": "assistant kept the stale day even after the caller corrected it",
+      "criterion_id": "clarified-lookup-targets-wednesday",
+      "description": "After the caller clarifies Wednesday, the lookup should target the Wednesday date.",
+      "severity": "critical",
+      "root_cause_hint": "assistant kept the wrong day even after the caller clarified Wednesday",
       "rule": {
-        "type": "tool_arg_changed_between_turns",
+        "type": "turn_tool_arg_equals",
+        "turn": 2,
         "tool_name": "checkAvailability",
         "path": "requestedDate",
-        "turn_a": 1,
-        "turn_b": 2
+        "equals": "2026-04-08"
       }
     },
     {

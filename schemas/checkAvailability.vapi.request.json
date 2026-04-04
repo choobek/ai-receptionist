@@ -55,6 +55,14 @@
       "type": "string",
       "description": "Usually Europe/Warsaw."
     },
+    "language": {
+      "type": "string",
+      "enum": [
+        "pl",
+        "en"
+      ],
+      "description": "Optional conversation language for speech-safe slot wording."
+    },
     "limit": {
       "type": "integer",
       "description": "How many slots to return, usually 3."

@@ -2,7 +2,7 @@
   "schema_version": "staging-chat-scenario.v1",
   "scenario_id": "existing-patient-booking-handoff-internal-sms-alert",
   "title": "Existing-patient booking requests are handed to reception and trigger an internal SMS alert",
-  "description": "The caller clearly says this is not a first visit, asks to book another visit, provides synthetic identity details in the first turn, confirms the repeated phone number, and should stay in the reception-task branch. When the internal SMS tool is available, the assistant should call sendSmsToReceptionists only after createReceptionTask succeeds and should reuse the created taskId.",
+  "description": "The caller clearly says this is not a first visit, asks to book another visit, and provides complete synthetic identity details in the first turn. For latency, the assistant may create the reception task immediately on that first turn instead of inserting a separate phone-confirmation turn. When the internal SMS tool is available, it should call sendSmsToReceptionists only after createReceptionTask succeeds and should reuse the created taskId.",
   "status": "active",
   "environment": "staging",
   "language": "pl",
@@ -32,19 +32,8 @@
       "user": "Dzien dobry, chce umowic kolejna wizyte na higienizacje. To nie jest moja pierwsza wizyta, bylem juz u was. Mam na imie Test Staly Pacjent SMS, moj numer to siedem zero dwa, zero zero trzy, zero zero dziewiec.",
       "assertions": [
         {
-          "criterion_id": "no-handoff-before-phone-confirmation",
-          "description": "The assistant should not create the reception task before the caller confirms the repeated phone number.",
-          "severity": "high",
-          "root_cause_hint": "assistant skipped the phone confirmation step before createReceptionTask",
-          "rule": {
-            "type": "turn_tool_not_called",
-            "turn": 1,
-            "tool_name": "createReceptionTask"
-          }
-        },
-        {
           "criterion_id": "no-availability-check-before-confirmation",
-          "description": "An existing-patient booking request should not enter direct scheduling before the handoff path is complete.",
+          "description": "An existing-patient booking request should not enter direct scheduling.",
           "severity": "critical",
           "root_cause_hint": "assistant ignored the existing-patient handoff policy and tried scheduling anyway",
           "rule": {
@@ -100,13 +89,13 @@
       }
     },
     {
-      "criterion_id": "reception-task-created-on-confirmation-turn",
-      "description": "The assistant should create the reception task immediately after the caller confirms the repeated phone number.",
+      "criterion_id": "reception-task-created-on-first-turn",
+      "description": "With complete identity data in the first turn, the assistant should create the reception task immediately.",
       "severity": "critical",
-      "root_cause_hint": "assistant delayed the existing-patient handoff instead of creating the task on turn 2",
+      "root_cause_hint": "assistant added an avoidable confirmation turn instead of using the clear first-turn identity data",
       "rule": {
         "type": "turn_tool_called",
-        "turn": 2,
+        "turn": 1,
         "tool_name": "createReceptionTask"
       }
     },
@@ -157,13 +146,13 @@
       }
     },
     {
-      "criterion_id": "internal-sms-called-on-confirmation-turn",
-      "description": "The internal receptionist SMS should be triggered on the confirmation turn only.",
+      "criterion_id": "internal-sms-called-on-first-turn",
+      "description": "The internal receptionist SMS should be triggered on the same first turn once the handoff task succeeds.",
       "severity": "critical",
       "root_cause_hint": "assistant did not call sendSmsToReceptionists after the handoff task succeeded",
       "rule": {
         "type": "turn_tool_called",
-        "turn": 2,
+        "turn": 1,
         "tool_name": "sendSmsToReceptionists"
       }
     },

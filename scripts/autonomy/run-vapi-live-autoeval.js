@@ -14,6 +14,28 @@ const POLICY_PATH = path.join(ROOT_DIR, 'configs', 'vapi', 'autoevaluation-polic
 const ENVIRONMENTS_DIR = path.join(ROOT_DIR, 'configs', 'vapi', 'environments');
 const MODEL_DOMINANT_REVIEW_THRESHOLD_MS = 4000;
 const MODEL_DOMINANT_HIGH_THRESHOLD_MS = 7000;
+const SPEECH_RENDERING_TOOL_NAMES = new Set(['checkAvailability', 'lookupPatient', 'createEvent']);
+const DATE_OR_NUMBER_ASCII_PATTERNS = [
+  { pattern: /\bponiedzialek\b/i, expected: 'poniedziałek' },
+  { pattern: /\bsroda\b/i, expected: 'środa' },
+  { pattern: /\bpiatek\b/i, expected: 'piątek' },
+  { pattern: /\bwrzesnia\b/i, expected: 'września' },
+  { pattern: /\bpazdziernika\b/i, expected: 'października' },
+  { pattern: /\bpiatego\b/i, expected: 'piątego' },
+  { pattern: /\bszostego\b/i, expected: 'szóstego' },
+  { pattern: /\bsiodmego\b/i, expected: 'siódmego' },
+  { pattern: /\bosmego\b/i, expected: 'ósmego' },
+  { pattern: /\bdziewiatego\b/i, expected: 'dziewiątego' },
+  { pattern: /\bdziewiatej\b/i, expected: 'dziewiątej' },
+  { pattern: /\bpietnastego\b/i, expected: 'piętnastego' },
+  { pattern: /\bpietnascie\b/i, expected: 'piętnaście' },
+  { pattern: /\bszesc\b/i, expected: 'sześć' },
+  { pattern: /\bdziewiec\b/i, expected: 'dziewięć' },
+  { pattern: /\bczterdziesci\b/i, expected: 'czterdzieści' },
+  { pattern: /\btrzydziesci\b/i, expected: 'trzydzieści' },
+  { pattern: /\bpiecdziesiat\b/i, expected: 'pięćdziesiąt' }
+];
+const POLISH_MONTH_CONTEXT = /\b(stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|wrzesnia|września|pazdziernika|października|listopada|grudnia)\b/i;
 
 function usage() {
   console.log(`Usage:
@@ -235,6 +257,106 @@ function normalizeScopedName(name) {
   return name.replace(/\s+\[(staging|production)\]$/i, '').trim();
 }
 
+function stringifySpeechAuditValue(value) {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (value === null || value === undefined) {
+    return '';
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function getSpeechAuditMessages(run, rawCall = null) {
+  if (rawCall) {
+    const rawMessages = safeArray(rawCall?.artifact?.messages).length > 0
+      ? safeArray(rawCall.artifact.messages)
+      : safeArray(rawCall?.messages);
+    return rawMessages.map((message) => {
+      if ((message?.role === 'bot' || message?.role === 'assistant') && typeof message?.message === 'string') {
+        return {
+          role: 'assistant',
+          text: message.message,
+          result: null,
+          tool_name: null
+        };
+      }
+      const toolName = typeof message?.name === 'string' ? message.name : null;
+      if (
+        (message?.role === 'tool_call_result' || message?.role === 'tool')
+        && SPEECH_RENDERING_TOOL_NAMES.has(toolName)
+      ) {
+        return {
+          role: 'tool_result',
+          text: null,
+          result: message.result ?? message.error ?? null,
+          tool_name: toolName
+        };
+      }
+      return null;
+    }).filter(Boolean);
+  }
+  return safeArray(run?.conversation?.messages);
+}
+
+function detectSpeechRenderingIssues(run, rawCall = null) {
+  const findings = [];
+  const seen = new Set();
+  const messages = getSpeechAuditMessages(run, rawCall);
+
+  function addFinding(message) {
+    if (!seen.has(message)) {
+      seen.add(message);
+      findings.push(message);
+    }
+  }
+
+  for (const message of messages) {
+    if (message?.role === 'assistant' && typeof message?.text === 'string') {
+      const text = message.text;
+      if (
+        /\d/.test(text)
+        && (
+          /\b\d{1,2}:\d{2}\b/.test(text)
+          || POLISH_MONTH_CONTEXT.test(text)
+          || /\bpowtarzam numer\b/i.test(text)
+        )
+      ) {
+        addFinding('assistant spoke raw digits in date, time, or phone text');
+      }
+    }
+
+    if (
+      message?.role !== 'assistant'
+      && !(
+        message?.role === 'tool_result'
+        && SPEECH_RENDERING_TOOL_NAMES.has(message?.tool_name)
+      )
+    ) {
+      continue;
+    }
+
+    const text = message?.role === 'assistant'
+      ? message.text
+      : stringifySpeechAuditValue(message?.result);
+    if (typeof text !== 'string' || !text) {
+      continue;
+    }
+
+    for (const rule of DATE_OR_NUMBER_ASCII_PATTERNS) {
+      if (rule.pattern.test(text)) {
+        addFinding(`speech-safe wording lost Polish diacritics (${rule.expected})`);
+      }
+    }
+  }
+
+  return findings;
+}
+
 function severityRank(severity) {
   switch (severity) {
     case 'high':
@@ -262,6 +384,8 @@ function renderReasonMessage(reason) {
       return `${reason.scorecard_name} scored ${reason.score_normalized} below ${reason.threshold}`;
     case 'latency_dominant_pause':
       return `model dominated a slow turn (${reason.max_latency_ms}ms max, ${reason.slow_turn_count} slow turns)`;
+    case 'speech_rendering_regression':
+      return reason.message || 'speech rendering regression detected';
     case 'scorecards_missing':
       return 'no Vapi scorecards were attached to the call artifact';
     default:
@@ -269,7 +393,7 @@ function renderReasonMessage(reason) {
   }
 }
 
-function evaluateRunAgainstPolicy(run, policy) {
+function evaluateRunAgainstPolicy(run, policy, rawCall = null) {
   const reasons = [];
   const coverageWarnings = [];
   let severity = 'none';
@@ -358,6 +482,17 @@ function evaluateRunAgainstPolicy(run, policy) {
       severity: latencySeverity
     });
     severity = maxSeverity(severity, latencySeverity);
+  }
+
+  const speechRenderingFindings = detectSpeechRenderingIssues(run, rawCall);
+  if (speechRenderingFindings.length > 0) {
+    reasons.push({
+      type: 'speech_rendering_regression',
+      severity: 'high',
+      findings: speechRenderingFindings,
+      message: speechRenderingFindings.slice(0, 3).join('; ')
+    });
+    severity = maxSeverity(severity, 'high');
   }
 
   return {
@@ -711,7 +846,7 @@ async function main() {
     const normalizedRunPath = path.join(suitePaths.normalizedRunsDir, `${run.run_id}.run.v1.json`);
     writeRun(run, normalizedRunPath);
 
-    const review = evaluateRunAgainstPolicy(run, policy);
+    const review = evaluateRunAgainstPolicy(run, policy, fullCall);
     calls.push({
       call_id: run.call.call_id,
       ended_at: run.call.ended_at,

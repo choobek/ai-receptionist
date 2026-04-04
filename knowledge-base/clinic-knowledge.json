@@ -434,11 +434,15 @@
       "mosty",
       "protezy",
       "licowki",
+      "licowek",
+      "oferta licowek",
       "pelnoceramiczne"
     ],
     "queryExamples": [
       "Co obejmuje protetyka?",
       "Czy robicie korony, mosty i protezy?",
+      "Czy mozna zrobic licowki?",
+      "Czy w klinice mozna wykonac licowki? Oferta licowek.",
       "Jakie uzupelnienia protetyczne sa dostepne?"
     ],
     "answerPl": "Protetyka obejmuje m.in. korony, mosty, protezy, licowki oraz odbudowy implanto-protetyczne. Dobor rozwiazania zalezy od liczby brakow, stanu zebow, oczekiwan estetycznych i planu leczenia.",
@@ -482,6 +486,7 @@
       "Czym sie roznia licowki od bondingu?",
       "Roznica miedzy licowkami a bondingiem",
       "Czym roznia sie licowki od bondingu? Roznice, zastosowanie, trwalosc.",
+      "Czym roznia sie licowki od bondingu? Roznice, zakres, trwalosc, cena ogolnie.",
       "Co jest trwalsze licowki czy bonding?",
       "Licowki czy bonding - roznice, zastosowanie, trwalosc",
       "Co lepsze do szybkiej poprawy estetyki?"

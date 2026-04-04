@@ -7,6 +7,14 @@
     "requestId": {
       "type": "string"
     },
+    "language": {
+      "type": "string",
+      "enum": [
+        "pl",
+        "en"
+      ],
+      "description": "Optional conversation language for speech-safe phone readback."
+    },
     "fullName": {
       "type": "string",
       "minLength": 3
@@ -23,6 +31,7 @@
   "examples": [
     {
       "requestId": "req_lookup_vapi_001",
+      "language": "pl",
       "phoneRaw": "500111001"
     }
   ]

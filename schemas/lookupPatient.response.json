@@ -62,10 +62,21 @@
       "requestId": "req_lookup_001",
       "phone": {
         "normalizedE164": "+48500111001",
-        "spoken": "piec zero zero, jeden jeden jeden, zero zero jeden",
-        "readbackPrompt": "Dziekuje. Powtarzam numer: piec zero zero, jeden jeden jeden, zero zero jeden. Czy wszystko sie zgadza?"
+        "spoken": "pięć zero zero, jeden jeden jeden, zero zero jeden",
+        "readbackPrompt": "Dziękuję. Powtarzam numer: pięć zero zero, jeden jeden jeden, zero zero jeden. Czy wszystko się zgadza?"
       },
-      "message": "Numer telefonu jest gotowy do potwierdzenia."
+      "message": "Dziękuję. Powtarzam numer: pięć zero zero, jeden jeden jeden, zero zero jeden. Czy wszystko się zgadza?"
+    },
+    {
+      "requestId": "req_lookup_002",
+      "phone": null,
+      "message": "Nie udało mi się potwierdzić tego numeru. Proszę podać go jeszcze raz, cyfra po cyfrze.",
+      "error": {
+        "code": "PHONE_NORMALIZATION_FAILED",
+        "details": [
+          "phone number could not be normalized"
+        ]
+      }
     }
   ]
 }

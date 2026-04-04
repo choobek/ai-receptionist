@@ -2,7 +2,7 @@
   "schema_version": "staging-chat-scenario.v1",
   "scenario_id": "reschedule-handoff-internal-sms-alert",
   "title": "Reschedule handoff triggers an internal receptionist SMS alert after task creation",
-  "description": "The caller wants to reschedule an existing visit, provides synthetic identity data in the first turn, confirms the repeated phone number, and should stay in the reception-task branch. When the internal SMS tool is available, the assistant should call sendSmsToReceptionists only after createReceptionTask succeeds and should reuse the created taskId.",
+  "description": "The caller wants to reschedule an existing visit and provides complete synthetic identity data in the first turn. For latency, the assistant may create the reception task immediately on that first turn instead of inserting a separate phone-confirmation turn. When the internal SMS tool is available, it should call sendSmsToReceptionists only after createReceptionTask succeeds and should reuse the created taskId.",
   "status": "active",
   "environment": "staging",
   "language": "pl",
@@ -32,25 +32,25 @@
       "user": "Dzien dobry, chce przelozyc moja wtorkowa wizyte na inny dzien po poludniu. Mam na imie Test Regresji SMS Recepcja, moj numer to siedem zero dwa, zero zero trzy, zero zero siedem.",
       "assertions": [
         {
-          "criterion_id": "no-handoff-before-phone-confirmation",
-          "description": "The assistant should not create a reception task before the caller confirms the repeated phone number.",
+          "criterion_id": "no-booking-on-reschedule-intake",
+          "description": "The assistant should not try to create a booking directly for a reschedule request.",
           "severity": "high",
-          "root_cause_hint": "assistant skipped the phone confirmation step before createReceptionTask",
+          "root_cause_hint": "assistant left the handoff branch and tried to schedule directly",
           "rule": {
             "type": "turn_tool_not_called",
             "turn": 1,
-            "tool_name": "createReceptionTask"
+            "tool_name": "createEvent"
           }
         },
         {
-          "criterion_id": "no-internal-sms-before-phone-confirmation",
-          "description": "The assistant should not trigger the internal receptionist SMS before createReceptionTask exists.",
+          "criterion_id": "no-availability-check-before-handoff",
+          "description": "The assistant should not try direct scheduling for a reschedule request.",
           "severity": "high",
-          "root_cause_hint": "assistant tried to send the internal receptionist SMS before the task was created",
+          "root_cause_hint": "assistant ignored the reschedule handoff policy and tried scheduling anyway",
           "rule": {
             "type": "turn_tool_not_called",
             "turn": 1,
-            "tool_name": "sendSmsToReceptionists"
+            "tool_name": "checkAvailability"
           }
         }
       ]
@@ -61,6 +61,17 @@
     }
   ],
   "rubric": [
+    {
+      "criterion_id": "reception-task-created-on-first-turn",
+      "description": "With complete identity data in the first turn, the assistant should create the reception task immediately.",
+      "severity": "critical",
+      "root_cause_hint": "assistant added an avoidable confirmation turn instead of using the clear first-turn identity data",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 1,
+        "tool_name": "createReceptionTask"
+      }
+    },
     {
       "criterion_id": "name-is-not-reasked-after-complete-first-turn",
       "description": "If the caller already gave the name and number in the first turn, the assistant should not ask for the name again.",
@@ -146,13 +157,13 @@
       }
     },
     {
-      "criterion_id": "internal-sms-called-on-confirmation-turn",
-      "description": "The internal receptionist SMS should be triggered on the confirmation turn only.",
+      "criterion_id": "internal-sms-called-on-first-turn",
+      "description": "The internal receptionist SMS should be triggered on the same first turn once the handoff task succeeds.",
       "severity": "critical",
       "root_cause_hint": "assistant did not call sendSmsToReceptionists after the handoff task succeeded",
       "rule": {
         "type": "turn_tool_called",
-        "turn": 2,
+        "turn": 1,
         "tool_name": "sendSmsToReceptionists"
       }
     },

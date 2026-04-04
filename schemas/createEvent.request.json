@@ -74,8 +74,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "fullName",
-        "phoneE164"
+        "fullName"
       ],
       "properties": {
         "fullName": {
@@ -86,6 +85,11 @@
           "pattern": "^\\+[1-9]\\d{7,14}$",
           "description": "Confirmed callback number stored on the booking. If the caller confirmed using the number they are calling from, reuse that live caller number here."
         },
+        "phoneRaw": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Clear raw callback number captured in the call when the assistant skips a dedicated normalization webhook to keep latency down."
+        },
         "email": {
           "type": "string",
           "format": "email"
@@ -94,6 +98,16 @@
           "type": "boolean"
         }
       }
+    },
+    "patientPhoneE164": {
+      "type": "string",
+      "pattern": "^\\+[1-9]\\d{7,14}$",
+      "description": "Optional deterministic fallback filled from the confirmed lookupPatient alias when Vapi carries it forward."
+    },
+    "patientPhoneRaw": {
+      "type": "string",
+      "maxLength": 64,
+      "description": "Optional raw callback number fallback when the assistant captured a clear phone number and intentionally skipped lookupPatient for latency."
     },
     "notes": {
       "type": "string",
@@ -140,7 +154,7 @@
       "language": "pl",
       "patient": {
         "fullName": "Jan Kowalski",
-        "phoneE164": "+48500100200",
+        "phoneRaw": "500100200",
         "email": "jan@example.com"
       },
       "source": "phone",

@@ -138,14 +138,14 @@
         {
           "start": "2026-03-12T09:00:00+01:00",
           "end": "2026-03-12T09:45:00+01:00",
-          "label": "czwartek, dwunastego marca o dziewiatej",
+          "label": "czwartek, dwunastego marca o dziewiątej",
           "spokenDate": "czwartek, dwunastego marca",
-          "spokenTime": "o dziewiatej",
-          "spokenLabel": "czwartek, dwunastego marca o dziewiatej",
+          "spokenTime": "o dziewiątej",
+          "spokenLabel": "czwartek, dwunastego marca o dziewiątej",
           "calendarId": "primary"
         }
       ],
-      "message": "Znalazlam kilka dostepnych terminow."
+      "message": "Mogę zaproponować czwartek, dwunastego marca o dziewiątej. Czy ten termin wybrać?"
     },
     {
       "requestId": "req_002",
@@ -165,14 +165,37 @@
         {
           "start": "2026-03-13T09:00:00+01:00",
           "end": "2026-03-13T09:45:00+01:00",
-          "label": "piatek, trzynastego marca o dziewiatej",
-          "spokenDate": "piatek, trzynastego marca",
-          "spokenTime": "o dziewiatej",
-          "spokenLabel": "piatek, trzynastego marca o dziewiatej",
+          "label": "piątek, trzynastego marca o dziewiątej",
+          "spokenDate": "piątek, trzynastego marca",
+          "spokenTime": "o dziewiątej",
+          "spokenLabel": "piątek, trzynastego marca o dziewiątej",
           "calendarId": "primary"
         }
       ],
-      "message": "Znalazlam kilka dostepnych terminow."
+      "message": "Najbliższe wolne terminy to piątek, trzynastego marca o dziewiątej. Który termin wybrać?"
+    },
+    {
+      "requestId": "req_003",
+      "available": false,
+      "timezone": "Europe/Warsaw",
+      "normalizedRequest": {
+        "serviceId": "consultation",
+        "durationMinutes": 45,
+        "windowStart": "2026-03-12T09:00:00+01:00",
+        "windowEnd": "2026-03-12T13:00:00+01:00",
+        "requestedDate": "2026-03-12",
+        "requestedTime": null,
+        "timePreference": "morning",
+        "searchDays": 1
+      },
+      "slots": [],
+      "message": "Kalendarz wizyt jest tymczasowo niedostępny. Przekaż prośbę do recepcji.",
+      "error": {
+        "code": "CALENDAR_PROVIDER_REJECTED",
+        "details": [
+          "EAUTH: invalid_grant"
+        ]
+      }
     }
   ]
 }

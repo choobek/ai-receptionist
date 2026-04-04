@@ -2,7 +2,7 @@
   "schema_version": "staging-chat-scenario.v1",
   "scenario_id": "existing-patient-reschedule-handoff-vapi-chat",
   "title": "Existing-patient reschedule request becomes a reception task",
-  "description": "The caller already has a visit, provides synthetic identity details in the first turn, confirms the repeated phone number, and should end in the reception-task branch only.",
+  "description": "The caller already has a visit and provides complete synthetic identity details in the first turn. For latency, the assistant may create the reception task immediately on that first turn instead of inserting a separate phone-confirmation turn. The flow should remain in the reception-task branch only.",
   "status": "active",
   "environment": "staging",
   "language": "pl",
@@ -28,14 +28,14 @@
       "user": "Dzien dobry, chce przelozyc istniejaca wizyte. Mam na imie Jan Test Handoff, moj numer to siedem zero dwa, zero zero trzy, zero zero piec.",
       "assertions": [
         {
-          "criterion_id": "no-handoff-before-number-confirmation",
-          "description": "The assistant should not create a reception task before the caller confirms the repeated phone number.",
+          "criterion_id": "no-availability-check-on-reschedule-intake",
+          "description": "The assistant should not enter direct scheduling for a reschedule request.",
           "severity": "high",
-          "root_cause_hint": "assistant is skipping phone confirmation before the handoff write",
+          "root_cause_hint": "assistant left the handoff branch and tried to schedule directly",
           "rule": {
             "type": "turn_tool_not_called",
             "turn": 1,
-            "tool_name": "createReceptionTask"
+            "tool_name": "checkAvailability"
           }
         }
       ]
@@ -46,6 +46,17 @@
     }
   ],
   "rubric": [
+    {
+      "criterion_id": "reception-task-created-on-first-turn",
+      "description": "With complete identity data in the first turn, the assistant should create the reception task immediately.",
+      "severity": "critical",
+      "root_cause_hint": "assistant added an avoidable confirmation turn instead of using the clear first-turn identity data",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 1,
+        "tool_name": "createReceptionTask"
+      }
+    },
     {
       "criterion_id": "reception-task-created",
       "description": "The assistant should create a reception task for the reschedule request.",

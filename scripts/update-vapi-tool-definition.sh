@@ -69,6 +69,12 @@ SCHEMA_PATH="$ROOT_DIR/$(jq -er '.schemaPath' <<<"$TOOL_CONFIG_JSON")"
 MESSAGES_JSON="$(
   jq -c '.messages // [{"type":"request-start","blocking":false}]' <<<"$TOOL_CONFIG_JSON"
 )"
+PARAMETERS_JSON="$(
+  jq -c '.parameters // []' <<<"$TOOL_CONFIG_JSON"
+)"
+VARIABLE_EXTRACTION_PLAN_JSON="$(
+  jq -c '.variableExtractionPlan // null' <<<"$TOOL_CONFIG_JSON"
+)"
 
 if [ ! -f "$SCHEMA_PATH" ]; then
   echo "Schema file not found: $SCHEMA_PATH" >&2
@@ -142,6 +148,8 @@ PAYLOAD="$(
     --arg tool_description "$TOOL_DESCRIPTION" \
     --argjson schema "$SCHEMA_JSON" \
     --argjson messages "$MESSAGES_JSON" \
+    --argjson parameters "$PARAMETERS_JSON" \
+    --argjson variable_extraction_plan "$VARIABLE_EXTRACTION_PLAN_JSON" \
     --argjson server "$SERVER_JSON" \
     '{
       function: {
@@ -151,6 +159,8 @@ PAYLOAD="$(
       },
       messages: $messages
     }
+    | if ($parameters | length) > 0 then .parameters = $parameters else . end
+    | if $variable_extraction_plan != null then .variableExtractionPlan = $variable_extraction_plan else . end
     | if $server != null then .server = $server else . end'
 )"
 

@@ -39,38 +39,22 @@ function usage() {
   node scripts/check-workflow-regressions.js [options]
 
 Options:
-  --include-experimental  Also run quarantined prompt/config checks.
   --help                  Show this help message.
 `);
 }
 
 function parseArgs(argv) {
-  const options = {
-    includeExperimental:
-      process.env.WORKFLOW_REGRESSION_INCLUDE_EXPERIMENTAL === '1'
-      || process.env.WORKFLOW_REGRESSION_INCLUDE_EXPERIMENTAL === 'true'
-  };
-
   for (const arg of argv) {
     if (arg === '--help') {
       usage();
       process.exit(0);
     }
-    if (arg === '--include-experimental') {
-      options.includeExperimental = true;
-      continue;
-    }
     throw new Error(`Unknown argument: ${arg}`);
   }
-
-  return options;
 }
 
-const options = parseArgs(process.argv.slice(2));
+parseArgs(process.argv.slice(2));
 const enabledLanes = new Set(['contract', 'assistant-invariant']);
-if (options.includeExperimental) {
-  enabledLanes.add('experimental');
-}
 
 function loadJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -151,7 +135,13 @@ function getAssistantSystemPrompt(config = loadAssistantConfig()) {
 function normalizeSearchText(value) {
   return String(value || '')
     .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '');
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/ł/g, 'l')
+    .replace(/Ł/g, 'L');
+}
+
+function containsPolishDiacritics(value) {
+  return /[ąćęłńóśźż]/i.test(String(value || ''));
 }
 
 function getToolDefinitionMap(toolDefinitions = loadToolDefinitions()) {
@@ -326,10 +316,6 @@ function test(name, fn, { lane = 'contract' } = {}) {
 
 function assistantInvariantTest(name, fn) {
   test(name, fn, { lane: 'assistant-invariant' });
-}
-
-function experimentalTest(name, fn) {
-  test(name, fn, { lane: 'experimental' });
 }
 
 const defaultEnv = {
@@ -618,6 +604,100 @@ test('checkAvailability keeps morning searches inside the morning window across 
   assert.ok(result.slots.every((slot) => slot.end.slice(11, 16) <= '13:00'));
 });
 
+test('checkAvailability widens a concrete morning miss across later mornings before first_available', () => {
+  const parseResult = runParse(
+    'tool_check-availability.json',
+    'Parse Request',
+    {
+      service: { id: 'consultation' },
+      requestedDate: '2026-03-16',
+      timePreference: 'morning',
+      timezone: 'Europe/Warsaw'
+    },
+    defaultEnv
+  );
+  assert.equal(parseResult.ok, true);
+  assert.equal(parseResult.searchPlans?.length, 3);
+
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    [
+      {
+        start: { dateTime: '2026-03-16T09:00:00+01:00' },
+        end: { dateTime: '2026-03-16T21:00:00+01:00' }
+      }
+    ],
+    defaultEnv
+  );
+
+  assert.equal(result.available, true);
+  assert.equal(result.normalizedRequest?.timePreference, 'morning');
+  assert.equal(result.normalizedRequest?.searchDays, 5);
+  assert.ok(result.slots.every((slot) => slot.start.startsWith('2026-03-17T')));
+  assert.ok(result.slots.every((slot) => slot.start.slice(11, 16) < '13:00'));
+  assert.match(
+    normalizeSearchText(result.message),
+    /nie widze wolnych terminow na poniedzialek, szesnastego marca rano/i
+  );
+});
+
+test('checkAvailability falls back to first_available when the requested afternoon stays full', () => {
+  const parseResult = runParse(
+    'tool_check-availability.json',
+    'Parse Request',
+    {
+      service: { id: 'consultation' },
+      requestedDate: '2026-03-16',
+      timePreference: 'afternoon',
+      timezone: 'Europe/Warsaw'
+    },
+    defaultEnv
+  );
+  assert.equal(parseResult.ok, true);
+  assert.equal(parseResult.searchPlans?.length, 3);
+
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    [
+      {
+        start: { dateTime: '2026-03-16T13:00:00+01:00' },
+        end: { dateTime: '2026-03-16T21:00:00+01:00' }
+      },
+      {
+        start: { dateTime: '2026-03-17T13:00:00+01:00' },
+        end: { dateTime: '2026-03-17T21:00:00+01:00' }
+      },
+      {
+        start: { dateTime: '2026-03-18T13:00:00+01:00' },
+        end: { dateTime: '2026-03-18T21:00:00+01:00' }
+      },
+      {
+        start: { dateTime: '2026-03-19T13:00:00+01:00' },
+        end: { dateTime: '2026-03-19T21:00:00+01:00' }
+      },
+      {
+        start: { dateTime: '2026-03-20T13:00:00+01:00' },
+        end: { dateTime: '2026-03-20T21:00:00+01:00' }
+      }
+    ],
+    defaultEnv
+  );
+
+  assert.equal(result.available, true);
+  assert.equal(result.normalizedRequest?.timePreference, 'first_available');
+  assert.equal(result.normalizedRequest?.searchDays, 5);
+  assert.ok(result.slots.some((slot) => slot.start.startsWith('2026-03-16T12:15:00+01:00')));
+  assert.ok(result.slots.every((slot) => slot.start.slice(11, 16) < '13:00'));
+  assert.match(
+    normalizeSearchText(result.message),
+    /nie widze wolnych terminow na poniedzialek, szesnastego marca po poludniu/i
+  );
+});
+
 test('checkAvailability preserves calendar provider failures as structured unavailable results', () => {
   const parseResult = {
     requestId: 'req_calendar_provider_error',
@@ -654,8 +734,14 @@ test('checkAvailability preserves calendar provider failures as structured unava
   const formatted = executeCode(getNodeCode(loadWorkflow('tool_check-availability.json'), 'Format Success'), {
     $json: result
   })[0].json;
-  assert.equal(formatted.results[0].result.error.code, 'CALENDAR_PROVIDER_REJECTED');
-  assert.match(formatted.results[0].result.message, /Kalendarz wizyt jest tymczasowo niedostepny/i);
+  const formattedPayload = JSON.parse(formatted.results[0].error);
+  assert.equal(formatted.results[0].name, 'checkAvailability');
+  assert.equal(formatted.results[0].message?.type, 'request-failed');
+  assert.equal(formattedPayload.error.code, 'CALENDAR_PROVIDER_REJECTED');
+  assert.match(
+    normalizeSearchText(formattedPayload.message),
+    /kalendarz wizyt jest tymczasowo niedostepny/i
+  );
 });
 
 test('checkAvailability returns speech-safe slot wording for voice playback', () => {
@@ -700,7 +786,57 @@ test('checkAvailability returns speech-safe slot wording for voice playback', ()
   assert.equal(/\d/.test(firstSlot.spokenTime), false);
   assert.equal(/\d/.test(firstSlot.spokenLabel), false);
   assert.equal(firstSlot.label, firstSlot.spokenLabel);
+  assert.equal(firstSlot.spokenDate, 'poniedziałek, szesnastego marca');
+  assert.equal(firstSlot.spokenTime, 'o dziewiątej');
+  assert.equal(firstSlot.spokenLabel, 'poniedziałek, szesnastego marca o dziewiątej');
+  assert.equal(containsPolishDiacritics(firstSlot.spokenLabel), true);
   assert.match(normalizeSearchText(firstSlot.spokenLabel), /o dziewiatej/);
+});
+
+test('checkAvailability formats a speech-safe tool-complete message for Vapi', () => {
+  const parseResult = {
+    requestId: 'req_spoken_slot_message',
+    toolCallId: 'tool_call_spoken_slot_message',
+    calendarId: 'primary',
+    timezone: 'Europe/Warsaw',
+    service: { id: 'consultation' },
+    requestedDate: '2026-03-16',
+    requestedTime: null,
+    timePreference: 'first_available',
+    durationMinutes: 45,
+    limit: 2,
+    incrementMinutes: 15,
+    slotSearchIncrementMinutes: 15,
+    searchDays: 1,
+    workingStart: '09:00',
+    workingEnd: '21:00',
+    openWeekdays: [1, 2, 3, 4, 5],
+    windowStart: '2026-03-16T08:00:00.000Z',
+    windowEnd: '2026-03-16T20:00:00.000Z'
+  };
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    [],
+    defaultEnv
+  );
+  const formatted = executeCode(getNodeCode(loadWorkflow('tool_check-availability.json'), 'Format Success'), {
+    $json: result
+  })[0].json;
+  const formattedPayload = JSON.parse(formatted.results[0].result);
+
+  assert.equal(formatted.results[0].name, 'checkAvailability');
+  assert.equal(typeof formatted.results[0].result, 'string');
+  assert.equal(formatted.results[0].message?.type, 'request-complete');
+  assert.equal(typeof formatted.results[0].message?.content, 'string');
+  assert.equal(formattedPayload.message, result.message);
+  assert.equal(/\d/.test(formatted.results[0].message?.content || ''), false);
+  assert.equal(containsPolishDiacritics(formatted.results[0].message?.content || ''), true);
+  assert.match(
+    normalizeSearchText(formatted.results[0].message?.content || ''),
+    /najblizsze wolne terminy|moge zaproponowac/i
+  );
 });
 
 test('createEvent rejects reversed slots', () => {
@@ -834,6 +970,48 @@ test('createEvent rejects slots outside clinic working hours', () => {
   expectValidationError(result, 'slot must be within clinic working hours');
 });
 
+test('createEvent accepts a confirmed phone alias fallback outside patient.phoneE164', () => {
+  const parseResult = runParse(
+    'tool_create-event.json',
+    'Parse Request',
+    {
+      service: { id: 'consultation' },
+      slotStart: '2026-03-16T10:00:00+01:00',
+      slotEnd: '2026-03-16T10:45:00+01:00',
+      timezone: 'Europe/Warsaw',
+      patient: {
+        fullName: 'Anna Kowalska'
+      },
+      patientPhoneE164: '+48500111001'
+    },
+    defaultEnv
+  );
+
+  assert.equal(parseResult.ok, true);
+  assert.equal(parseResult.patient?.phoneE164, '+48500111001');
+});
+
+test('createEvent normalizes a clear raw phone fallback outside patient.phoneE164', () => {
+  const parseResult = runParse(
+    'tool_create-event.json',
+    'Parse Request',
+    {
+      service: { id: 'consultation' },
+      slotStart: '2026-03-16T10:00:00+01:00',
+      slotEnd: '2026-03-16T10:45:00+01:00',
+      timezone: 'Europe/Warsaw',
+      patient: {
+        fullName: 'Anna Kowalska'
+      },
+      patientPhoneRaw: '500111001'
+    },
+    defaultEnv
+  );
+
+  assert.equal(parseResult.ok, true);
+  assert.equal(parseResult.patient?.phoneE164, '+48500111001');
+});
+
 test('createEvent preserves calendar provider failures for reception fallback', () => {
   const parseResult = {
     requestId: 'req_create_event_provider_error',
@@ -859,8 +1037,14 @@ test('createEvent preserves calendar provider failures for reception fallback', 
   const formatted = executeCode(getNodeCode(loadWorkflow('tool_create-event.json'), 'Format Conflict'), {
     $json: availabilityResult
   })[0].json;
-  assert.equal(formatted.results[0].result.error.code, 'CALENDAR_PROVIDER_REJECTED');
-  assert.match(formatted.results[0].result.message, /Kalendarz wizyt jest tymczasowo niedostepny/i);
+  const formattedPayload = JSON.parse(formatted.results[0].error);
+  assert.equal(formatted.results[0].name, 'createEvent');
+  assert.equal(formatted.results[0].message?.type, 'request-failed');
+  assert.equal(formattedPayload.error.code, 'CALENDAR_PROVIDER_REJECTED');
+  assert.match(
+    normalizeSearchText(formattedPayload.message),
+    /kalendarz wizyt jest tymczasowo niedostepny/i
+  );
 });
 
 test('createEvent captures caller phone metadata from Vapi tool payloads', () => {
@@ -931,7 +1115,9 @@ test('createEvent captures caller phone metadata from Vapi tool payloads', () =>
       message: 'Potwierdzenie SMS po rezerwacji zostalo przygotowane.'
     }
   })[0].json;
-  const bookedResult = formatResult.results?.[0]?.result || formatResult;
+  const bookedResult = formatResult.results?.[0]?.result
+    ? JSON.parse(formatResult.results[0].result)
+    : formatResult;
   assert.deepEqual(bookedResult.phoneContext, {
     declaredPhoneE164: '+48500111001',
     callerPhoneE164: '+48500111001',
@@ -1034,6 +1220,7 @@ test('createEvent booking SMS uses the live caller number even when the declared
     [],
     {
       ...defaultEnv,
+      AI_RECEPTIONIST_BOOKING_SMS_MODE: 'sync',
       AI_RECEPTIONIST_SMS_PROVIDER: 'webhook',
       AI_RECEPTIONIST_SMS_WEBHOOK_URL: 'https://sms-gateway.example.test/send',
       AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN: 'token_123',
@@ -1052,6 +1239,80 @@ test('createEvent booking SMS uses the live caller number even when the declared
     language: 'en',
     recipientClass: 'caller_phone'
   });
+});
+
+test('createEvent booking SMS defaults to deferred dispatch to keep the voice path non-blocking', () => {
+  const parseResult = runParse(
+    'tool_create-event.json',
+    'Parse Request',
+    {
+      message: {
+        type: 'tool-calls',
+        customer: {
+          number: '+48500111001'
+        },
+        call: {
+          id: 'call_booking_sms_deferred_001',
+          from: {
+            phoneNumber: '+48500111001'
+          }
+        },
+        toolCallList: [
+          {
+            id: 'tool_call_booking_sms_deferred_001',
+            name: 'createEvent',
+            parameters: {
+              service: {
+                id: 'consultation'
+              },
+              slotStart: '2026-03-24T10:00:00+01:00',
+              slotEnd: '2026-03-24T10:45:00+01:00',
+              timezone: 'Europe/Warsaw',
+              language: 'pl',
+              patient: {
+                fullName: 'Anna Kowalska',
+                phoneE164: '+48500999888'
+              }
+            }
+          }
+        ]
+      }
+    },
+    defaultEnv
+  );
+  const prepared = runCodeNode(
+    'tool_create-event.json',
+    'Prepare Booking SMS',
+    {
+      'Slot Available?': parseResult,
+      'Create Calendar Event': { id: 'evt_booking_sms_deferred_001' }
+    },
+    [],
+    defaultEnv
+  );
+
+  const dispatched = runCodeNode(
+    'tool_create-event.json',
+    'Send Booking SMS',
+    { 'Prepare Booking SMS': prepared },
+    [],
+    {
+      ...defaultEnv,
+      AI_RECEPTIONIST_SMS_PROVIDER: 'webhook',
+      AI_RECEPTIONIST_SMS_WEBHOOK_URL: 'https://sms-gateway.example.test/send',
+      AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN: 'token_123',
+      AI_RECEPTIONIST_SMS_WEBHOOK_TIMEOUT_MS: '9000'
+    }
+  );
+
+  assert.equal(dispatched.accepted, true);
+  assert.equal(dispatched.recipientClass, 'caller_phone');
+  assert.equal(dispatched.delivery?.status, 'queued');
+  assert.equal(dispatched.delivery?.provider, 'webhook');
+  assert.equal(dispatched.delivery?.recipientCount, 1);
+  assert.equal(dispatched.dispatchMode, undefined);
+  assert.equal(dispatched.webhookBody, undefined);
+  assert.match(dispatched.message || '', /zaplanowane/i);
 });
 
 test('createEvent booking SMS falls back to the declared phone when no live caller phone is available', () => {
@@ -1102,11 +1363,12 @@ test('createEvent booking SMS falls back to the declared phone when no live call
   assert.equal(dispatched.accepted, true);
   assert.equal(dispatched.recipientClass, 'declared_phone');
   assert.deepEqual(dispatched.delivery, {
-    status: 'simulated',
+    status: 'queued',
     provider: 'mock',
     recipientCount: 1,
     providerMessageId: null
   });
+  assert.match(dispatched.message || '', /zaplanowane/i);
 });
 
 test('createReceptionTask rejects unknown taskType', () => {
@@ -1180,23 +1442,69 @@ test('createReceptionTask captures caller phone metadata from Vapi tool payloads
   });
 });
 
+test('createReceptionTask accepts a confirmed phone alias fallback outside patient.phoneE164', () => {
+  const parseResult = runParse(
+    'tool_create-reception-task.json',
+    'Parse Request',
+    {
+      taskType: 'existing_patient_booking',
+      patient: {
+        fullName: 'Anna Kowalska'
+      },
+      patientPhoneE164: '+48500111001'
+    },
+    defaultEnv
+  );
+
+  assert.equal(parseResult.ok, true);
+  assert.equal(parseResult.patient?.phoneE164, '+48500111001');
+});
+
+test('createReceptionTask normalizes a clear raw phone fallback outside patient.phoneE164', () => {
+  const parseResult = runParse(
+    'tool_create-reception-task.json',
+    'Parse Request',
+    {
+      taskType: 'existing_patient_booking',
+      patient: {
+        fullName: 'Anna Kowalska'
+      },
+      patientPhoneRaw: '500111001'
+    },
+    defaultEnv
+  );
+
+  assert.equal(parseResult.ok, true);
+  assert.equal(parseResult.patient?.phoneE164, '+48500111001');
+});
+
 test('Vapi tool sync scripts treat createReceptionTask as a repo-owned tool definition', () => {
   const syncScript = loadText(path.join(rootDir, 'scripts', 'sync-vapi-environment.sh'));
   const updateScript = loadText(path.join(rootDir, 'scripts', 'update-vapi-tool-definition.sh'));
   const createScript = loadText(path.join(rootDir, 'scripts', 'create-vapi-tool.sh'));
   const toolDefinitions = getToolDefinitionMap();
   const createReceptionTask = toolDefinitions.createReceptionTask;
+  const lookupPatient = toolDefinitions.lookupPatient;
 
   assert.match(syncScript, /TOOL_DEFINITION_NAMES=\(/);
   assert.match(syncScript, /createReceptionTask/);
   assert.match(syncScript, /update-vapi-tool-definition\.sh" "\$ENVIRONMENT" "\$\{TOOL_DEFINITION_NAMES\[\$index\]\}"/);
   assert.match(updateScript, /tool-definitions\.v1\.json/);
   assert.match(createScript, /tool-definitions\.v1\.json/);
+  assert.match(updateScript, /\.parameters \/\/ \[\]/);
+  assert.match(updateScript, /\.variableExtractionPlan \/\/ null/);
+  assert.match(createScript, /\.parameters \/\/ \[\]/);
+  assert.match(createScript, /\.variableExtractionPlan/);
   assert.equal(createReceptionTask?.schemaPath, 'schemas/createReceptionTask.request.json');
   assert.equal(createReceptionTask?.endpoint, '/webhook/ai-receptionist/create-reception-task');
   assert.equal(createReceptionTask?.messages?.[0]?.content, 'Już zapisuję prośbę dla recepcji.');
   assert.equal(createReceptionTask?.messages?.[0]?.blocking, false);
   assert.equal(createReceptionTask?.messages?.[1]?.content, 'Jeszcze chwila, kończę zapisywać prośbę dla recepcji.');
+  assert.equal(createReceptionTask?.messages?.[1]?.timingMilliseconds, 1800);
+  assert.equal(createReceptionTask?.parameters?.[0]?.key, 'patientPhoneE164');
+  assert.equal(createReceptionTask?.parameters?.[0]?.value, '{{ confirmedPatientPhoneE164 }}');
+  assert.equal(lookupPatient?.variableExtractionPlan?.aliases?.[0]?.key, 'confirmedPatientPhoneE164');
+  assert.equal(lookupPatient?.variableExtractionPlan?.aliases?.[0]?.value, '{{ $.phone.normalizedE164 }}');
 });
 
 test('Vapi tool sync scripts keep searchKnowledgeBase and delayed tool messages repo-owned', () => {
@@ -1211,8 +1519,10 @@ test('Vapi tool sync scripts keep searchKnowledgeBase and delayed tool messages 
   assert.equal(searchKnowledgeBase?.schemaPath, 'schemas/searchKnowledgeBase.request.json');
   assert.equal(searchKnowledgeBase?.endpoint, '/webhook/ai-receptionist/search-knowledge-base');
   assert.equal(searchKnowledgeBase?.messages?.[1]?.type, 'request-response-delayed');
+  assert.equal(checkAvailability?.messages?.[1]?.timingMilliseconds, 1800);
   assert.equal(checkAvailability?.messages?.[0]?.content, 'Już sprawdzam dostępne terminy.');
   assert.equal(createEvent?.messages?.[1]?.content, 'Jeszcze moment, finalizuję rezerwację wizyty.');
+  assert.equal(createEvent?.messages?.[1]?.timingMilliseconds, 1800);
 });
 
 test('Vapi tool sync scripts keep receptionist handoff wait messages repo-owned', () => {
@@ -1222,6 +1532,7 @@ test('Vapi tool sync scripts keep receptionist handoff wait messages repo-owned'
   assert.equal(receptionSms?.messages?.[0]?.content, 'Jeszcze chwila, kończę przekazywanie sprawy.');
   assert.equal(receptionSms?.messages?.[0]?.blocking, false);
   assert.equal(receptionSms?.messages?.[1]?.content, 'Jeszcze moment, dopinam przekazanie sprawy.');
+  assert.equal(receptionSms?.messages?.[1]?.timingMilliseconds, 1800);
 });
 
 test('sendSmsToReceptionists requires createReceptionTask taskId', () => {
@@ -1872,6 +2183,68 @@ test('searchKnowledgeBase matches the assistant paraphrase for veneers versus bo
   assert.match(searchResult.answer, /Licowki|Bonding/i);
 });
 
+test('searchKnowledgeBase matches the staging veneers-versus-bonding phrasing with scope extras', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Czym różnią się licówki od bondingu? Różnice, zakres, trwałość, cena ogólnie.',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.equal(searchResult.matches[0].id, 'kb_veneers_vs_bonding');
+});
+
+test('searchKnowledgeBase matches direct veneers availability questions', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Czy można zrobić licówki?',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.equal(searchResult.matches[0].id, 'kb_prosthetics_overview');
+  assert.match(searchResult.answer, /licowki|Protetyka/i);
+});
+
+test('searchKnowledgeBase matches the live-call veneers offer phrasing', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Czy w klinice można wykonać licówki? Oferta licówek.',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.equal(searchResult.matches[0].id, 'kb_prosthetics_overview');
+  assert.match(searchResult.answer, /licowki|Protetyka/i);
+});
+
 test('searchKnowledgeBase matches the long natural-language live query about zeby w jeden dzien', () => {
   const workflow = loadWorkflow('tool_search-knowledge-base.json');
   const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
@@ -2000,7 +2373,7 @@ test('searchKnowledgeBase returns other-specialist handoff guidance', () => {
   assert.match(searchResult.answer, /recepcji/i);
 });
 
-experimentalTest('searchKnowledgeBase returns the clinic address for location questions', () => {
+test('searchKnowledgeBase returns the clinic address for location questions', () => {
   const workflow = loadWorkflow('tool_search-knowledge-base.json');
   const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
     $json: {
@@ -2055,7 +2428,7 @@ test('lookupPatient returns only the phone confirmation payload', () => {
 
   assert.deepEqual(
     Object.keys(lookupResult).sort(),
-    ['message', 'phone', 'ready', 'requestId', 'toolCallId']
+    ['language', 'message', 'phone', 'ready', 'requestId', 'toolCallId']
   );
 });
 
@@ -2070,6 +2443,12 @@ test('lookupPatient returns a speech-safe phone readback helper', () => {
   assert.equal(parseResult.phone?.normalizedE164, '+48702003006');
   assert.equal(/\d/.test(parseResult.phone?.spoken || ''), false);
   assert.equal(/\d/.test(parseResult.phone?.readbackPrompt || ''), false);
+  assert.equal(parseResult.phone?.spoken, 'siedem zero dwa, zero zero trzy, zero zero sześć');
+  assert.equal(
+    parseResult.phone?.readbackPrompt,
+    'Dziękuję. Powtarzam numer: siedem zero dwa, zero zero trzy, zero zero sześć. Czy wszystko się zgadza?'
+  );
+  assert.equal(containsPolishDiacritics(parseResult.phone?.readbackPrompt || ''), true);
 
   const lookupResult = executeCode(getNodeCode(workflow, 'Build Phone Result'), {
     $: makeSelector({ 'Parse Request': parseResult })
@@ -2080,6 +2459,157 @@ test('lookupPatient returns a speech-safe phone readback helper', () => {
   assert.match(
     normalizeSearchText(lookupResult.phone?.readbackPrompt || ''),
     /powtarzam numer: siedem zero dwa, zero zero trzy, zero zero szesc/i
+  );
+});
+
+test('lookupPatient rejects malformed 10-digit local phone captures', () => {
+  const workflow = loadWorkflow('tool_lookup-patient.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: { phoneRaw: '7933885531' },
+    $env: defaultEnv
+  })[0].json;
+
+  assert.equal(parseResult.ok, false);
+  assert.equal(parseResult.phone?.normalizedE164, null);
+  assert.ok(parseResult.validationErrors.includes('phone number could not be normalized'));
+});
+
+test('lookupPatient normalizes fully spoken Polish digit words', () => {
+  const workflow = loadWorkflow('tool_lookup-patient.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      phoneRaw: 'siedem zero dwa zero zero trzy zero zero sześć',
+      language: 'pl'
+    },
+    $env: defaultEnv
+  })[0].json;
+
+  assert.equal(parseResult.ok, true);
+  assert.equal(parseResult.phone?.normalizedE164, '+48702003006');
+  assert.equal(parseResult.phone?.spoken, 'siedem zero dwa, zero zero trzy, zero zero sześć');
+  assert.equal(
+    parseResult.phone?.readbackPrompt,
+    'Dziękuję. Powtarzam numer: siedem zero dwa, zero zero trzy, zero zero sześć. Czy wszystko się zgadza?'
+  );
+});
+
+test('lookupPatient formats exact speech-safe completion and retry messages for Vapi', () => {
+  const workflow = loadWorkflow('tool_lookup-patient.json');
+  const okParseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      message: {
+        toolCallList: [
+          {
+            id: 'tool_call_lookup_ok',
+            parameters: {
+              phoneRaw: '702003006'
+            }
+          }
+        ]
+      }
+    },
+    $env: defaultEnv
+  })[0].json;
+  const okLookupResult = executeCode(getNodeCode(workflow, 'Build Phone Result'), {
+    $: makeSelector({ 'Parse Request': okParseResult })
+  })[0].json;
+  const okFormatted = executeCode(getNodeCode(workflow, 'Format Ready'), {
+    $json: okLookupResult
+  })[0].json;
+  const okPayload = JSON.parse(okFormatted.results[0].result);
+
+  assert.equal(okFormatted.results[0].name, 'lookupPatient');
+  assert.equal(typeof okFormatted.results[0].result, 'string');
+  assert.equal(okFormatted.results[0].message?.type, 'request-complete');
+  assert.equal(okFormatted.results[0].message?.content, okLookupResult.message);
+  assert.equal(okPayload.message, okLookupResult.message);
+  assert.equal(/\d/.test(okFormatted.results[0].message?.content || ''), false);
+  assert.equal(containsPolishDiacritics(okFormatted.results[0].message?.content || ''), true);
+
+  const failedParseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      message: {
+        toolCallList: [
+          {
+            id: 'tool_call_lookup_failed',
+            parameters: {
+              phoneRaw: '7933885531'
+            }
+          }
+        ]
+      }
+    },
+    $env: defaultEnv
+  })[0].json;
+  const failedFormatted = executeCode(getNodeCode(workflow, 'Format Validation Error'), {
+    $json: failedParseResult
+  })[0].json;
+  const failedPayload = JSON.parse(failedFormatted.results[0].error);
+
+  assert.equal(failedFormatted.results[0].name, 'lookupPatient');
+  assert.equal(failedFormatted.results[0].message?.type, 'request-failed');
+  assert.equal(failedPayload.error.code, 'VALIDATION_ERROR');
+  assert.equal(/\d/.test(failedFormatted.results[0].message?.content || ''), false);
+  assert.match(
+    normalizeSearchText(failedFormatted.results[0].message?.content || ''),
+    /prosze podac go jeszcze raz, cyfra po cyfrze/i
+  );
+});
+
+test('createEvent formats a speech-safe tool-complete confirmation for Vapi', () => {
+  const formatted = executeCode(getNodeCode(loadWorkflow('tool_create-event.json'), 'Format Success'), {
+    $: makeSelector({
+      'Slot Available?': {
+        requestId: 'req_create_event_voice_message',
+        toolCallId: 'tool_call_create_event_voice_message',
+        calendarId: 'primary',
+        timezone: 'Europe/Warsaw',
+        language: 'pl',
+        service: {
+          id: 'consultation',
+          name: 'Konsultacja'
+        },
+        slotStart: '2026-03-16T09:00:00+01:00',
+        slotEnd: '2026-03-16T09:45:00+01:00',
+        patient: {
+          fullName: 'Jan Testowy',
+          phoneE164: '+48500100200'
+        },
+        telephony: {
+          callerPhoneE164: '+48500100200',
+          callerMatchesPatientPhone: true,
+          callerPhoneSource: 'call.customer.number'
+        }
+      },
+      'Create Calendar Event': {
+        id: 'calendar_sample_001'
+      }
+    }),
+    $json: {
+      accepted: true,
+      recipientClass: 'caller',
+      delivery: {
+        status: 'sent',
+        provider: 'mock',
+        recipientCount: 1,
+        providerMessageId: 'mock_001'
+      },
+      sms: null,
+      message: 'Booking confirmation SMS sent.'
+    }
+  })[0].json;
+  const formattedPayload = JSON.parse(formatted.results[0].result);
+
+  assert.equal(formatted.results[0].name, 'createEvent');
+  assert.equal(typeof formatted.results[0].result, 'string');
+  assert.equal(formatted.results[0].message?.type, 'request-complete');
+  assert.equal(typeof formatted.results[0].message?.content, 'string');
+  assert.equal(formattedPayload.message, formatted.results[0].message?.content);
+  assert.equal(/\d/.test(formatted.results[0].message?.content || ''), false);
+  assert.equal(containsPolishDiacritics(formatted.results[0].message?.content || ''), true);
+  assert.match(
+    normalizeSearchText(formatted.results[0].message?.content || ''),
+    /wizyta zostala potwierdzona/i
   );
 });
 
@@ -2173,11 +2703,11 @@ test('call-ended router surfaces scorecard-backed autoevaluation hints on valid 
 test('tool webhooks map validation and auth failures to HTTP status codes', () => {
   assert.equal(
     getResponseCodeOption('tool_check-availability.json', 'Respond Error'),
-    "={{ $json.error?.code === 'UNAUTHORIZED' ? 401 : 400 }}"
+    "={{ $json.results ? 200 : ($json.error?.code === 'UNAUTHORIZED' ? 401 : 400) }}"
   );
   assert.equal(
     getResponseCodeOption('tool_create-event.json', 'Respond Validation Error'),
-    "={{ $json.error?.code === 'UNAUTHORIZED' ? 401 : 400 }}"
+    "={{ $json.results ? 200 : ($json.error?.code === 'UNAUTHORIZED' ? 401 : 400) }}"
   );
   assert.equal(
     getResponseCodeOption('tool_create-reception-task.json', 'Respond Error'),
@@ -2185,7 +2715,7 @@ test('tool webhooks map validation and auth failures to HTTP status codes', () =
   );
   assert.equal(
     getResponseCodeOption('tool_lookup-patient.json', 'Respond Error'),
-    "={{ $json.error?.code === 'UNAUTHORIZED' ? 401 : 400 }}"
+    "={{ $json.results ? 200 : ($json.error?.code === 'UNAUTHORIZED' ? 401 : 400) }}"
   );
   assert.equal(
     getResponseCodeOption('tool_search-knowledge-base.json', 'Respond Error'),
@@ -2202,7 +2732,7 @@ test('tool webhooks map validation and auth failures to HTTP status codes', () =
 });
 
 test('createEvent maps slot conflicts to HTTP 409', () => {
-  assert.equal(getResponseCodeOption('tool_create-event.json', 'Respond Conflict'), 409);
+  assert.equal(getResponseCodeOption('tool_create-event.json', 'Respond Conflict'), "={{ $json.results ? 200 : 409 }}");
 });
 
 test('SMS provider failures map to 5xx status codes', () => {
@@ -2221,44 +2751,6 @@ test('call-ended router maps invalid events to HTTP 400 and unauthorized calls t
     getResponseCodeOption('webhook_vapi-call-ended-router.json', 'Respond Invalid'),
     "={{ $json.reason === 'unauthorized' ? 401 : 400 }}"
   );
-});
-
-experimentalTest('assistant prompt keeps the March 18 live-call booking guardrails', () => {
-  const config = loadAssistantConfig();
-  const systemPrompts = normalizeSearchText(
-    (config.assistant?.model?.messages || [])
-      .filter((message) => message.role === 'system' && typeof message.content === 'string')
-      .map((message) => message.content)
-      .join('\n')
-  );
-  assert.match(systemPrompts, /Nie uzywaj fillerow typu "jestem", "slysze", "chwileczke", "zaraz sprawdze"/i);
-  assert.match(systemPrompts, /Czekanie komunikuja tylko automatyczne komunikaty narzedzia/i);
-  assert.match(systemPrompts, /Nie wywoluj narzedzi na urwanych fragmentach wypowiedzi/i);
-  assert.match(systemPrompts, /Jesli imie i nazwisko oraz numer telefonu zostaly juz jasno zebrane wczesniej/i);
-  assert.match(systemPrompts, /Nie pytaj "czy mam sprawdzic dostepne terminy"/i);
-  assert.match(systemPrompts, /od poniedzialku do piatku w godzinach 09:00-21:00/i);
-  assert.match(systemPrompts, /Nie zostawiaj w wypowiedzi ani jednej cyfry numeru/i);
-  assert.match(systemPrompts, /taskType general_follow_up/i);
-  assert.match(systemPrompts, /taskType existing_patient_booking/i);
-  assert.match(systemPrompts, /wywolaj createReceptionTask z taskType existing_patient_booking/i);
-  assert.match(systemPrompts, /wywolaj je od razu w tej samej sciezce jako wewnetrzny alert dla recepcji/i);
-  assert.match(systemPrompts, /workflow n8n automatycznie probuje wyslac techniczne potwierdzenie SMS/i);
-  assert.match(systemPrompts, /language ustawiaj na `pl` albo `en`/i);
-  assert.equal(/sendSmsToPatient/.test(systemPrompts), false);
-  assert.equal(/consentToSms/i.test(systemPrompts), false);
-});
-
-experimentalTest('assistant prompt anchors createEvent to the exact selected slot boundary', () => {
-  const config = loadAssistantConfig();
-  const systemPrompts = normalizeSearchText(
-    (config.assistant?.model?.messages || [])
-      .filter((message) => message.role === 'system' && typeof message.content === 'string')
-      .map((message) => message.content)
-      .join('\n')
-  );
-  assert.match(systemPrompts, /skopiuj slotStart z pola start i slotEnd z pola end wybranego slotu/i);
-  assert.match(systemPrompts, /Nie wyliczaj slotEnd z label/i);
-  assert.match(systemPrompts, /gdy pacjent wybiera "pierwszy", "drugi" albo "trzeci" termin/i);
 });
 
 test('assistant config makes silence handling explicit and repo-owned', () => {
@@ -2290,7 +2782,7 @@ assistantInvariantTest('assistant prompt keeps the urgent first-available overri
   );
   assert.match(
     normalizedPrompt,
-    /checkAvailability z service\.id urgent_consultation, timePreference first_available, timezone Europe\/Warsaw i searchDays 7/i
+    /checkAvailability z service\.id urgent_consultation, timePreference first_available, timezone Europe\/Warsaw i searchDays 5/i
   );
   assert.match(
     normalizedPrompt,
@@ -2319,12 +2811,25 @@ assistantInvariantTest('assistant prompt keeps implant consultation lookup expli
   );
 });
 
+assistantInvariantTest('assistant prompt keeps the latency-first first-visit default explicit', () => {
+  const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt());
+
+  assert.match(
+    normalizedPrompt,
+    /domyslna sciezka to consultation/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /przy samej pierwszej wizycie nie pytaj o rodzaj problemu/i
+  );
+});
+
 assistantInvariantTest('assistant prompt keeps post-booking close and reception SMS follow-up explicit', () => {
   const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt());
 
   assert.match(
     normalizedPrompt,
-    /po sukcesie createEvent zacznij od zdania: "Wizyta została potwierdzona\."/i
+    /po sukcesie createEvent zacznij od zdania: "Wizyta zostala potwierdzona\."/i
   );
   assert.match(
     normalizedPrompt,
@@ -2357,15 +2862,36 @@ assistantInvariantTest('assistant prompt keeps speech-safe wording and calendar-
   );
   assert.match(
     normalizedPrompt,
-    /lookupPatient.*phoneRaw.*fullName/i
+    /nie wywoluj `?lookupPatient`? w kazdej normalnej sciezce/i
   );
   assert.match(
     normalizedPrompt,
-    /nie pytaj jeszcze .*w jakiej sprawie.*dopoki nie skonczy(sz)? readbacku/i
+    /jesli wynik narzedzia zawiera gotowe pole message, nastepna wypowiedz do pacjenta ma byc dokladnie tym polem/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /patientPhoneRaw albo patient\.phoneRaw/i
   );
   assert.match(
     normalizedPrompt,
     /checkAvailability zwrocilo available false z error\.code CALENDAR_PROVIDER_REJECTED/i
+  );
+});
+
+assistantInvariantTest('assistant prompt keeps the booking-to-kb pivot and one-question fallback explicit', () => {
+  const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt());
+
+  assert.match(
+    normalizedPrompt,
+    /takze po uslyszeniu terminow, nie jest jeszcze prosba o rezerwacje/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /nie zbieraj w tej samej turze danych do callbacku/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /zapytaj najwyzej, czy przekazac sprawe do recepcji/i
   );
 });
 
@@ -2392,11 +2918,19 @@ assistantInvariantTest('assistant prompt bundle keeps anti-fragment speech rules
   );
   assert.match(
     normalizedPrompt,
-    /Nie buduj readbacku numeru samodzielnie z cyfr ani z pamieci/i
+    /lookupPatient uzyj tylko wtedy, gdy numer jest niepelny, sprzeczny albo nadal wymaga technicznej normalizacji/i
   );
   assert.match(
     normalizedPrompt,
-    /Ten krok ma pierwszenstwo nad pytaniem o cel rozmowy/i
+    /rozmowca od razu poda imie, nazwisko i numer.*bez dodatkowego narzedzia do readbacku/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /potwierdzony numer telefonu pozostaje aktywnym numerem kontaktowym/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /nie pytaj ponownie, czy nadal jest aktualny/i
   );
 });
 
@@ -2450,7 +2984,7 @@ test('assistant renderer excludes the direct patient SMS tool from staging bindi
   assert.equal(rendered.toolBindings.some((binding) => binding.name === 'sendSmsToPatient'), false);
 });
 
-test('assistant renderer keeps staging on the shared speech endpointing settings', () => {
+test('assistant renderer applies staging latency-first speech endpointing overrides', () => {
   const shared = loadAssistantConfig();
   const rendered = renderAssistantConfig('staging', {
     STAGING_N8N_PUBLIC_BASE_URL: 'https://staging.example.test',
@@ -2464,10 +2998,13 @@ test('assistant renderer keeps staging on the shared speech endpointing settings
   assert.equal(rendered.assistant?.transcriber?.provider, '11labs');
   assert.equal(rendered.assistant?.transcriber?.model, 'scribe_v2');
   assert.equal(rendered.assistant?.transcriber?.language, 'pl');
-  assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.6);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.5);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 3);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 1.5);
+  assert.equal(shared.assistant?.voice?.chunkPlan?.minCharacters, 48);
+  assert.equal(shared.assistant?.startSpeakingPlan?.waitSeconds, 0.35);
+  assert.equal(rendered.assistant?.voice?.chunkPlan?.minCharacters, 32);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.2);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.2);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 1.0);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 0.4);
   assert.equal(rendered.assistant?.startSpeakingPlan?.smartEndpointingPlan?.provider, 'vapi');
   assert.equal(rendered.assistant?.silenceTimeoutSeconds, 60);
   assert.deepEqual(rendered.assistant?.hooks, []);
@@ -2487,10 +3024,11 @@ test('assistant renderer keeps production on the shared speech endpointing setti
   assert.equal(rendered.assistant?.transcriber?.provider, '11labs');
   assert.equal(rendered.assistant?.transcriber?.model, 'scribe_v2');
   assert.equal(rendered.assistant?.transcriber?.language, 'pl');
-  assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.6);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.5);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 3);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 1.5);
+  assert.equal(rendered.assistant?.voice?.chunkPlan?.minCharacters, 48);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.35);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.35);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 1.8);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 0.9);
 });
 
 assistantInvariantTest('assistant model payload stays within the latency baseline and tool waits remain non-blocking', () => {
@@ -2676,15 +3214,10 @@ assistantInvariantTest('one-day implant marketing scenario stays in the knowledg
 assistantInvariantTest('post-handoff meta-question scenario forbids a second reception task', () => {
   const scenario = loadStagingScenario('existing-patient-post-handoff-meta-question.v1.json');
 
-  assert.deepEqual(getScenarioCriterion(scenario, 'reception-task-created-on-confirmation-turn').rule, {
+  assert.deepEqual(getScenarioCriterion(scenario, 'reception-task-created-on-first-turn').rule, {
     type: 'turn_tool_called',
-    turn: 2,
+    turn: 1,
     tool_name: 'createReceptionTask'
-  });
-  assert.deepEqual(getScenarioCriterion(scenario, 'internal-sms-called-on-confirmation-turn').rule, {
-    type: 'turn_tool_called',
-    turn: 2,
-    tool_name: 'sendSmsToReceptionists'
   });
   assert.deepEqual(getScenarioCriterion(scenario, 'reception-task-omits-summary').rule, {
     type: 'tool_arg_missing',
@@ -2698,12 +3231,12 @@ assistantInvariantTest('post-handoff meta-question scenario forbids a second rec
   });
   assert.deepEqual(getScenarioCriterion(scenario, 'no-second-reception-task-on-meta-question').rule, {
     type: 'turn_tool_not_called',
-    turn: 3,
+    turn: 2,
     tool_name: 'createReceptionTask'
   });
   assert.deepEqual(getScenarioCriterion(scenario, 'no-second-internal-sms-on-meta-question').rule, {
     type: 'turn_tool_not_called',
-    turn: 3,
+    turn: 2,
     tool_name: 'sendSmsToReceptionists'
   });
   assert.deepEqual(getScenarioCriterion(scenario, 'no-availability-check').rule, {
@@ -2724,7 +3257,9 @@ assistantInvariantTest('booking without an exposed caller number asks for the sp
     turn: 4,
     contains_any: [
       'prosze podac numer telefonu',
+      'prosze o podanie numeru telefonu',
       'prosze o numer telefonu',
+      'prosze o podanie numeru telefonu do kontaktu',
       'poprosze o numer telefonu',
       'poprosze jeszcze numer telefonu do kontaktu',
       'poprosze jeszcze o numer telefonu do potwierdzenia rezerwacji',
@@ -2897,6 +3432,7 @@ test('docker compose files expose SMS runtime variables to n8n', () => {
     '- AI_RECEPTIONIST_SMS_WEBHOOK_URL=${AI_RECEPTIONIST_SMS_WEBHOOK_URL}',
     '- AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN=${AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN}',
     '- AI_RECEPTIONIST_SMS_WEBHOOK_TIMEOUT_MS=${AI_RECEPTIONIST_SMS_WEBHOOK_TIMEOUT_MS}',
+    '- AI_RECEPTIONIST_BOOKING_SMS_MODE=${AI_RECEPTIONIST_BOOKING_SMS_MODE}',
     '- AI_RECEPTIONIST_SMS_SENDER=${AI_RECEPTIONIST_SMS_SENDER}',
     '- AI_RECEPTIONIST_RECEPTION_SMS_RECIPIENTS=${AI_RECEPTIONIST_RECEPTION_SMS_RECIPIENTS}',
     '- TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}',
@@ -3625,6 +4161,100 @@ test('real-call ingest redacts utterance text and minimizes tool payloads', () =
   assert.equal(primaryStructuredOutput.result.summary, undefined);
 });
 
+test('real-call ingest parses stringified Vapi tool results and errors', () => {
+  const record = {
+    id: 'call_stringified_tool_results',
+    status: 'ended',
+    assistantId: 'assistant_test',
+    startedAt: '2026-04-04T13:00:00.000Z',
+    endedAt: '2026-04-04T13:01:00.000Z',
+    artifact: {
+      messages: [
+        {
+          role: 'tool_calls',
+          time: 1000,
+          secondsFromStart: 1,
+          toolCallList: [
+            {
+              id: 'tool_call_availability',
+              name: 'checkAvailability',
+              parameters: JSON.stringify({
+                service: { id: 'consultation' },
+                timePreference: 'first_available',
+                timezone: 'Europe/Warsaw'
+              })
+            }
+          ]
+        },
+        {
+          role: 'tool_call_result',
+          time: 1500,
+          secondsFromStart: 1.5,
+          name: 'checkAvailability',
+          toolCallId: 'tool_call_availability',
+          result: JSON.stringify({
+            available: true,
+            slots: [
+              {
+                spokenLabel: 'poniedziałek, szesnastego marca o dziewiątej'
+              }
+            ]
+          })
+        },
+        {
+          role: 'tool_calls',
+          time: 2000,
+          secondsFromStart: 2,
+          toolCallList: [
+            {
+              id: 'tool_call_booking',
+              name: 'createEvent',
+              parameters: JSON.stringify({
+                slotStart: '2026-03-16T09:00:00+01:00',
+                slotEnd: '2026-03-16T09:45:00+01:00'
+              })
+            }
+          ]
+        },
+        {
+          role: 'tool_call_result',
+          time: 2500,
+          secondsFromStart: 2.5,
+          name: 'createEvent',
+          toolCallId: 'tool_call_booking',
+          error: JSON.stringify({
+            created: false,
+            error: {
+              code: 'SLOT_UNAVAILABLE'
+            }
+          })
+        }
+      ]
+    }
+  };
+
+  const run = buildRun(
+    {
+      record,
+      wrapper: record,
+      index: 0,
+      sourceKind: 'call_object'
+    },
+    {
+      scenarioId: null,
+      environment: 'staging',
+      runKind: 'real_call'
+    },
+    null
+  );
+
+  const availabilityTrace = run.tool_trace.find((trace) => trace.tool_name === 'checkAvailability');
+  const bookingTrace = run.tool_trace.find((trace) => trace.tool_name === 'createEvent');
+
+  assert.equal(availabilityTrace?.result?.available, true);
+  assert.equal(bookingTrace?.result?.error?.code, 'SLOT_UNAVAILABLE');
+});
+
 test('real-call ingest derives latency diagnostics from turn metrics and tool round trips', () => {
   const record = {
     id: 'call_latency_001',
@@ -3718,10 +4348,7 @@ test('real-call ingest derives latency diagnostics from turn metrics and tool ro
   const laneSummary = Array.from(laneStats.entries())
     .map(([lane, stats]) => `${lane}: run ${stats.run}/${stats.registered}${stats.skipped ? `, skipped ${stats.skipped}` : ''}`)
     .join('; ');
-  const experimentalNote = enabledLanes.has('experimental')
-    ? 'including experimental lane'
-    : 'experimental lane skipped';
   console.log(
-    `Workflow regression checks passed (${testsRun - testsSkipped}/${testsRun} tests run, ${experimentalNote}; ${laneSummary}).`
+    `Workflow regression checks passed (${testsRun - testsSkipped}/${testsRun} tests run; ${laneSummary}).`
   );
 })();

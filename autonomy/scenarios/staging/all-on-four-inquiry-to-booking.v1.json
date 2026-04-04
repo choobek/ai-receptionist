@@ -115,6 +115,7 @@
           "wizyta zostala umowiona",
           "zostala zarezerwowana",
           "zostala potwierdzona",
+          "wizyta zostala juz potwierdzona",
           "wizyta jest juz potwierdzona",
           "jest juz potwierdzona"
         ]

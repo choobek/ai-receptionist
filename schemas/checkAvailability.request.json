@@ -67,6 +67,14 @@
       "type": "string",
       "default": "Europe/Warsaw"
     },
+    "language": {
+      "type": "string",
+      "enum": [
+        "pl",
+        "en"
+      ],
+      "description": "Optional conversation language for speech-safe slot wording."
+    },
     "locationId": {
       "type": "string",
       "default": "main-clinic"
@@ -163,6 +171,7 @@
       "requestedDate": "2026-03-12",
       "timePreference": "morning",
       "timezone": "Europe/Warsaw",
+      "language": "pl",
       "limit": 3
     },
     {
@@ -174,6 +183,7 @@
       },
       "timePreference": "first_available",
       "timezone": "Europe/Warsaw",
+      "language": "pl",
       "limit": 3,
       "searchDays": 5
     },
@@ -187,6 +197,7 @@
       "requestedDate": "2026-03-23",
       "timePreference": "afternoon",
       "timezone": "Europe/Warsaw",
+      "language": "pl",
       "limit": 3,
       "searchDays": 5
     }

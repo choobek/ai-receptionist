@@ -71,6 +71,12 @@ TOOL_ENDPOINT="$(jq -er '.endpoint' <<<"$TOOL_CONFIG_JSON")"
 MESSAGES_JSON="$(
   jq -c '.messages // [{"type":"request-start","blocking":false}]' <<<"$TOOL_CONFIG_JSON"
 )"
+PARAMETERS_JSON="$(
+  jq -c '.parameters // []' <<<"$TOOL_CONFIG_JSON"
+)"
+VARIABLE_EXTRACTION_PLAN_JSON="$(
+  jq -c '.variableExtractionPlan // { schema: { type: "object", required: [], properties: {} } }' <<<"$TOOL_CONFIG_JSON"
+)"
 
 if [ ! -f "$SCHEMA_PATH" ]; then
   echo "Schema file not found: $SCHEMA_PATH" >&2
@@ -143,6 +149,8 @@ PAYLOAD="$(
     --arg server_url "$SERVER_URL" \
     --argjson schema "$SCHEMA_JSON" \
     --argjson messages "$MESSAGES_JSON" \
+    --argjson parameters "$PARAMETERS_JSON" \
+    --argjson variable_extraction_plan "$VARIABLE_EXTRACTION_PLAN_JSON" \
     '{
       type: "function",
       function: {
@@ -154,15 +162,10 @@ PAYLOAD="$(
         url: $server_url,
         timeoutSeconds: 20
       },
-      messages: $messages,
-      variableExtractionPlan: {
-        schema: {
-          type: "object",
-          required: [],
-          properties: {}
-        }
-      }
-    }'
+      messages: $messages
+    }
+    | if ($parameters | length) > 0 then .parameters = $parameters else . end
+    | .variableExtractionPlan = $variable_extraction_plan'
 )"
 
 RESPONSE_BODY_FILE="$(mktemp)"
