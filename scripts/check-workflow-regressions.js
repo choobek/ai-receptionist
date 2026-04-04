@@ -691,12 +691,15 @@ test('checkAvailability returns speech-safe slot wording for voice playback', ()
   assert.ok(result.slots.length > 0, 'expected at least one available slot');
 
   const firstSlot = result.slots[0];
+  assert.equal(typeof firstSlot.label, 'string');
   assert.equal(typeof firstSlot.spokenDate, 'string');
   assert.equal(typeof firstSlot.spokenTime, 'string');
   assert.equal(typeof firstSlot.spokenLabel, 'string');
+  assert.equal(/\d/.test(firstSlot.label), false);
   assert.equal(/\d/.test(firstSlot.spokenDate), false);
   assert.equal(/\d/.test(firstSlot.spokenTime), false);
   assert.equal(/\d/.test(firstSlot.spokenLabel), false);
+  assert.equal(firstSlot.label, firstSlot.spokenLabel);
   assert.match(normalizeSearchText(firstSlot.spokenLabel), /o dziewiatej/);
 });
 
@@ -2056,6 +2059,30 @@ test('lookupPatient returns only the compact branching payload', () => {
   );
 });
 
+test('lookupPatient returns a speech-safe phone readback helper', () => {
+  const workflow = loadWorkflow('tool_lookup-patient.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: { fullName: 'Test Pacjent', phoneRaw: '702003006' },
+    $env: defaultEnv
+  })[0].json;
+
+  assert.equal(parseResult.ok, true);
+  assert.equal(parseResult.phoneE164, '+48702003006');
+  assert.equal(/\d/.test(parseResult.phone?.spoken || ''), false);
+  assert.equal(/\d/.test(parseResult.phone?.readbackPrompt || ''), false);
+
+  const lookupResult = executeCode(getNodeCode(workflow, 'Find Patient'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(lookupResult.found, false);
+  assert.equal(lookupResult.phone?.normalizedE164, '+48702003006');
+  assert.match(
+    normalizeSearchText(lookupResult.phone?.readbackPrompt || ''),
+    /powtarzam numer: siedem zero dwa, zero zero trzy, zero zero szesc/i
+  );
+});
+
 test('call-ended router rejects unauthorized requests when webhook secret is configured', () => {
   const result = runParse(
     'webhook_vapi-call-ended-router.json',
@@ -2326,7 +2353,11 @@ assistantInvariantTest('assistant prompt keeps speech-safe wording and calendar-
   );
   assert.match(
     normalizedPrompt,
-    /nie czytaj na glos slot\.label ani wartosci start\/end/i
+    /slot\.label.*bez cyfr/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /lookupPatient.*phoneRaw.*fullName/i
   );
   assert.match(
     normalizedPrompt,
@@ -2357,7 +2388,7 @@ assistantInvariantTest('assistant prompt bundle keeps anti-fragment speech rules
   );
   assert.match(
     normalizedPrompt,
-    /Numer telefonu powtarzaj wylacznie slownie/i
+    /Nie buduj readbacku numeru samodzielnie z cyfr ani z pamieci/i
   );
 });
 

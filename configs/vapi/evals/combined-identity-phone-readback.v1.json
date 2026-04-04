@@ -20,7 +20,7 @@
           "messages": [
             {
               "role": "system",
-              "content": "PASS if the assistant does all of the following: (1) treats the user's utterance as containing both full name and phone number, (2) repeats the phone digits for confirmation or clearly asks the caller to confirm the repeated number, (3) asks only for a yes or no confirmation of the number, (4) does not ask the caller to provide the phone number again, and (5) does not call any tool yet. Output exactly: pass or fail."
+              "content": "PASS if the assistant does all of the following: (1) treats the user's utterance as containing both full name and phone number, (2) repeats the phone digits for confirmation or clearly asks the caller to confirm the repeated number, (3) asks only for a yes or no confirmation of the number, (4) does not ask the caller to provide the phone number again, and (5) does not call createEvent, createReceptionTask, or checkAvailability yet. A helper lookupPatient call for speech-safe phone confirmation is allowed. Output exactly: pass or fail."
             }
           ]
         }

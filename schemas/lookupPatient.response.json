@@ -46,6 +46,33 @@
         }
       }
     },
+    "phone": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "normalizedE164": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "spoken": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "readbackPrompt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
     "message": {
       "type": "string"
     },
@@ -76,7 +103,12 @@
         "phoneE164": "+48500111001",
         "isExistingPatient": true
       },
-      "message": "Znalazlem pacjenta w proof-of-concept registry."
+      "phone": {
+        "normalizedE164": "+48500111001",
+        "spoken": "piec zero zero, jeden jeden jeden, zero zero jeden",
+        "readbackPrompt": "Dziekuje. Powtarzam numer: piec zero zero, jeden jeden jeden, zero zero jeden. Czy wszystko sie zgadza?"
+      },
+      "message": "Numer telefonu jest gotowy do potwierdzenia. Dodatkowo widze pacjenta w proof-of-concept registry."
     }
   ]
 }

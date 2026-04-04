@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This project exposes five core Vapi custom tools backed by n8n webhooks, plus two optional SMS tools:
+This project exposes six core Vapi custom tools backed by n8n webhooks, plus two optional SMS tools:
 
 - `lookupPatient`
 - `checkAvailability`
@@ -85,8 +85,9 @@ Key fields:
 1. Parse Vapi wrapper or direct body.
 2. Validate that at least one identifier is present.
 3. Normalize phone and name values.
-4. Search the proof-of-concept registry by phone first, then by full name.
-5. Return a compact patient match result.
+4. Build a speech-safe phone readback object when a phone number is present.
+5. Search the proof-of-concept registry by phone first, then by full name.
+6. Return a compact patient match result plus the phone helper fields.
 
 ### Success response
 
@@ -97,6 +98,9 @@ Important fields:
 - `found`
 - `matchedBy`
 - `patient`
+- `phone.normalizedE164`
+- `phone.spoken`
+- `phone.readbackPrompt`
 - `message`
 
 ## Tool: `checkAvailability`
@@ -139,7 +143,7 @@ Important fields:
 
 - `available`
 - `slots`
-- `slots[].label` for machine-friendly display or logs
+- `slots[].label` as a speech-safe fallback mirror of `spokenLabel`
 - `slots[].spokenDate`, `slots[].spokenTime`, `slots[].spokenLabel` for TTS-safe wording without digits
 - `normalizedRequest`
 - `message`

@@ -1,10 +1,21 @@
 {
   "version": 1,
   "tools": {
+    "lookupPatient": {
+      "schemaPath": "schemas/lookupPatient.request.json",
+      "endpoint": "/webhook/ai-receptionist/lookup-patient",
+      "description": "Normalize a caller phone snippet and optionally match the proof-of-concept patient registry. Use it after the caller says a number to get phone.readbackPrompt and phone.normalizedE164. found=false must not block handoff.",
+      "messages": [
+        {
+          "type": "request-start",
+          "blocking": false
+        }
+      ]
+    },
     "checkAvailability": {
       "schemaPath": "schemas/checkAvailability.vapi.request.json",
       "endpoint": "/webhook/ai-receptionist/check-availability",
-      "description": "Return appointment availability after the visit type is known and the caller gave a preferred date, time window, exact hour, or asked for the first available slot. Always use timezone Europe/Warsaw. Use specific_time for exact hours, morning/afternoon/evening for broad preferences, first_available for nearest slots, consultation when service is still unclear, and speak terms from spokenLabel/spokenTime, not label.",
+      "description": "Return appointment availability for a known visit type and date/time preference in Europe/Warsaw. Use specific_time for exact hours, morning/afternoon/evening for broad windows, first_available for nearest slots, and consultation when service is unclear. spokenLabel/spokenTime are preferred, and label stays speech-safe.",
       "messages": [
         {
           "type": "request-start",
@@ -46,7 +57,7 @@
     "createEvent": {
       "schemaPath": "schemas/createEvent.vapi.request.json",
       "endpoint": "/webhook/ai-receptionist/create-event",
-      "description": "Create a booking only after the caller selected one slot and confirmed the summary. Pass that slot's slotStart and slotEnd exactly; slotEnd must come from the selected slot, never from a default duration. Include service, timezone, language, patient full name, and confirmed phone number. Never say the visit is booked before this tool succeeds.",
+      "description": "Create a booking only after the caller selected one slot and confirmed the summary. Pass the selected slot's slotStart and slotEnd exactly. Include service, timezone, language, patient full name, and confirmed phone number. Never confirm booking before success.",
       "messages": [
         {
           "type": "request-start",
@@ -105,7 +116,7 @@
     "sendSmsToPatient": {
       "schemaPath": "schemas/sendSmsToPatient.request.json",
       "endpoint": "/webhook/ai-receptionist/send-sms-to-patient",
-      "description": "Send a manual booking-confirmation SMS only after createEvent succeeded. Pass the calendarEventId, patient identity, appointment timing, booked service, and target the live caller number when telephony metadata is available."
+      "description": "Send a manual booking-confirmation SMS only after createEvent succeeded. Pass the calendarEventId, patient identity, appointment timing, booked service, and prefer the live caller number when available."
     }
   }
 }
