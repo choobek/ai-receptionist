@@ -2307,11 +2307,11 @@ assistantInvariantTest('assistant prompt keeps implant consultation lookup expli
 
   assert.match(
     normalizedPrompt,
-    /po pytaniu o implanty albo All on four, jesli rozmowca wyraznie chce konsultacje implantologiczna i termin/i
+    /po pytaniu o implanty albo All on four, jesli rozmowca .*chce konsultacje implantologiczna i termin/i
   );
   assert.match(
     normalizedPrompt,
-    /implant_consultation jako gotowy typ wizyty/i
+    /uzyj implant_consultation/i
   );
   assert.match(
     normalizedPrompt,
@@ -2361,6 +2361,10 @@ assistantInvariantTest('assistant prompt keeps speech-safe wording and calendar-
   );
   assert.match(
     normalizedPrompt,
+    /nie pytaj jeszcze .*w jakiej sprawie.*dopoki nie skonczy(sz)? readbacku/i
+  );
+  assert.match(
+    normalizedPrompt,
     /checkAvailability zwrocilo available false z error\.code CALENDAR_PROVIDER_REJECTED/i
   );
 });
@@ -2389,6 +2393,10 @@ assistantInvariantTest('assistant prompt bundle keeps anti-fragment speech rules
   assert.match(
     normalizedPrompt,
     /Nie buduj readbacku numeru samodzielnie z cyfr ani z pamieci/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /Ten krok ma pierwszenstwo nad pytaniem o cel rozmowy/i
   );
 });
 
