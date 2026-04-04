@@ -110,13 +110,17 @@ Include recent staging Vapi call logs:
   [`docs/archive/real-call-evaluations/real-call-evaluation-2026-03-17-implant-booking-retry.md`](./archive/real-call-evaluations/real-call-evaluation-2026-03-17-implant-booking-retry.md),
   [`docs/archive/manual-test-scenarios/test-scenario-2026-03-17-implant-inquiry-to-booking.md`](./archive/manual-test-scenarios/test-scenario-2026-03-17-implant-inquiry-to-booking.md)
 
-### Gaps
+### Initial gaps this slice addressed
 
-- No normalized run artifact format exists for real calls or synthetic tests.
-- Real-call reviews live as prose documents, not machine-usable eval inputs.
-- There is no scenario registry that future coding/eval agents can consume directly.
-- There is no CLI for turning raw Vapi exports into a stable offline record.
-- There is no repo-local evaluator output schema for labels such as `wrong_tool_usage` or `repeated_question`.
+At the time this design was written, the repo still lacked:
+
+- a normalized run artifact format for real calls and synthetic tests
+- machine-usable eval inputs derived from real-call reviews
+- a scenario registry that future coding and eval agents could consume directly
+- a CLI for turning raw Vapi exports into a stable offline record
+- a repo-local evaluator output schema for labels such as `wrong_tool_usage` or `repeated_question`
+
+Those pieces now exist under [`../autonomy/`](../autonomy/) and [`../scripts/autonomy/`](../scripts/autonomy/), so this document is best read as design background rather than the primary operating runbook.
 
 ### Staging observations
 

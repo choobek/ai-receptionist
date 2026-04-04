@@ -31,7 +31,6 @@ autonomy/
   templates/
 docs/
   architecture.md
-  backlog.md
   environment-separation.md
   knowledge-base.md
   tool-contracts.md
@@ -364,7 +363,6 @@ When the Cloudflare tunnel URL changes:
 - Tool behavior and Vapi wrapping are documented in [`docs/tool-contracts.md`](./docs/tool-contracts.md).
 - System boundaries and defaults are documented in [`docs/architecture.md`](./docs/architecture.md).
 - Knowledge-base source and curation notes live in [`docs/knowledge-base.md`](./docs/knowledge-base.md).
-- Implementation backlog lives in [`docs/backlog.md`](./docs/backlog.md).
 
 ## Autonomy Scaffold
 

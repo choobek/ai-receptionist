@@ -3,7 +3,6 @@
 .calendarcredentials
 .claude/
 .vscode/*
-!.vscode/tasks.json
 node_modules/
 backups/
 n8n/.env
