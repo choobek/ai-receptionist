@@ -4,7 +4,7 @@
     "checkAvailability": {
       "schemaPath": "schemas/checkAvailability.vapi.request.json",
       "endpoint": "/webhook/ai-receptionist/check-availability",
-      "description": "Return real appointment availability after the visit type is known and the caller gave a preferred date, time window, exact hour, or asked for the first available slot. Always use timezone Europe/Warsaw. Use specific_time for exact hours, morning/afternoon/evening for broad preferences, first_available for nearest slots, and consultation when the exact service is still unclear.",
+      "description": "Return appointment availability after the visit type is known and the caller gave a preferred date, time window, exact hour, or asked for the first available slot. Always use timezone Europe/Warsaw. Use specific_time for exact hours, morning/afternoon/evening for broad preferences, first_available for nearest slots, consultation when service is still unclear, and speak terms from spokenLabel/spokenTime, not label.",
       "messages": [
         {
           "type": "request-start",

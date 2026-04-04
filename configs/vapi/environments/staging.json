@@ -3,15 +3,7 @@
   "environment": "staging",
   "assistantId": "8f0b2287-26b0-42ad-8859-34a4f386ce64",
   "assistantName": "Ola [staging]",
-  "assistantOverrides": {
-    "startSpeakingPlan": {
-      "waitSeconds": 0.3,
-      "transcriptionEndpointingPlan": {
-        "onNoPunctuationSeconds": 1.0,
-        "onNumberSeconds": 0.8
-      }
-    }
-  },
+  "assistantOverrides": {},
   "publicBaseUrlEnv": "STAGING_N8N_PUBLIC_BASE_URL",
   "webhookSecretEnv": "STAGING_AI_RECEPTIONIST_WEBHOOK_SECRET",
   "structuredOutputIds": [

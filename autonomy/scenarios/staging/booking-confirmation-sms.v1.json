@@ -172,6 +172,28 @@
       }
     },
     {
+      "criterion_id": "final-confirmation-uses-spoken-text",
+      "description": "The post-booking confirmation should keep the chosen term in speech-safe wording instead of raw numerals.",
+      "severity": "high",
+      "root_cause_hint": "assistant switched back to raw numeric date/time wording in the final booking confirmation",
+      "rule": {
+        "type": "turn_assistant_text_not_contains_any",
+        "turn": 6,
+        "contains_none": [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9"
+        ]
+      }
+    },
+    {
       "criterion_id": "booking-created",
       "description": "The final booking confirmation should create a real staging event.",
       "severity": "critical",

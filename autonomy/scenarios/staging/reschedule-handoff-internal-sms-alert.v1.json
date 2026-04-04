@@ -62,6 +62,44 @@
   ],
   "rubric": [
     {
+      "criterion_id": "name-is-not-reasked-after-complete-first-turn",
+      "description": "If the caller already gave the name and number in the first turn, the assistant should not ask for the name again.",
+      "severity": "high",
+      "root_cause_hint": "assistant restarted the reschedule branch and asked for identity again instead of confirming the spoken phone number",
+      "rule": {
+        "type": "turn_assistant_text_not_contains_any",
+        "turn": 1,
+        "contains_none": [
+          "prosze podac imie",
+          "prosze podac imie i nazwisko",
+          "jak ma na imie",
+          "jakie jest imie i nazwisko"
+        ]
+      }
+    },
+    {
+      "criterion_id": "phone-readback-uses-spoken-text",
+      "description": "The reschedule handoff should repeat the phone number using spoken words, not raw numerals.",
+      "severity": "high",
+      "root_cause_hint": "assistant still repeats the handoff callback number as digits",
+      "rule": {
+        "type": "turn_assistant_text_not_contains_any",
+        "turn": 1,
+        "contains_none": [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9"
+        ]
+      }
+    },
+    {
       "criterion_id": "reception-task-created",
       "description": "The reschedule branch should create a reception task after confirmation.",
       "severity": "critical",

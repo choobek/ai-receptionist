@@ -2334,6 +2334,33 @@ assistantInvariantTest('assistant prompt keeps speech-safe wording and calendar-
   );
 });
 
+assistantInvariantTest('assistant prompt bundle keeps anti-fragment speech rules explicit', () => {
+  const config = loadAssistantConfig();
+  const normalizedPrompt = normalizeSearchText(
+    (config.assistant?.model?.messages || [])
+      .filter((message) => message.role === 'system' && typeof message.content === 'string')
+      .map((message) => message.content)
+      .join('\n')
+  );
+
+  assert.match(
+    normalizedPrompt,
+    /slot\.spokenLabel, slot\.spokenTime albo slot\.spokenDate/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /urwanego startu typu "Wtorek, sroda" albo "Siedem"/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /Jesli rozmowca poprawia wybor w tej samej wypowiedzi, wypowiedz tylko finalna wersje/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /Numer telefonu powtarzaj wylacznie slownie/i
+  );
+});
+
 test('assistant renderer excludes the direct patient SMS tool from production bindings', () => {
   const rendered = renderAssistantConfig('production', {
     PRODUCTION_N8N_PUBLIC_BASE_URL: 'https://prod.example.test',
@@ -2384,7 +2411,7 @@ test('assistant renderer excludes the direct patient SMS tool from staging bindi
   assert.equal(rendered.toolBindings.some((binding) => binding.name === 'sendSmsToPatient'), false);
 });
 
-test('assistant renderer applies staging assistant overrides without changing the shared config', () => {
+test('assistant renderer keeps staging on the shared speech endpointing settings', () => {
   const shared = loadAssistantConfig();
   const rendered = renderAssistantConfig('staging', {
     STAGING_N8N_PUBLIC_BASE_URL: 'https://staging.example.test',
@@ -2398,16 +2425,16 @@ test('assistant renderer applies staging assistant overrides without changing th
   assert.equal(rendered.assistant?.transcriber?.provider, '11labs');
   assert.equal(rendered.assistant?.transcriber?.model, 'scribe_v2');
   assert.equal(rendered.assistant?.transcriber?.language, 'pl');
-  assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.3);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.6);
   assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.5);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 1.0);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 0.8);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 3);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 1.5);
   assert.equal(rendered.assistant?.startSpeakingPlan?.smartEndpointingPlan?.provider, 'vapi');
   assert.equal(rendered.assistant?.silenceTimeoutSeconds, 60);
   assert.deepEqual(rendered.assistant?.hooks, []);
 });
 
-test('assistant renderer applies production transcriber override without changing the shared config', () => {
+test('assistant renderer keeps production on the shared speech endpointing settings', () => {
   const shared = loadAssistantConfig();
   const rendered = renderAssistantConfig('production', {
     PRODUCTION_N8N_PUBLIC_BASE_URL: 'https://production.example.test',
@@ -2421,6 +2448,10 @@ test('assistant renderer applies production transcriber override without changin
   assert.equal(rendered.assistant?.transcriber?.provider, '11labs');
   assert.equal(rendered.assistant?.transcriber?.model, 'scribe_v2');
   assert.equal(rendered.assistant?.transcriber?.language, 'pl');
+  assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.6);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.5);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 3);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 1.5);
 });
 
 assistantInvariantTest('assistant model payload stays within the latency baseline and tool waits remain non-blocking', () => {
@@ -2657,9 +2688,11 @@ assistantInvariantTest('booking without an exposed caller number asks for the sp
       'prosze o numer telefonu',
       'poprosze o numer telefonu',
       'poprosze jeszcze numer telefonu do kontaktu',
+      'poprosze jeszcze o numer telefonu do potwierdzenia rezerwacji',
       'numer telefonu do kontaktu',
       'numer telefonu do kontakt',
       'numer telefonu do potwierdzenia wizyty',
+      'numer telefonu do potwierdzenia rezerwacji',
       'jaki numer telefonu',
       'numer telefonu do rezerwacji'
     ]
@@ -2717,6 +2750,11 @@ assistantInvariantTest('assistant SMS staging scenarios require end-to-end workf
     turn: 4,
     contains_none: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
   });
+  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'final-confirmation-uses-spoken-text').rule, {
+    type: 'turn_assistant_text_not_contains_any',
+    turn: 6,
+    contains_none: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+  });
   assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'booking-sms-workflow-accepted').rule, {
     type: 'tool_result_path_equals',
     tool_name: 'createEvent',
@@ -2764,12 +2802,42 @@ assistantInvariantTest('assistant SMS staging scenarios require end-to-end workf
     path: 'notification.kind',
     equals: 'reception_follow_up'
   });
+  assert.deepEqual(getScenarioCriterion(receptionSmsScenario, 'name-is-not-reasked-after-complete-first-turn').rule, {
+    type: 'turn_assistant_text_not_contains_any',
+    turn: 1,
+    contains_none: [
+      'prosze podac imie',
+      'prosze podac imie i nazwisko',
+      'jak ma na imie',
+      'jakie jest imie i nazwisko'
+    ]
+  });
+  assert.deepEqual(getScenarioCriterion(receptionSmsScenario, 'phone-readback-uses-spoken-text').rule, {
+    type: 'turn_assistant_text_not_contains_any',
+    turn: 1,
+    contains_none: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+  });
 
   assert.deepEqual(getScenarioCriterion(existingPatientBookingScenario, 'internal-sms-workflow-accepted').rule, {
     type: 'tool_result_path_equals',
     tool_name: 'sendSmsToReceptionists',
     path: 'accepted',
     equals: true
+  });
+  assert.deepEqual(getScenarioCriterion(existingPatientBookingScenario, 'name-is-not-reasked-after-complete-first-turn').rule, {
+    type: 'turn_assistant_text_not_contains_any',
+    turn: 1,
+    contains_none: [
+      'prosze podac imie',
+      'prosze podac imie i nazwisko',
+      'jak ma na imie',
+      'jakie jest imie i nazwisko'
+    ]
+  });
+  assert.deepEqual(getScenarioCriterion(existingPatientBookingScenario, 'phone-readback-uses-spoken-text').rule, {
+    type: 'turn_assistant_text_not_contains_any',
+    turn: 1,
+    contains_none: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
   });
   assert.deepEqual(getScenarioCriterion(existingPatientBookingScenario, 'internal-sms-keeps-task-type').rule, {
     type: 'tool_arg_equals',

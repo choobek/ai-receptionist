@@ -3,15 +3,7 @@
   "environment": "production",
   "assistantId": "6db99c99-3f93-41e3-ae4e-fefe3974e2d6",
   "assistantName": "Ola",
-  "assistantOverrides": {
-    "startSpeakingPlan": {
-      "waitSeconds": 0.3,
-      "transcriptionEndpointingPlan": {
-        "onNoPunctuationSeconds": 1.0,
-        "onNumberSeconds": 0.8
-      }
-    }
-  },
+  "assistantOverrides": {},
   "publicBaseUrlEnv": "PRODUCTION_N8N_PUBLIC_BASE_URL",
   "webhookSecretEnv": "PRODUCTION_AI_RECEPTIONIST_WEBHOOK_SECRET",
   "structuredOutputIds": [
