@@ -4,47 +4,12 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "found",
+    "phone",
     "message"
   ],
   "properties": {
     "requestId": {
       "type": "string"
-    },
-    "found": {
-      "type": "boolean"
-    },
-    "matchedBy": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "enum": [
-        "phone",
-        "full_name",
-        null
-      ]
-    },
-    "patient": {
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "patientId": {
-          "type": "string"
-        },
-        "fullName": {
-          "type": "string"
-        },
-        "phoneE164": {
-          "type": "string"
-        },
-        "isExistingPatient": {
-          "type": "boolean"
-        }
-      }
     },
     "phone": {
       "type": [
@@ -95,20 +60,12 @@
   "examples": [
     {
       "requestId": "req_lookup_001",
-      "found": true,
-      "matchedBy": "phone",
-      "patient": {
-        "patientId": "poc_001",
-        "fullName": "Anna Kowalska",
-        "phoneE164": "+48500111001",
-        "isExistingPatient": true
-      },
       "phone": {
         "normalizedE164": "+48500111001",
         "spoken": "piec zero zero, jeden jeden jeden, zero zero jeden",
         "readbackPrompt": "Dziekuje. Powtarzam numer: piec zero zero, jeden jeden jeden, zero zero jeden. Czy wszystko sie zgadza?"
       },
-      "message": "Numer telefonu jest gotowy do potwierdzenia. Dodatkowo widze pacjenta w proof-of-concept registry."
+      "message": "Numer telefonu jest gotowy do potwierdzenia."
     }
   ]
 }

@@ -23,11 +23,6 @@
   "anyOf": [
     {
       "required": [
-        "fullName"
-      ]
-    },
-    {
-      "required": [
         "phoneE164"
       ]
     },
@@ -40,7 +35,6 @@
   "examples": [
     {
       "requestId": "req_lookup_001",
-      "fullName": "Anna Kowalska",
       "phoneRaw": "500111001"
     }
   ]

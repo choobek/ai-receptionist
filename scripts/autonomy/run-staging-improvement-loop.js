@@ -1380,7 +1380,6 @@ function maybePrepareDerivedArtifacts(changedFiles, dryRun) {
   }
 
   const dataSources = new Set([
-    'mock-data/mock-patients.json',
     'knowledge-base/clinic-knowledge.json',
     'configs/services/catalog.v1.json'
   ]);

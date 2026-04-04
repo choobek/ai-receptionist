@@ -69,7 +69,7 @@ If the request is sent directly without the Vapi envelope, the workflows return 
 
 ### Intent
 
-Identify whether the caller already exists in the proof-of-concept patient registry before a real CRM integration exists.
+Normalize a caller phone number and prepare speech-safe confirmation text before downstream tools use the number.
 
 ### Input shape
 
@@ -77,17 +77,16 @@ Defined in [`schemas/lookupPatient.request.json`](../schemas/lookupPatient.reque
 
 Key fields:
 
-- `fullName`
 - `phoneE164` or `phoneRaw`
+- optional `fullName` for assistant-side context only
 
 ### Workflow behavior
 
 1. Parse Vapi wrapper or direct body.
-2. Validate that at least one identifier is present.
-3. Normalize phone and name values.
-4. Build a speech-safe phone readback object when a phone number is present.
-5. Search the proof-of-concept registry by phone first, then by full name.
-6. Return a compact patient match result plus the phone helper fields.
+2. Validate that a phone number is present.
+3. Normalize the phone value into E.164.
+4. Build a speech-safe phone readback object.
+5. Return only the phone helper fields needed by the assistant and downstream tools.
 
 ### Success response
 
@@ -95,9 +94,6 @@ Defined in [`schemas/lookupPatient.response.json`](../schemas/lookupPatient.resp
 
 Important fields:
 
-- `found`
-- `matchedBy`
-- `patient`
 - `phone.normalizedE164`
 - `phone.spoken`
 - `phone.readbackPrompt`

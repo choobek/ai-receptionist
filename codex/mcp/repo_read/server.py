@@ -54,7 +54,6 @@ def build_server() -> FastMCP:
             "n8n": {
                 "workflows": "n8n/workflows/",
                 "serviceCatalog": "configs/services/catalog.v1.json",
-                "mockPatients": "mock-data/mock-patients.json",
                 "knowledgeBase": "knowledge-base/clinic-knowledge.json",
             },
             "generatedArtifacts": {

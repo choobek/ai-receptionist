@@ -2041,7 +2041,7 @@ test('searchKnowledgeBase refuses partial-overlap medical questions', () => {
   assert.equal(searchResult.answer, null);
 });
 
-test('lookupPatient returns only the compact branching payload', () => {
+test('lookupPatient returns only the phone confirmation payload', () => {
   const workflow = loadWorkflow('tool_lookup-patient.json');
   const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
     $json: { phoneRaw: '500111001' },
@@ -2049,13 +2049,13 @@ test('lookupPatient returns only the compact branching payload', () => {
   })[0].json;
   assert.equal(parseResult.ok, true);
 
-  const lookupResult = executeCode(getNodeCode(workflow, 'Find Patient'), {
+  const lookupResult = executeCode(getNodeCode(workflow, 'Build Phone Result'), {
     $: makeSelector({ 'Parse Request': parseResult })
   })[0].json;
 
   assert.deepEqual(
-    Object.keys(lookupResult.patient).sort(),
-    ['fullName', 'isExistingPatient', 'patientId', 'phoneE164']
+    Object.keys(lookupResult).sort(),
+    ['message', 'phone', 'ready', 'requestId', 'toolCallId']
   );
 });
 
@@ -2067,15 +2067,15 @@ test('lookupPatient returns a speech-safe phone readback helper', () => {
   })[0].json;
 
   assert.equal(parseResult.ok, true);
-  assert.equal(parseResult.phoneE164, '+48702003006');
+  assert.equal(parseResult.phone?.normalizedE164, '+48702003006');
   assert.equal(/\d/.test(parseResult.phone?.spoken || ''), false);
   assert.equal(/\d/.test(parseResult.phone?.readbackPrompt || ''), false);
 
-  const lookupResult = executeCode(getNodeCode(workflow, 'Find Patient'), {
+  const lookupResult = executeCode(getNodeCode(workflow, 'Build Phone Result'), {
     $: makeSelector({ 'Parse Request': parseResult })
   })[0].json;
 
-  assert.equal(lookupResult.found, false);
+  assert.equal(lookupResult.ready, true);
   assert.equal(lookupResult.phone?.normalizedE164, '+48702003006');
   assert.match(
     normalizeSearchText(lookupResult.phone?.readbackPrompt || ''),

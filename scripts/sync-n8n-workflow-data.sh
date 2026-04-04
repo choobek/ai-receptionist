@@ -29,13 +29,6 @@ mode = sys.argv[2]
 
 targets = [
     {
-        "workflow_path": root_dir / "n8n/workflows/tool_lookup-patient.json",
-        "node_name": "Find Patient",
-        "source_path": root_dir / "mock-data/mock-patients.json",
-        "const_name": "registry",
-        "anchor": "let match = null;",
-    },
-    {
         "workflow_path": root_dir / "n8n/workflows/tool_search-knowledge-base.json",
         "node_name": "Search KB",
         "source_path": root_dir / "knowledge-base/clinic-knowledge.json",

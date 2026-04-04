@@ -27,7 +27,7 @@ As of March 25, 2026:
   - Vapi environment bindings in [`../configs/vapi/environments/`](../configs/vapi/environments/)
   - Vapi observability resources in [`../configs/vapi/structured-outputs/`](../configs/vapi/structured-outputs/), [`../configs/vapi/scorecards/`](../configs/vapi/scorecards/), [`../configs/vapi/evals/`](../configs/vapi/evals/), and [`../configs/vapi/autoevaluation-policy.v1.json`](../configs/vapi/autoevaluation-policy.v1.json)
   - n8n workflow JSON in [`../n8n/workflows/`](../n8n/workflows/)
-  - embedded workflow source data in [`../configs/services/catalog.v1.json`](../configs/services/catalog.v1.json), [`../mock-data/mock-patients.json`](../mock-data/mock-patients.json), and [`../knowledge-base/clinic-knowledge.json`](../knowledge-base/clinic-knowledge.json)
+  - embedded workflow source data in [`../configs/services/catalog.v1.json`](../configs/services/catalog.v1.json) and [`../knowledge-base/clinic-knowledge.json`](../knowledge-base/clinic-knowledge.json)
   - one root env template in [`../.env.example`](../.env.example)
 - Effective Vapi runtime state is rendered, not read from one file. The real comparison surface is:
   - shared assistant config

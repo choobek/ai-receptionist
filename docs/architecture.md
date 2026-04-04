@@ -7,7 +7,6 @@ Deliver a first working version of an AI receptionist for a Polish dental clinic
 - Vapi owns conversation behavior.
 - n8n owns business logic and integrations.
 - Google Calendar is the appointment source of truth.
-- a mock patient registry stands in for CRM during the proof-of-concept phase
 - a local curated knowledge base stands in for clinic content retrieval during the proof-of-concept phase
 
 ## Components
@@ -17,7 +16,7 @@ Deliver a first working version of an AI receptionist for a Polish dental clinic
 - answers the call
 - follows the receptionist prompt
 - gathers missing information from the caller
-- can identify known patients through `lookupPatient`
+- can normalize and confirm spoken phone numbers through `lookupPatient`
 - can answer supported general clinic questions through `searchKnowledgeBase`
 - calls `checkAvailability` and `createEvent`
 - can queue human follow-up through `createReceptionTask`
@@ -30,8 +29,8 @@ Deliver a first working version of an AI receptionist for a Polish dental clinic
 - accepts either direct JSON payloads or the Vapi tool-call envelope
 - validates required fields
 - normalizes date, time, duration, and timezone values
+- normalizes phone numbers and builds speech-safe readback text
 - talks to Google Calendar
-- keeps proof-of-concept patient registry data for known patients
 - keeps a proof-of-concept curated knowledge base derived from clinic ODT files
 - can simulate SMS delivery safely in `mock` mode or hand off to an external SMS webhook
 - returns a tool result in Vapi-compatible format
@@ -40,11 +39,6 @@ Deliver a first working version of an AI receptionist for a Polish dental clinic
 
 - stores booked appointments
 - acts as the availability source for the first version
-
-### Mock patient registry
-
-- stores a small static list of test patients for proof-of-concept CRM lookup
-- lets the assistant branch between new-patient and existing-patient flows before a real clinic integration exists
 
 ### Local knowledge base
 
@@ -70,12 +64,12 @@ Deliver a first working version of an AI receptionist for a Polish dental clinic
 3. n8n scores the local curated entries against the query.
 4. n8n returns the best supported answer or a no-match result.
 
-### Patient lookup
+### Phone confirmation helper
 
-1. Caller says they are already a patient or gives identifying data.
+1. Caller gives a phone number.
 2. Vapi calls `lookupPatient`.
-3. n8n searches the proof-of-concept patient registry by phone first and full name second.
-4. n8n returns a compact match result for conversation branching.
+3. n8n normalizes the number and prepares speech-safe readback text.
+4. n8n returns the helper fields for confirmation and downstream tool payloads.
 
 ### Event creation
 
@@ -141,7 +135,6 @@ That makes debugging easier without adding a custom backend layer.
 - slot increment: 30 minutes
 - max suggestions: 3
 - working hours: controlled through environment variables
-- mock patient registry: static proof-of-concept data
 - local knowledge base: curated static proof-of-concept data
 
 ## Failure handling

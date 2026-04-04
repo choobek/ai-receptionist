@@ -57,8 +57,6 @@ schemas/
   sendSmsToPatient.response.json
 knowledge-base/
   clinic-knowledge.json
-mock-data/
-  mock-patients.json
 n8n/workflows/
   tool_lookup-patient.json
   tool_check-availability.json
@@ -79,7 +77,7 @@ This first version is intentionally small:
 - one Google Calendar
 - Polish language
 - appointment lookup and booking
-- proof-of-concept patient lookup against a mock registry
+- speech-safe phone normalization and readback helper
 - proof-of-concept knowledge base derived from clinic ODT materials
 - proof-of-concept receptionist task queue inside n8n
 - optional SMS workflows with `mock` mode by default plus native Twilio or webhook delivery when configured
@@ -91,8 +89,8 @@ This first version is intentionally small:
 
 1. Vapi gathers the patient's full name and/or phone number.
 2. Vapi calls the `lookupPatient` tool.
-3. n8n normalizes the identifiers and checks the proof-of-concept patient registry.
-4. n8n returns whether the patient was matched.
+3. n8n normalizes the phone number and builds a speech-safe confirmation helper.
+4. n8n returns `phone.normalizedE164`, `phone.spoken`, and `phone.readbackPrompt`.
 
 ### `checkAvailability`
 
@@ -393,15 +391,13 @@ The repo now also includes an offline-first autonomy workspace for ingesting raw
 
 Those can be added later without changing the basic contract.
 
-## Proof-of-concept data
+## Repo-backed data
 
-The current patient registry for `lookupPatient` is a static demo list in [`mock-data/mock-patients.json`](./mock-data/mock-patients.json).
+`lookupPatient` no longer reads any static patient list. It only normalizes phone numbers and prepares speech-safe confirmation text.
 
-For now this stands in for the clinic CRM. After changing it, run [`scripts/sync-n8n-workflow-data.sh`](./scripts/sync-n8n-workflow-data.sh) so the embedded n8n workflow snapshot stays in sync.
+The local knowledge base for `searchKnowledgeBase` is curated in [`knowledge-base/clinic-knowledge.json`](./knowledge-base/clinic-knowledge.json) from the ODT source files documented in [`docs/knowledge-base.md`](./docs/knowledge-base.md).
 
-The current local knowledge base for `searchKnowledgeBase` is curated in [`knowledge-base/clinic-knowledge.json`](./knowledge-base/clinic-knowledge.json) from the ODT source files documented in [`docs/knowledge-base.md`](./docs/knowledge-base.md).
-
-After changing either proof-of-concept dataset, run:
+If you change the knowledge base or service catalog, run:
 
 ```bash
 ./scripts/sync-n8n-workflow-data.sh

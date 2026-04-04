@@ -10,7 +10,6 @@ This repo should be operated from one root `.env` and six source-of-truth areas:
 - Vapi live-call autoevaluation policy: [`../configs/vapi/autoevaluation-policy.v1.json`](../configs/vapi/autoevaluation-policy.v1.json)
 - service catalog: [`configs/services/catalog.v1.json`](../configs/services/catalog.v1.json)
 - n8n workflows: [`n8n/workflows/`](../n8n/workflows/)
-- mock patient data: [`mock-data/mock-patients.json`](../mock-data/mock-patients.json)
 - knowledge-base data: [`knowledge-base/clinic-knowledge.json`](../knowledge-base/clinic-knowledge.json)
 - environment template: [`../.env.example`](../.env.example)
 
@@ -140,9 +139,8 @@ Interpretation:
 
 ## 3. Sync Embedded Workflow Data
 
-If you edit either proof-of-concept dataset:
+If you edit either repo-backed workflow dataset:
 
-- [`mock-data/mock-patients.json`](../mock-data/mock-patients.json)
 - [`knowledge-base/clinic-knowledge.json`](../knowledge-base/clinic-knowledge.json)
 - [`configs/services/catalog.v1.json`](../configs/services/catalog.v1.json)
 

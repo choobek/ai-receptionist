@@ -23,7 +23,6 @@
   "examples": [
     {
       "requestId": "req_lookup_vapi_001",
-      "fullName": "Anna Kowalska",
       "phoneRaw": "500111001"
     }
   ]

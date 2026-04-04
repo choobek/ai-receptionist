@@ -14,7 +14,6 @@
 - `docs/vapi-structured-output.json` is a generated mirror of `configs/vapi/structured-outputs/dental-call-intake.v1.json`.
 - Prompt mirror files in `prompts/` are generated mirrors for readability by default. If you intentionally edit them, run `./scripts/import-vapi-prompt-mirrors.sh` to write them back into `configs/vapi/assistant.v2.json`; otherwise the JSON config wins.
 - n8n workflow source files live in `n8n/workflows/`.
-- Mock patient source data lives in `mock-data/mock-patients.json`.
 - Knowledge-base source data lives in `knowledge-base/clinic-knowledge.json`.
 
 ## Non-Negotiable Rules
@@ -50,7 +49,7 @@
 ### Push n8n Workflows To VPS
 
 1. Commit or at least save the desired workflow JSON changes locally.
-2. If you changed `mock-data/mock-patients.json`, `knowledge-base/clinic-knowledge.json`, or `configs/services/catalog.v1.json`, run `./scripts/sync-n8n-workflow-data.sh` first so the embedded workflow data stays in sync.
+2. If you changed `knowledge-base/clinic-knowledge.json` or `configs/services/catalog.v1.json`, run `./scripts/sync-n8n-workflow-data.sh` first so the embedded workflow data stays in sync.
 3. Run `./scripts/import-n8n-workflows-vps.sh staging` or `./scripts/import-n8n-workflows-vps.sh production`.
 4. The script must export a backup on the VPS before importing.
 5. Verify the workflow list after import.
@@ -60,7 +59,7 @@
 
 - Compare repo workflow files with the target environment's `n8n list:workflow`.
 - Check for config drift between Vapi and `configs/vapi/assistant.v2.json` plus `configs/vapi/environments/*.json`.
-- Run `./scripts/sync-n8n-workflow-data.sh --check` after changing proof-of-concept data files.
+- Run `./scripts/sync-n8n-workflow-data.sh --check` after changing repo-backed KB or service-catalog data files.
 - Check for duplicate env templates or new ad-hoc scripts that bypass root `.env`.
 - Prefer additive scripts and docs over tribal knowledge in chat history.
 

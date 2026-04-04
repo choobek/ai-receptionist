@@ -73,7 +73,6 @@ curl -sS -X POST "$WEBHOOK_BASE/lookup-patient" \
   "${HEADER_ARGS[@]}" \
   --data '{
     "requestId": "test_lookup_001",
-    "fullName": "Anna Kowalska",
     "phoneRaw": "500111001"
   }' | jq .
 ```
@@ -81,8 +80,9 @@ curl -sS -X POST "$WEBHOOK_BASE/lookup-patient" \
 Expected:
 
 - HTTP 200
-- `found: true`
-- `patient.patientId` present
+- `phone.normalizedE164` present
+- `phone.readbackPrompt` present
+- the readback text contains spoken words, not digits
 
 ## 4. Direct tool test: `searchKnowledgeBase`
 
