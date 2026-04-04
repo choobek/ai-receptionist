@@ -67,7 +67,10 @@
         "required": [
           "start",
           "end",
-          "label"
+          "label",
+          "spokenDate",
+          "spokenTime",
+          "spokenLabel"
         ],
         "properties": {
           "start": {
@@ -79,6 +82,15 @@
             "format": "date-time"
           },
           "label": {
+            "type": "string"
+          },
+          "spokenDate": {
+            "type": "string"
+          },
+          "spokenTime": {
+            "type": "string"
+          },
+          "spokenLabel": {
             "type": "string"
           },
           "calendarId": {
@@ -126,6 +138,9 @@
           "start": "2026-03-12T09:00:00+01:00",
           "end": "2026-03-12T09:45:00+01:00",
           "label": "Czwartek 12 marca o 09:00",
+          "spokenDate": "czwartek, dwunastego marca",
+          "spokenTime": "o dziewiatej",
+          "spokenLabel": "czwartek, dwunastego marca o dziewiatej",
           "calendarId": "primary"
         }
       ],
@@ -150,6 +165,9 @@
           "start": "2026-03-13T09:00:00+01:00",
           "end": "2026-03-13T09:45:00+01:00",
           "label": "Piatek 13 marca o 09:00",
+          "spokenDate": "piatek, trzynastego marca",
+          "spokenTime": "o dziewiatej",
+          "spokenLabel": "piatek, trzynastego marca o dziewiatej",
           "calendarId": "primary"
         }
       ],

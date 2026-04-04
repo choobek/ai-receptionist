@@ -128,6 +128,50 @@
       }
     },
     {
+      "criterion_id": "slot-offer-uses-spoken-text",
+      "description": "When the assistant offers slots out loud, it should avoid raw numerals and spell the date and hour in words.",
+      "severity": "high",
+      "root_cause_hint": "assistant still speaks slot dates or times as raw digits instead of TTS-safe text",
+      "rule": {
+        "type": "turn_assistant_text_not_contains_any",
+        "turn": 1,
+        "contains_none": [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9"
+        ]
+      }
+    },
+    {
+      "criterion_id": "phone-readback-uses-spoken-text",
+      "description": "The phone readback should also avoid raw numerals and stay speech-safe.",
+      "severity": "high",
+      "root_cause_hint": "assistant still repeats the callback number as digits instead of spoken words",
+      "rule": {
+        "type": "turn_assistant_text_not_contains_any",
+        "turn": 4,
+        "contains_none": [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9"
+        ]
+      }
+    },
+    {
       "criterion_id": "booking-created",
       "description": "The final booking confirmation should create a real staging event.",
       "severity": "critical",

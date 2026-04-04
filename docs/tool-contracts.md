@@ -129,7 +129,7 @@ Key fields:
 7. Search across one or more working days while skipping overnight hours and past slots on the current day.
 8. Read busy events from Google Calendar.
 9. Build up to `limit` valid slots.
-10. Return a short structured response.
+10. Return both machine-friendly slot boundaries plus speech-safe Polish wording for voice playback.
 
 ### Success response
 
@@ -139,6 +139,8 @@ Important fields:
 
 - `available`
 - `slots`
+- `slots[].label` for machine-friendly display or logs
+- `slots[].spokenDate`, `slots[].spokenTime`, `slots[].spokenLabel` for TTS-safe wording without digits
 - `normalizedRequest`
 - `message`
 

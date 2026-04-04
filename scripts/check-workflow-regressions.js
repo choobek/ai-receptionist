@@ -658,6 +658,48 @@ test('checkAvailability preserves calendar provider failures as structured unava
   assert.match(formatted.results[0].result.message, /Kalendarz wizyt jest tymczasowo niedostepny/i);
 });
 
+test('checkAvailability returns speech-safe slot wording for voice playback', () => {
+  const parseResult = {
+    requestId: 'req_spoken_slot_words',
+    toolCallId: 'tool_call_spoken_slot_words',
+    calendarId: 'primary',
+    timezone: 'Europe/Warsaw',
+    service: { id: 'consultation' },
+    requestedDate: '2026-03-16',
+    requestedTime: null,
+    timePreference: 'first_available',
+    durationMinutes: 45,
+    limit: 2,
+    incrementMinutes: 15,
+    slotSearchIncrementMinutes: 15,
+    searchDays: 1,
+    workingStart: '09:00',
+    workingEnd: '21:00',
+    openWeekdays: [1, 2, 3, 4, 5],
+    windowStart: '2026-03-16T08:00:00.000Z',
+    windowEnd: '2026-03-16T20:00:00.000Z'
+  };
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    [],
+    defaultEnv
+  );
+
+  assert.equal(result.available, true);
+  assert.ok(result.slots.length > 0, 'expected at least one available slot');
+
+  const firstSlot = result.slots[0];
+  assert.equal(typeof firstSlot.spokenDate, 'string');
+  assert.equal(typeof firstSlot.spokenTime, 'string');
+  assert.equal(typeof firstSlot.spokenLabel, 'string');
+  assert.equal(/\d/.test(firstSlot.spokenDate), false);
+  assert.equal(/\d/.test(firstSlot.spokenTime), false);
+  assert.equal(/\d/.test(firstSlot.spokenLabel), false);
+  assert.match(normalizeSearchText(firstSlot.spokenLabel), /o dziewiatej/);
+});
+
 test('createEvent rejects reversed slots', () => {
   const result = runParse(
     'tool_create-event.json',
@@ -2271,6 +2313,27 @@ assistantInvariantTest('assistant prompt keeps post-booking close and reception 
   );
 });
 
+assistantInvariantTest('assistant prompt keeps speech-safe wording and calendar-failure handoff explicit', () => {
+  const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt());
+
+  assert.match(
+    normalizedPrompt,
+    /w tekscie do odczytu na glos nie zostawiaj cyfr 0-9/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /slot\.spokenLabel albo slot\.spokenTime/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /nie czytaj na glos slot\.label ani wartosci start\/end/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /checkAvailability zwrocilo available false z error\.code CALENDAR_PROVIDER_REJECTED/i
+  );
+});
+
 test('assistant renderer excludes the direct patient SMS tool from production bindings', () => {
   const rendered = renderAssistantConfig('production', {
     PRODUCTION_N8N_PUBLIC_BASE_URL: 'https://prod.example.test',
@@ -2644,6 +2707,16 @@ assistantInvariantTest('assistant SMS staging scenarios require end-to-end workf
   const receptionSmsScenario = loadStagingScenario('reschedule-handoff-internal-sms-alert.v1.json');
   const existingPatientBookingScenario = loadStagingScenario('existing-patient-booking-handoff-internal-sms-alert.v1.json');
 
+  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'slot-offer-uses-spoken-text').rule, {
+    type: 'turn_assistant_text_not_contains_any',
+    turn: 1,
+    contains_none: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+  });
+  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'phone-readback-uses-spoken-text').rule, {
+    type: 'turn_assistant_text_not_contains_any',
+    turn: 4,
+    contains_none: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+  });
   assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'booking-sms-workflow-accepted').rule, {
     type: 'tool_result_path_equals',
     tool_name: 'createEvent',
