@@ -130,7 +130,8 @@
         "turn": 7,
         "contains_any": [
           "czy moge pomoc jeszcze w czyms",
-          "czy moge pomoc w jeszcze jednej sprawie"
+          "czy moge pomoc w jeszcze jednej sprawie",
+          "czy moge pomoc w jeszcze jakiejs sprawie"
         ]
       }
     },

@@ -67,9 +67,11 @@
           "prosze o numer telefonu",
           "poprosze o numer telefonu",
           "poprosze jeszcze numer telefonu do kontaktu",
+          "poprosze jeszcze o numer telefonu do potwierdzenia rezerwacji",
           "numer telefonu do kontaktu",
           "numer telefonu do kontakt",
           "numer telefonu do potwierdzenia wizyty",
+          "numer telefonu do potwierdzenia rezerwacji",
           "jaki numer telefonu",
           "numer telefonu do rezerwacji"
         ]

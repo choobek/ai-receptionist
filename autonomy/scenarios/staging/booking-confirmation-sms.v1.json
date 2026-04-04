@@ -27,7 +27,7 @@
   "turns": [
     {
       "turn_id": "ask-to-book-with-sms",
-      "user": "{{STAGING_SMS_BOOKING_OPENING_UTTERANCE|Chcialabym umowic pierwsza konsultacje na jutro rano. Jesli sie uda, prosze potem o SMS z potwierdzeniem.}}",
+      "user": "{{STAGING_SMS_BOOKING_OPENING_UTTERANCE|Chcialabym umowic pierwsza konsultacje na najblizszy wolny termin. To moja pierwsza wizyta. Jesli sie uda, prosze potem o SMS z potwierdzeniem.}}",
       "assertions": [
         {
           "criterion_id": "no-patient-sms-on-initial-request",

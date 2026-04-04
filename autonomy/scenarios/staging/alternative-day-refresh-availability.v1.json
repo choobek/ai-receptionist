@@ -2,7 +2,7 @@
   "schema_version": "staging-chat-scenario.v1",
   "scenario_id": "alternative-day-refresh-availability",
   "title": "Alternative-day ambiguity refreshes availability after correction",
-  "description": "The caller starts with a Tuesday-or-Wednesday afternoon preference. The assistant may pick one candidate day first, but after the caller corrects to Wednesday it must issue a fresh checkAvailability call instead of reusing stale Tuesday availability.",
+  "description": "The caller starts with a Tuesday-or-Wednesday afternoon preference and explicitly confirms it is the first visit. The assistant may pick one candidate day first, but after the caller corrects to Wednesday it must issue a fresh checkAvailability call instead of reusing stale Tuesday availability.",
   "status": "active",
   "environment": "staging",
   "language": "pl",
@@ -26,7 +26,7 @@
   "turns": [
     {
       "turn_id": "give-alternative-days",
-      "user": "Chcialbym umowic pierwsza konsultacje, najlepiej we wtorek albo srode tak mniej wiecej po lunchu."
+      "user": "Chcialbym umowic pierwsza konsultacje, to moja pierwsza wizyta, najlepiej we wtorek albo srode tak mniej wiecej po lunchu."
     },
     {
       "turn_id": "correct-to-wednesday",
