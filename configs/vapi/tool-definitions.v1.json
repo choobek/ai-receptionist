@@ -4,7 +4,7 @@
     "lookupPatient": {
       "schemaPath": "schemas/lookupPatient.vapi.request.json",
       "endpoint": "/webhook/ai-receptionist/lookup-patient",
-      "description": "Use only when a phone number is ambiguous or incomplete and needs deterministic normalization or repair. Say result.message verbatim.",
+      "description": "Use only when a phone number is ambiguous or incomplete and needs deterministic normalization.",
       "messages": [
         {
           "type": "request-start",
@@ -31,7 +31,7 @@
     "checkAvailability": {
       "schemaPath": "schemas/checkAvailability.vapi.request.json",
       "endpoint": "/webhook/ai-receptionist/check-availability",
-      "description": "Return appointment availability for a visit type and preference in Europe/Warsaw. Use specific_time for exact hours, broad windows for morning/afternoon/evening, first_available with requestedDate plus searchDays 1 for one specific day, or first_available without requestedDate for the next available dates. Pass patient.isExistingPatient when known. Prefer spokenLabel/spokenTime. Say result.message verbatim.",
+      "description": "Return availability. Use specific_time for exact hours and morning/afternoon/evening for broad windows. If the caller gave an exact hour or broad window but no day, omit requestedDate to search the next few business days from today. Use first_available with requestedDate plus searchDays 1 for one specific day, or without requestedDate for the next available dates overall. Pass patient.isExistingPatient when known.",
       "messages": [
         {
           "type": "request-start",

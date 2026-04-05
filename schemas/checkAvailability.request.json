@@ -45,12 +45,12 @@
     "requestedDate": {
       "type": "string",
       "format": "date",
-      "description": "Preferred local clinic date. Omit it for general nearest-available searches. Include it with searchDays 1 to check one specific clinic day."
+      "description": "Preferred local clinic date. Omit it for general nearest-available searches, or when searching the next few business days from today for a broad time window or one exact hour."
     },
     "requestedTime": {
       "type": "string",
       "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
-      "description": "Optional local clinic time in 24-hour HH:MM format. Omit when unknown."
+      "description": "Optional local clinic time in 24-hour HH:MM format. Use it with specific_time. If requestedDate is omitted, the backend searches the next few business days from today at that hour."
     },
     "timePreference": {
       "type": "string",
@@ -89,7 +89,7 @@
       "type": "integer",
       "minimum": 1,
       "maximum": 14,
-      "description": "How many consecutive clinic days to search from requestedDate. Use searchDays 1 for a single specific day, or a larger value for bounded multi-day ranges such as next week."
+      "description": "How many consecutive clinic days to search from requestedDate or from the backend's clinic-local start date when requestedDate is omitted. Use searchDays 1 for a single specific day, or a larger value for bounded multi-day ranges such as next week, evening-only windows, or an exact hour across several business days."
     },
     "patient": {
       "type": "object",
@@ -123,39 +123,6 @@
       "then": {
         "required": [
           "requestedTime"
-        ]
-      }
-    },
-    {
-      "if": {
-        "required": [
-          "requestedTime"
-        ]
-      },
-      "then": {
-        "required": [
-          "requestedDate"
-        ]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "timePreference": {
-            "enum": [
-              "morning",
-              "afternoon",
-              "evening"
-            ]
-          }
-        },
-        "required": [
-          "timePreference"
-        ]
-      },
-      "then": {
-        "required": [
-          "requestedDate"
         ]
       }
     }

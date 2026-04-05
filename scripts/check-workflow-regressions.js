@@ -462,6 +462,58 @@ test('checkAvailability broad-window searches can span multiple clinic days', ()
   assert.equal(result.windowEnd.slice(0, 10), '2026-03-24');
 });
 
+test('checkAvailability implicit evening searches stay bounded and prepare a nearest-slot fallback', () => {
+  const result = runParse(
+    'tool_check-availability.json',
+    'Parse Request',
+    {
+      service: { id: 'consultation' },
+      timePreference: 'evening',
+      timezone: 'Europe/Warsaw'
+    },
+    defaultEnv
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.requestedDateWasExplicit, false);
+  assert.equal(result.timePreference, 'evening');
+  assert.equal(result.searchDays, 5);
+  assert.match(result.requestedDate, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(result.searchPlans?.length, 2);
+  assert.equal(result.searchPlans?.[0]?.stage, 'primary');
+  assert.equal(result.searchPlans?.[0]?.timePreference, 'evening');
+  assert.equal(result.searchPlans?.[0]?.searchDays, 5);
+  assert.equal(result.searchPlans?.[1]?.stage, 'first_available_fallback');
+  assert.equal(result.searchPlans?.[1]?.timePreference, 'first_available');
+  assert.equal(result.searchPlans?.[1]?.searchDays, 5);
+});
+
+test('checkAvailability implicit exact-hour searches stay bounded and keep the hour', () => {
+  const result = runParse(
+    'tool_check-availability.json',
+    'Parse Request',
+    {
+      service: { id: 'consultation' },
+      requestedTime: '18:00',
+      timePreference: 'specific_time',
+      timezone: 'Europe/Warsaw'
+    },
+    defaultEnv
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.requestedDateWasExplicit, false);
+  assert.equal(result.timePreference, 'specific_time');
+  assert.equal(result.requestedTime, '18:00');
+  assert.equal(result.searchDays, 5);
+  assert.match(result.requestedDate, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(result.searchPlans?.length, 2);
+  assert.equal(result.searchPlans?.[0]?.stage, 'primary');
+  assert.equal(result.searchPlans?.[0]?.timePreference, 'specific_time');
+  assert.equal(result.searchPlans?.[0]?.requestedTime, '18:00');
+  assert.equal(result.searchPlans?.[0]?.searchDays, 5);
+  assert.equal(result.searchPlans?.[1]?.stage, 'first_available_fallback');
+  assert.equal(result.searchPlans?.[1]?.timePreference, 'first_available');
+});
+
 test('checkAvailability broad weekend requests roll to the next open clinic day', () => {
   const result = runParse(
     'tool_check-availability.json',
@@ -620,6 +672,50 @@ test('checkAvailability keeps morning searches inside the morning window across 
   assert.ok(result.slots.every((slot) => slot.end.slice(11, 16) <= '13:00'));
 });
 
+test('checkAvailability implicit specific_time searches return the same hour across business days', () => {
+  const parseResult = {
+    requestId: 'req_specific_time_multi_day',
+    toolCallId: null,
+    calendarId: 'primary',
+    timezone: 'Europe/Warsaw',
+    service: { id: 'consultation' },
+    requestedDate: '2026-03-16',
+    requestedDateWasExplicit: false,
+    requestedTime: '18:00',
+    timePreference: 'specific_time',
+    durationMinutes: 45,
+    limit: 3,
+    incrementMinutes: 15,
+    slotSearchIncrementMinutes: 15,
+    searchDays: 5,
+    workingStart: '09:00',
+    workingEnd: '21:00',
+    openWeekdays: [1, 2, 3, 4, 5],
+    windowStart: '2026-03-16T17:00:00.000Z',
+    windowEnd: '2026-03-20T17:45:00.000Z'
+  };
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    [],
+    defaultEnv
+  );
+  assert.equal(result.available, true);
+  assert.equal(result.normalizedRequest?.timePreference, 'specific_time');
+  assert.equal(result.normalizedRequest?.requestedTime, '18:00');
+  assert.equal(result.normalizedRequest?.searchDays, 5);
+  assert.deepEqual(
+    result.slots.map((slot) => slot.start),
+    [
+      '2026-03-16T18:00:00+01:00',
+      '2026-03-17T18:00:00+01:00',
+      '2026-03-18T18:00:00+01:00'
+    ]
+  );
+  assert.ok(result.slots.every((slot) => slot.start.slice(11, 16) === '18:00'));
+});
+
 test('checkAvailability widens a concrete morning miss across later mornings before first_available', () => {
   const parseResult = runParse(
     'tool_check-availability.json',
@@ -726,6 +822,88 @@ test('checkAvailability falls back to first_available when the requested afterno
   assert.match(
     normalizeSearchText(result.message),
     /nie widze wolnych terminow na poniedzialek, szesnastego marca po poludniu/i
+  );
+});
+
+test('checkAvailability implicit evening searches can fall back to nearest slots inside the same bounded horizon', () => {
+  const parseResult = {
+    requestId: 'req_evening_implicit_fallback',
+    toolCallId: null,
+    calendarId: 'primary',
+    timezone: 'Europe/Warsaw',
+    service: { id: 'consultation' },
+    requestedDate: '2026-03-16',
+    requestedDateWasExplicit: false,
+    requestedTime: null,
+    timePreference: 'evening',
+    durationMinutes: 45,
+    limit: 3,
+    incrementMinutes: 15,
+    slotSearchIncrementMinutes: 15,
+    searchDays: 5,
+    workingStart: '09:00',
+    workingEnd: '21:00',
+    openWeekdays: [1, 2, 3, 4, 5],
+    windowStart: '2026-03-16T16:00:00.000Z',
+    windowEnd: '2026-03-20T20:00:00.000Z',
+    searchPlans: [
+      {
+        stage: 'primary',
+        requestedDate: '2026-03-16',
+        requestedDateWasExplicit: false,
+        requestedTime: null,
+        timePreference: 'evening',
+        searchDays: 5,
+        windowStart: '2026-03-16T16:00:00.000Z',
+        windowEnd: '2026-03-20T20:00:00.000Z'
+      },
+      {
+        stage: 'first_available_fallback',
+        requestedDate: '2026-03-16',
+        requestedDateWasExplicit: false,
+        requestedTime: null,
+        timePreference: 'first_available',
+        searchDays: 5,
+        windowStart: '2026-03-16T08:00:00.000Z',
+        windowEnd: '2026-03-20T20:00:00.000Z'
+      }
+    ]
+  };
+  const blockedEvenings = [
+    '2026-03-16',
+    '2026-03-17',
+    '2026-03-18',
+    '2026-03-19',
+    '2026-03-20'
+  ].map((dateText) => ({
+    start: { dateTime: `${dateText}T17:00:00+01:00` },
+    end: { dateTime: `${dateText}T21:00:00+01:00` }
+  }));
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    blockedEvenings,
+    defaultEnv
+  );
+  assert.equal(result.available, true);
+  assert.equal(result.requestedRangeAvailable, false);
+  assert.equal(result.normalizedRequest?.timePreference, 'evening');
+  assert.equal(result.normalizedRequest?.searchDays, 5);
+  assert.equal(result.resolvedSearch?.stage, 'first_available_fallback');
+  assert.equal(result.resolvedSearch?.timePreference, 'first_available');
+  assert.equal(result.resolvedSearch?.searchDays, 5);
+  assert.deepEqual(
+    result.slots.map((slot) => slot.start),
+    [
+      '2026-03-16T09:00:00+01:00',
+      '2026-03-17T09:00:00+01:00',
+      '2026-03-18T09:00:00+01:00'
+    ]
+  );
+  assert.match(
+    normalizeSearchText(result.message),
+    /nie widze wolnych terminow wieczorem w ciagu najblizszych pieciu dni roboczych/i
   );
 });
 
@@ -1026,6 +1204,50 @@ test('checkAvailability names doctor Magdalena Szajnar for default first-visit c
   assert.match(
     normalizeSearchText(result.message),
     /mam wolne terminy do doktor magdaleny szajnar|mam wolny termin do doktor magdaleny szajnar/i
+  );
+});
+
+test('checkAvailability keeps doctor Magdalena Szajnar in first-visit no-availability replies', () => {
+  const parseResult = {
+    requestId: 'req_first_visit_doctor_name_unavailable',
+    toolCallId: 'tool_call_first_visit_doctor_name_unavailable',
+    calendarId: 'primary',
+    timezone: 'Europe/Warsaw',
+    service: { id: 'consultation' },
+    patient: { isExistingPatient: false },
+    requestedDate: '2026-03-16',
+    requestedDateWasExplicit: true,
+    requestedTime: null,
+    timePreference: 'first_available',
+    durationMinutes: 45,
+    limit: 2,
+    incrementMinutes: 15,
+    slotSearchIncrementMinutes: 15,
+    searchDays: 1,
+    workingStart: '09:00',
+    workingEnd: '21:00',
+    openWeekdays: [1, 2, 3, 4, 5],
+    windowStart: '2026-03-16T08:00:00.000Z',
+    windowEnd: '2026-03-16T20:00:00.000Z'
+  };
+  const blockedDay = [
+    {
+      start: { dateTime: '2026-03-16T09:00:00+01:00' },
+      end: { dateTime: '2026-03-16T21:00:00+01:00' }
+    }
+  ];
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    blockedDay,
+    defaultEnv
+  );
+
+  assert.equal(result.available, false);
+  assert.match(
+    normalizeSearchText(result.message),
+    /nie widze wolnych terminow do doktor magdaleny szajnar/i
   );
 });
 
@@ -3207,6 +3429,10 @@ assistantInvariantTest('assistant prompt keeps speech-safe wording and calendar-
   );
   assert.match(
     normalizedPrompt,
+    /pytanie o inny dzien odswiez checkAvailability/i
+  );
+  assert.match(
+    normalizedPrompt,
     /nie wywoluj `?lookupPatient`? tylko po to, zeby przeczytac jasny numer/i
   );
   assert.match(
@@ -3288,6 +3514,10 @@ assistantInvariantTest('assistant prompt bundle keeps anti-fragment speech rules
   assert.match(
     normalizedPrompt,
     /w sciezce `?createReceptionTask`?.*mozesz pominac osobna ture potwierdzenia/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /przy pelnych danych od razu wywolaj createReceptionTask/i
   );
   assert.doesNotMatch(
     normalizedPrompt,
@@ -3605,6 +3835,32 @@ assistantInvariantTest('post-handoff meta-question scenario forbids a second rec
   assert.deepEqual(getScenarioCriterion(scenario, 'no-availability-check').rule, {
     type: 'tool_not_called',
     tool_name: 'checkAvailability'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-booking-created').rule, {
+    type: 'tool_not_called',
+    tool_name: 'createEvent'
+  });
+});
+
+assistantInvariantTest('after-hours first-visit scenario keeps evening preference and speech-safe output', () => {
+  const scenario = loadStagingScenario('after-hours-first-visit-availability.v1.json');
+
+  assert.deepEqual(getScenarioCriterion(scenario, 'after-hours-availability-lookup-used').rule, {
+    type: 'turn_tool_called',
+    turn: 1,
+    tool_name: 'checkAvailability'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'after-hours-lookup-uses-evening-window').rule, {
+    type: 'turn_tool_arg_equals',
+    turn: 1,
+    tool_name: 'checkAvailability',
+    path: 'timePreference',
+    equals: 'evening'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'after-hours-answer-stays-speech-safe').rule, {
+    type: 'turn_assistant_text_not_contains_any',
+    turn: 1,
+    contains_none: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
   });
   assert.deepEqual(getScenarioCriterion(scenario, 'no-booking-created').rule, {
     type: 'tool_not_called',

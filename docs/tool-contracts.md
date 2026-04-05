@@ -114,11 +114,11 @@ Defined in [`schemas/checkAvailability.request.json`](../schemas/checkAvailabili
 Key fields:
 
 - `service.id`
-- `requestedDate` in `YYYY-MM-DD` for date-specific searches, optional for `first_available`
+- `requestedDate` in `YYYY-MM-DD` for date-specific searches, optional for nearest-available, broad-window, and exact-hour searches that should start from today
 - `requestedTime` in `HH:MM` or `timePreference`
 - `timezone`
 - optional `language`
-- optional `searchDays` for multi-day `first_available` lookup or broad multi-day morning/afternoon/evening ranges
+- optional `searchDays` for multi-day `first_available` lookup, broad multi-day morning/afternoon/evening ranges, or an exact hour across several clinic days
 - optional `limit`
 
 ### Workflow behavior
@@ -128,12 +128,13 @@ Key fields:
 3. Reject malformed dates, times, and timezones with a validation error.
 4. Normalize service duration and search window.
 5. For `first_available`, start from the requested date or from today in the clinic timezone if the date was omitted.
-6. If `requestedDate` falls on a closed clinic day and the request is not `specific_time`, roll the search to the next open clinic day.
-7. Search across one or more working days while skipping overnight hours and past slots on the current day.
-8. Read busy events from Google Calendar.
-9. Build up to `limit` valid slots.
-10. Return both machine-friendly slot boundaries plus speech-safe wording for voice playback.
-11. Return an exact tool-completion line that offers the slots or explains the calendar fallback without raw digits.
+6. For `morning`, `afternoon`, `evening`, or `specific_time` without an explicit date, start from today in the clinic timezone and search a small bounded business-day horizon.
+7. If `requestedDate` falls on a closed clinic day and the request is not `specific_time`, roll the search to the next open clinic day.
+8. Search across one or more working days while skipping overnight hours and past slots on the current day.
+9. Read busy events from Google Calendar.
+10. Build up to `limit` valid slots.
+11. Return both machine-friendly slot boundaries plus speech-safe wording for voice playback.
+12. Return an exact tool-completion line that offers the slots or explains the calendar fallback without raw digits.
 
 ### Success response
 

@@ -1,0 +1,91 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "after-hours-first-visit-availability",
+  "title": "After-hours first-visit lookup keeps the evening preference",
+  "description": "The caller wants a first consultation on any day after eighteen. The assistant should issue one availability lookup with the evening preference instead of degrading the request to generic first_available, and the spoken answer should stay free of raw digits.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "availability",
+    "first-visit",
+    "after-hours",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "real_call",
+    "references": [
+      "configs/vapi/assistant.v2.json",
+      "n8n/workflows/tool_check-availability.json",
+      "autonomy/runs/generated/vapi-live-autoeval/staging-vapi-live-autoeval-20260405T154618Z/raw-calls/019d5e4a-7090-7000-8a1d-4970febd3b70.call.json"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 1
+  },
+  "turns": [
+    {
+      "turn_id": "ask-for-any-day-after-hours",
+      "user": "Chcialabym umowic pierwsza konsultacje. To moja pierwsza wizyta. Obojetnie jaki dzien, byle po godzinie osiemnastej."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "after-hours-availability-lookup-used",
+      "description": "The assistant should check availability on the first turn.",
+      "severity": "critical",
+      "root_cause_hint": "assistant stopped issuing checkAvailability for after-hours first-visit requests",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 1,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "after-hours-lookup-uses-evening-window",
+      "description": "The lookup should preserve the after-hours preference as an evening window.",
+      "severity": "critical",
+      "root_cause_hint": "assistant degraded a byle po osiemnastej request into first_available or another time preference",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 1,
+        "tool_name": "checkAvailability",
+        "path": "timePreference",
+        "equals": "evening"
+      }
+    },
+    {
+      "criterion_id": "after-hours-answer-stays-speech-safe",
+      "description": "The spoken answer after the lookup should avoid raw digits.",
+      "severity": "high",
+      "root_cause_hint": "assistant still reads raw numerals when answering after-hours availability questions",
+      "rule": {
+        "type": "turn_assistant_text_not_contains_any",
+        "turn": 1,
+        "contains_none": [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9"
+        ]
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "This lookup-only scenario must not create a booking.",
+      "severity": "high",
+      "root_cause_hint": "assistant advanced into createEvent before the caller selected a concrete slot",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    }
+  ]
+}
