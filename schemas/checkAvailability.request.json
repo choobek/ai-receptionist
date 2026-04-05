@@ -45,7 +45,7 @@
     "requestedDate": {
       "type": "string",
       "format": "date",
-      "description": "Preferred local clinic date. Optional for first_available searches; when omitted, the workflow starts from today in the clinic timezone."
+      "description": "Preferred local clinic date. Omit it for general nearest-available searches. Include it with searchDays 1 to check one specific clinic day."
     },
     "requestedTime": {
       "type": "string",
@@ -89,7 +89,7 @@
       "type": "integer",
       "minimum": 1,
       "maximum": 14,
-      "description": "How many consecutive clinic days to search from requestedDate. Use it for first_available and for broad multi-day morning/afternoon/evening ranges such as next week."
+      "description": "How many consecutive clinic days to search from requestedDate. Use searchDays 1 for a single specific day, or a larger value for bounded multi-day ranges such as next week."
     },
     "patient": {
       "type": "object",

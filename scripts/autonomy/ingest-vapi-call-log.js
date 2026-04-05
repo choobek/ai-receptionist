@@ -438,11 +438,17 @@ function sanitizeCheckAvailabilityResult(resultValue) {
   }
   const sanitized = {};
   copyIfPresent(sanitized, source, 'available', (value) => typeof value === 'boolean');
+  copyIfPresent(sanitized, source, 'requestedRangeAvailable', (value) => typeof value === 'boolean');
   copyIfPresent(sanitized, source, 'timezone', (value) => typeof value === 'string');
 
   const normalizedRequest = sanitizeNormalizedAvailabilityRequest(source.normalizedRequest);
   if (normalizedRequest) {
     sanitized.normalizedRequest = normalizedRequest;
+  }
+
+  const resolvedSearch = sanitizeNormalizedAvailabilityRequest(source.resolvedSearch);
+  if (resolvedSearch) {
+    sanitized.resolvedSearch = resolvedSearch;
   }
 
   const slots = sanitizeSlotList(source.slots);

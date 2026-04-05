@@ -33,7 +33,7 @@
     "requestedDate": {
       "type": "string",
       "format": "date",
-      "description": "Preferred date in YYYY-MM-DD. Optional for first_available."
+      "description": "Preferred date in YYYY-MM-DD. Omit it when asking for the next available dates overall. Include it with searchDays 1 when checking one specific day."
     },
     "requestedTime": {
       "type": "string",
@@ -69,7 +69,7 @@
     },
     "searchDays": {
       "type": "integer",
-      "description": "How many clinic days to search from requestedDate for bounded multi-day ranges. For first_available, the backend uses its fixed deterministic business-day horizon."
+      "description": "How many clinic days to search from requestedDate for bounded ranges. Use searchDays 1 to check one specific day; omit it for general nearest-available searches."
     },
     "patient": {
       "type": "object",

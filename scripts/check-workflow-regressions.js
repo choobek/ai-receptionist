@@ -434,10 +434,11 @@ test('checkAvailability first_available search window skips closed weekend days'
     defaultEnv
   );
   assert.equal(result.ok, true);
-  assert.equal(result.searchDays, 30);
+  assert.equal(result.searchDays, 2);
+  assert.equal(result.requestedDateWasExplicit, true);
   assert.ok(new Date(result.windowEnd) > new Date(result.windowStart));
   assert.ok(['2026-03-20', '2026-03-23'].includes(result.windowStart.slice(0, 10)));
-  assert.equal(result.windowEnd.slice(0, 10), '2026-04-30');
+  assert.equal(result.windowEnd.slice(0, 10), '2026-03-23');
   assert.notEqual(result.windowStart.slice(0, 10), '2026-03-21');
   assert.notEqual(result.windowStart.slice(0, 10), '2026-03-22');
 });
@@ -504,6 +505,7 @@ test('checkAvailability returns only weekday slots inside clinic hours', () => {
     timezone: 'Europe/Warsaw',
     service: { id: 'consultation' },
     requestedDate: '2026-03-21',
+    requestedDateWasExplicit: true,
     requestedTime: null,
     timePreference: 'first_available',
     durationMinutes: 45,
@@ -539,6 +541,7 @@ test('checkAvailability keeps first_available ordering chronological even when l
     timezone: 'Europe/Warsaw',
     service: { id: 'consultation' },
     requestedDate: '2026-03-16',
+    requestedDateWasExplicit: true,
     requestedTime: null,
     timePreference: 'first_available',
     durationMinutes: 45,
@@ -646,8 +649,12 @@ test('checkAvailability widens a concrete morning miss across later mornings bef
   );
 
   assert.equal(result.available, true);
+  assert.equal(result.requestedRangeAvailable, false);
   assert.equal(result.normalizedRequest?.timePreference, 'morning');
-  assert.equal(result.normalizedRequest?.searchDays, 5);
+  assert.equal(result.normalizedRequest?.searchDays, 1);
+  assert.equal(result.resolvedSearch?.stage, 'same_preference_fallback');
+  assert.equal(result.resolvedSearch?.timePreference, 'morning');
+  assert.equal(result.resolvedSearch?.searchDays, 5);
   assert.ok(result.slots.every((slot) => slot.start.startsWith('2026-03-17T')));
   assert.ok(result.slots.every((slot) => slot.start.slice(11, 16) < '13:00'));
   assert.match(
@@ -701,24 +708,28 @@ test('checkAvailability falls back to first_available when the requested afterno
   );
 
   assert.equal(result.available, true);
-  assert.equal(result.normalizedRequest?.timePreference, 'first_available');
-  assert.equal(result.normalizedRequest?.searchDays, 5);
+  assert.equal(result.requestedRangeAvailable, false);
+  assert.equal(result.normalizedRequest?.timePreference, 'afternoon');
+  assert.equal(result.normalizedRequest?.searchDays, 1);
+  assert.equal(result.resolvedSearch?.stage, 'first_available_fallback');
+  assert.equal(result.resolvedSearch?.timePreference, 'first_available');
+  assert.equal(result.resolvedSearch?.searchDays, 5);
   assert.deepEqual(
     result.slots.map((slot) => slot.start),
     [
       '2026-03-16T09:00:00+01:00',
-      '2026-03-16T09:15:00+01:00',
-      '2026-03-16T09:30:00+01:00'
+      '2026-03-17T09:00:00+01:00',
+      '2026-03-18T09:00:00+01:00'
     ]
   );
-  assert.ok(result.slots.every((slot) => slot.start.slice(11, 16) < '13:00'));
+  assert.ok(result.slots.every((slot) => slot.start.slice(11, 16) === '09:00'));
   assert.match(
     normalizeSearchText(result.message),
     /nie widze wolnych terminow na poniedzialek, szesnastego marca po poludniu/i
   );
 });
 
-test('checkAvailability explains the fixed first_available business-day horizon when no slots exist', () => {
+test('checkAvailability explains the bounded first_available search window when no slots exist', () => {
   const parseResult = runParse(
     'tool_check-availability.json',
     'Parse Request',
@@ -734,39 +745,14 @@ test('checkAvailability explains the fixed first_available business-day horizon 
   assert.equal(parseResult.ok, true);
   assert.equal(parseResult.searchPlans?.length, 1);
   assert.equal(parseResult.searchPlans?.[0]?.stage, 'primary');
-  assert.equal(parseResult.searchPlans?.[0]?.searchDays, 30);
+  assert.equal(parseResult.searchPlans?.[0]?.searchDays, 5);
 
   const blockedBusinessDates = [
     '2026-03-16',
     '2026-03-17',
     '2026-03-18',
     '2026-03-19',
-    '2026-03-20',
-    '2026-03-23',
-    '2026-03-24',
-    '2026-03-25',
-    '2026-03-26',
-    '2026-03-27',
-    '2026-03-30',
-    '2026-03-31',
-    '2026-04-01',
-    '2026-04-02',
-    '2026-04-03',
-    '2026-04-06',
-    '2026-04-07',
-    '2026-04-08',
-    '2026-04-09',
-    '2026-04-10',
-    '2026-04-13',
-    '2026-04-14',
-    '2026-04-15',
-    '2026-04-16',
-    '2026-04-17',
-    '2026-04-20',
-    '2026-04-21',
-    '2026-04-22',
-    '2026-04-23',
-    '2026-04-24'
+    '2026-03-20'
   ];
 
   const result = runCodeNode(
@@ -786,15 +772,15 @@ test('checkAvailability explains the fixed first_available business-day horizon 
   assert.equal(result.available, false);
   assert.match(
     normalizeSearchText(result.message),
-    /najblizszych trzydziesci dni roboczych/i
+    /najblizszych pieciu dni roboczych/i
   );
   assert.doesNotMatch(
     normalizeSearchText(result.message),
-    /podanym zakresie/i
+    /trzydziesci dni roboczych/i
   );
 });
 
-test('checkAvailability deterministically returns first_available slots in strict chronological order', () => {
+test('checkAvailability returns first_available slots as the next few available dates in chronological order', () => {
   const parseResult = runParse(
     'tool_check-availability.json',
     'Parse Request',
@@ -810,7 +796,7 @@ test('checkAvailability deterministically returns first_available slots in stric
   assert.equal(parseResult.ok, true);
   assert.equal(parseResult.searchPlans?.length, 1);
   assert.equal(parseResult.searchPlans?.[0]?.stage, 'primary');
-  assert.equal(parseResult.searchPlans?.[0]?.searchDays, 30);
+  assert.equal(parseResult.searchPlans?.[0]?.searchDays, 5);
 
   const result = runCodeNode(
     'tool_check-availability.json',
@@ -824,18 +810,6 @@ test('checkAvailability deterministically returns first_available slots in stric
       {
         start: { dateTime: '2026-03-17T09:00:00+01:00' },
         end: { dateTime: '2026-03-17T21:00:00+01:00' }
-      },
-      {
-        start: { dateTime: '2026-03-18T09:00:00+01:00' },
-        end: { dateTime: '2026-03-18T21:00:00+01:00' }
-      },
-      {
-        start: { dateTime: '2026-03-19T09:00:00+01:00' },
-        end: { dateTime: '2026-03-19T21:00:00+01:00' }
-      },
-      {
-        start: { dateTime: '2026-03-20T09:00:00+01:00' },
-        end: { dateTime: '2026-03-20T21:00:00+01:00' }
       }
     ],
     defaultEnv
@@ -843,18 +817,73 @@ test('checkAvailability deterministically returns first_available slots in stric
 
   assert.equal(result.available, true);
   assert.equal(result.normalizedRequest?.timePreference, 'first_available');
-  assert.equal(result.normalizedRequest?.searchDays, 30);
+  assert.equal(result.normalizedRequest?.searchDays, 5);
   assert.deepEqual(
     result.slots.map((slot) => slot.start),
     [
-      '2026-03-23T09:00:00+01:00',
-      '2026-03-23T09:15:00+01:00',
-      '2026-03-23T09:30:00+01:00'
+      '2026-03-18T09:00:00+01:00',
+      '2026-03-19T09:00:00+01:00',
+      '2026-03-20T09:00:00+01:00'
     ]
   );
   assert.doesNotMatch(
     normalizeSearchText(result.message),
     /sprawdzilam tez kolejne/i
+  );
+});
+
+test('checkAvailability keeps a specific-day first_available search bounded while offering next dates as fallback', () => {
+  const parseResult = runParse(
+    'tool_check-availability.json',
+    'Parse Request',
+    {
+      service: { id: 'consultation' },
+      requestedDate: '2026-03-16',
+      timePreference: 'first_available',
+      searchDays: 1,
+      timezone: 'Europe/Warsaw'
+    },
+    defaultEnv
+  );
+  assert.equal(parseResult.ok, true);
+  assert.equal(parseResult.searchPlans?.length, 2);
+  assert.equal(parseResult.searchPlans?.[0]?.stage, 'primary');
+  assert.equal(parseResult.searchPlans?.[0]?.searchDays, 1);
+  assert.equal(parseResult.searchPlans?.[1]?.stage, 'next_available_fallback');
+  assert.equal(parseResult.searchPlans?.[1]?.searchDays, 5);
+
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    [
+      {
+        start: { dateTime: '2026-03-16T09:00:00+01:00' },
+        end: { dateTime: '2026-03-16T21:00:00+01:00' }
+      }
+    ],
+    defaultEnv
+  );
+
+  assert.equal(result.available, true);
+  assert.equal(result.requestedRangeAvailable, false);
+  assert.equal(result.normalizedRequest?.requestedDate, '2026-03-16');
+  assert.equal(result.normalizedRequest?.timePreference, 'first_available');
+  assert.equal(result.normalizedRequest?.searchDays, 1);
+  assert.equal(result.resolvedSearch?.stage, 'next_available_fallback');
+  assert.equal(result.resolvedSearch?.timePreference, 'first_available');
+  assert.equal(result.resolvedSearch?.searchDays, 5);
+  assert.deepEqual(
+    result.slots.map((slot) => slot.start),
+    [
+      '2026-03-17T09:00:00+01:00',
+      '2026-03-18T09:00:00+01:00',
+      '2026-03-19T09:00:00+01:00'
+    ]
+  );
+  assert.match(
+    normalizeSearchText(result.message),
+    /nie widze wolnych terminow na poniedzialek, szesnastego marca/i
   );
 });
 
@@ -866,6 +895,7 @@ test('checkAvailability preserves calendar provider failures as structured unava
     timezone: 'Europe/Warsaw',
     service: { id: 'consultation' },
     requestedDate: '2026-03-16',
+    requestedDateWasExplicit: true,
     requestedTime: null,
     timePreference: 'first_available',
     durationMinutes: 45,
@@ -912,6 +942,7 @@ test('checkAvailability returns speech-safe slot wording for voice playback', ()
     timezone: 'Europe/Warsaw',
     service: { id: 'consultation' },
     requestedDate: '2026-03-16',
+    requestedDateWasExplicit: true,
     requestedTime: null,
     timePreference: 'first_available',
     durationMinutes: 45,
@@ -962,6 +993,7 @@ test('checkAvailability names doctor Magdalena Szajnar for default first-visit c
     service: { id: 'consultation' },
     patient: { isExistingPatient: false },
     requestedDate: '2026-03-16',
+    requestedDateWasExplicit: true,
     requestedTime: null,
     timePreference: 'first_available',
     durationMinutes: 45,
@@ -990,7 +1022,7 @@ test('checkAvailability names doctor Magdalena Szajnar for default first-visit c
   );
   assert.match(
     normalizeSearchText(result.message),
-    /najblizsze wolne terminy do doktor magdaleny szajnar|moge zaproponowac termin do doktor magdaleny szajnar/i
+    /mam wolne terminy do doktor magdaleny szajnar|mam wolny termin do doktor magdaleny szajnar/i
   );
 });
 
@@ -1003,6 +1035,7 @@ test('checkAvailability keeps generic offer wording outside the default first-vi
     service: { id: 'consultation' },
     patient: { isExistingPatient: true },
     requestedDate: '2026-03-16',
+    requestedDateWasExplicit: true,
     requestedTime: null,
     timePreference: 'first_available',
     durationMinutes: 45,
@@ -1039,6 +1072,7 @@ test('checkAvailability formats a speech-safe tool-complete message for Vapi', (
     timezone: 'Europe/Warsaw',
     service: { id: 'consultation' },
     requestedDate: '2026-03-16',
+    requestedDateWasExplicit: true,
     requestedTime: null,
     timePreference: 'first_available',
     durationMinutes: 45,
@@ -1072,7 +1106,7 @@ test('checkAvailability formats a speech-safe tool-complete message for Vapi', (
   assert.equal(containsPolishDiacritics(formattedPayload.message || ''), true);
   assert.match(
     normalizeSearchText(formattedPayload.message || ''),
-    /najblizsze wolne terminy|moge zaproponowac/i
+    /mam wolne terminy|mam wolny termin/i
   );
 });
 
@@ -1765,8 +1799,9 @@ test('Vapi tool sync scripts keep searchKnowledgeBase and delayed tool messages 
   assert.equal(searchKnowledgeBase?.schemaPath, 'schemas/searchKnowledgeBase.request.json');
   assert.equal(searchKnowledgeBase?.endpoint, '/webhook/ai-receptionist/search-knowledge-base');
   assert.equal(searchKnowledgeBase?.messages?.[1]?.type, 'request-response-delayed');
-  assert.match(checkAvailability?.description || '', /fixed .* business-day horizon/i);
-  assert.doesNotMatch(checkAvailability?.description || '', /searchDays 14/i);
+  assert.match(checkAvailability?.description || '', /requestedDate plus searchDays 1 for one specific day/i);
+  assert.match(checkAvailability?.description || '', /without requestedDate for the next available dates/i);
+  assert.doesNotMatch(checkAvailability?.description || '', /fixed .* business-day horizon/i);
   assert.match(checkAvailability?.description || '', /patient\.isExistingPatient/);
   assert.match(createEvent?.description || '', /confirmed the phone/);
   assert.equal(checkAvailability?.messages?.[1]?.timingMilliseconds, 1800);

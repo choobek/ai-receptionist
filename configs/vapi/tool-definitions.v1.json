@@ -31,7 +31,7 @@
     "checkAvailability": {
       "schemaPath": "schemas/checkAvailability.vapi.request.json",
       "endpoint": "/webhook/ai-receptionist/check-availability",
-      "description": "Return appointment availability for a known visit type and time preference in Europe/Warsaw. Use specific_time for exact hours, broad windows for morning/afternoon/evening, or first_available for nearest slots. For first_available, the backend uses a fixed deterministic business-day horizon. When known, pass patient.isExistingPatient. Prefer spokenLabel or spokenTime. Say result.message verbatim.",
+      "description": "Return appointment availability for a visit type and preference in Europe/Warsaw. Use specific_time for exact hours, broad windows for morning/afternoon/evening, first_available with requestedDate plus searchDays 1 for one specific day, or first_available without requestedDate for the next available dates. Pass patient.isExistingPatient when known. Prefer spokenLabel/spokenTime. Say result.message verbatim.",
       "messages": [
         {
           "type": "request-start",

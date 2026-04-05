@@ -16,6 +16,10 @@
     "available": {
       "type": "boolean"
     },
+    "requestedRangeAvailable": {
+      "type": "boolean",
+      "description": "Whether the primary requested date/window had any slots before fallback alternatives were considered."
+    },
     "timezone": {
       "type": "string"
     },
@@ -55,6 +59,49 @@
         },
         "searchDays": {
           "type": "integer"
+        }
+      }
+    },
+    "resolvedSearch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "serviceId",
+        "durationMinutes",
+        "windowStart",
+        "windowEnd",
+        "stage"
+      ],
+      "properties": {
+        "serviceId": {
+          "type": "string"
+        },
+        "durationMinutes": {
+          "type": "integer"
+        },
+        "windowStart": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "windowEnd": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "requestedDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "requestedTime": {
+          "type": "string"
+        },
+        "timePreference": {
+          "type": "string"
+        },
+        "searchDays": {
+          "type": "integer"
+        },
+        "stage": {
+          "type": "string"
         }
       }
     },
@@ -123,6 +170,7 @@
     {
       "requestId": "req_001",
       "available": true,
+      "requestedRangeAvailable": true,
       "timezone": "Europe/Warsaw",
       "normalizedRequest": {
         "serviceId": "consultation",
@@ -150,6 +198,7 @@
     {
       "requestId": "req_002",
       "available": true,
+      "requestedRangeAvailable": true,
       "timezone": "Europe/Warsaw",
       "normalizedRequest": {
         "serviceId": "consultation",
@@ -177,6 +226,7 @@
     {
       "requestId": "req_003",
       "available": false,
+      "requestedRangeAvailable": false,
       "timezone": "Europe/Warsaw",
       "normalizedRequest": {
         "serviceId": "consultation",
