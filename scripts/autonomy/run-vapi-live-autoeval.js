@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const zlib = require('node:zlib');
 const { spawnSync } = require('node:child_process');
 const {
   buildRun,
@@ -224,6 +225,198 @@ function normalizeRequestPath(uri) {
   } catch {
     return uri.split('?')[0].trim() || null;
   }
+}
+
+function parseJsonLines(text) {
+  const entries = [];
+  for (const rawLine of String(text || '').split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) {
+      continue;
+    }
+    try {
+      entries.push(JSON.parse(line));
+    } catch {
+      continue;
+    }
+  }
+  return entries;
+}
+
+async function fetchArtifactLogEntries(logUrl) {
+  if (typeof logUrl !== 'string' || !logUrl.trim()) {
+    return [];
+  }
+
+  const response = await fetch(logUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch Vapi artifact log: HTTP ${response.status}`);
+  }
+
+  const payload = Buffer.from(await response.arrayBuffer());
+  let text;
+  try {
+    text = zlib.gunzipSync(payload).toString('utf8');
+  } catch {
+    text = payload.toString('utf8');
+  }
+  return parseJsonLines(text);
+}
+
+function extractInitiatedToolCalls(attributes) {
+  const requestBody = safeObject(attributes?.requestBody) || {};
+  const message = safeObject(requestBody?.message) || {};
+  const candidates = [
+    ...safeArray(message.toolCalls),
+    ...safeArray(message.toolCallList),
+    ...safeArray(message.toolWithToolCallList).map((entry) => safeObject(entry?.toolCall)).filter(Boolean)
+  ];
+  const seen = new Set();
+  const toolCalls = [];
+
+  for (const candidate of candidates) {
+    const toolCall = safeObject(candidate) || {};
+    const toolCallId = typeof toolCall.id === 'string' ? toolCall.id : null;
+    const functionPart = safeObject(toolCall.function) || {};
+    const toolName = typeof functionPart.name === 'string' ? functionPart.name : null;
+    const key = toolCallId || `${toolName || 'unknown'}::${toolCalls.length}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    toolCalls.push({
+      toolCallId,
+      toolName
+    });
+  }
+
+  return toolCalls;
+}
+
+function pickPendingVapiWebhookBatch(pendingBatches, attributes, eventTimeMs) {
+  const url = typeof attributes?.url === 'string' ? attributes.url : null;
+  const messageType = typeof attributes?.messageType === 'string' ? attributes.messageType : null;
+  if (!url || messageType !== 'tool-calls') {
+    return null;
+  }
+
+  const candidates = pendingBatches.filter(
+    (batch) => batch.url === url && batch.messageType === messageType && batch.initiatedAtMs <= eventTimeMs
+  );
+  return candidates[candidates.length - 1] || null;
+}
+
+function parseVapiArtifactWebhookEntries(entries) {
+  const sortedEntries = safeArray(entries)
+    .map((entry) => safeObject(entry))
+    .filter(Boolean)
+    .sort((left, right) => (toFiniteNumber(left.time) || 0) - (toFiniteNumber(right.time) || 0));
+  const pendingBatches = [];
+  const completedBatches = [];
+  let batchIndex = 0;
+
+  for (const entry of sortedEntries) {
+    const attributes = safeObject(entry.attributes) || {};
+    if (attributes.category !== 'webhook' || attributes.messageType !== 'tool-calls') {
+      continue;
+    }
+    const timeMs = toFiniteNumber(entry.time);
+    if (timeMs === null) {
+      continue;
+    }
+    const body = typeof entry.body === 'string' ? entry.body : '';
+    if (body === 'Request initiated: tool-calls') {
+      const batch = {
+        entryId: `vapi-artifact-webhook-${batchIndex}`,
+        initiatedAtMs: timeMs,
+        messageType: 'tool-calls',
+        url: typeof attributes.url === 'string' ? attributes.url : null,
+        requestPath: normalizeRequestPath(attributes.url),
+        requestMethod: typeof attributes.requestMethod === 'string' ? attributes.requestMethod : null,
+        timeoutSeconds: toFiniteNumber(attributes.timeout),
+        configuredRetries: toFiniteNumber(attributes.retries),
+        toolCalls: extractInitiatedToolCalls(attributes),
+        responseLatencyMs: null,
+        failureLatencyMs: null,
+        statusCode: null,
+        errorMessage: null,
+        completedAtMs: null,
+        totalLatencyMs: null,
+        success: null,
+        hasRetries: null
+      };
+      batchIndex += 1;
+      pendingBatches.push(batch);
+      completedBatches.push(batch);
+      continue;
+    }
+
+    const batch = pickPendingVapiWebhookBatch(pendingBatches, attributes, timeMs);
+    if (!batch) {
+      continue;
+    }
+
+    if (body === 'Response successful: tool-calls') {
+      batch.responseLatencyMs = toFiniteNumber(attributes.latencyMs);
+      batch.statusCode = toFiniteNumber(attributes.statusCode);
+      continue;
+    }
+
+    if (body === 'Request failed: tool-calls') {
+      batch.failureLatencyMs = toFiniteNumber(attributes.latencyMs);
+      batch.errorMessage = typeof attributes.errorMessage === 'string' ? attributes.errorMessage : null;
+      if (batch.completedAtMs === null) {
+        batch.completedAtMs = timeMs;
+      }
+      continue;
+    }
+
+    if (body === 'Request completed: tool-calls') {
+      batch.completedAtMs = timeMs;
+      batch.totalLatencyMs = toFiniteNumber(attributes.totalLatencyMs);
+      batch.success = typeof attributes.success === 'boolean' ? attributes.success : null;
+      batch.hasRetries = typeof attributes.hasRetries === 'boolean' ? attributes.hasRetries : null;
+      const index = pendingBatches.indexOf(batch);
+      if (index >= 0) {
+        pendingBatches.splice(index, 1);
+      }
+    }
+  }
+
+  return completedBatches.flatMap((batch) => {
+    const requestCompletedAtMs = typeof batch.completedAtMs === 'number'
+      ? batch.completedAtMs
+      : typeof batch.totalLatencyMs === 'number'
+        ? batch.initiatedAtMs + batch.totalLatencyMs
+        : typeof batch.responseLatencyMs === 'number'
+          ? batch.initiatedAtMs + batch.responseLatencyMs
+          : typeof batch.failureLatencyMs === 'number'
+            ? batch.initiatedAtMs + batch.failureLatencyMs
+            : null;
+    const requestLatencyMs = batch.totalLatencyMs
+      ?? batch.responseLatencyMs
+      ?? batch.failureLatencyMs
+      ?? (requestCompletedAtMs === null ? null : Math.max(requestCompletedAtMs - batch.initiatedAtMs, 0));
+    const toolCalls = batch.toolCalls.length > 0 ? batch.toolCalls : [{ toolCallId: null, toolName: null }];
+    return toolCalls.map((toolCall, index) => ({
+      entryId: `${batch.entryId}::${index}`,
+      source: 'vapi_artifact_log',
+      toolCallId: toolCall.toolCallId,
+      toolName: toolCall.toolName,
+      requestUrl: batch.url,
+      requestPath: batch.requestPath,
+      requestMethod: batch.requestMethod,
+      requestInitiatedAtMs: batch.initiatedAtMs,
+      requestCompletedAtMs,
+      requestLatencyMs,
+      statusCode: batch.statusCode,
+      success: batch.success,
+      hasRetries: batch.hasRetries,
+      configuredRetries: batch.configuredRetries,
+      timeoutSeconds: batch.timeoutSeconds,
+      errorMessage: batch.errorMessage
+    }));
+  });
 }
 
 function maxNullable(values) {
@@ -688,6 +881,40 @@ function buildTraceEdgeMatch(traceRef, entry) {
   };
 }
 
+function buildTraceVapiWebhookMatch(traceRef, entry) {
+  const roundTripMs = Math.max(traceRef.completedAtMs - traceRef.requestedAtMs, 0);
+  const requestCompletedAtMs = toNumber(entry?.requestCompletedAtMs);
+  const requestLatencyMs = toNumber(entry?.requestLatencyMs);
+  const toolToWebhookCompletionGapMs = requestCompletedAtMs === null
+    ? null
+    : Math.max(requestCompletedAtMs - traceRef.requestedAtMs, 0);
+  const webhookToToolResultGapMs = requestCompletedAtMs === null
+    ? null
+    : Math.max(traceRef.completedAtMs - requestCompletedAtMs, 0);
+
+  return {
+    source: 'vapi_artifact_log',
+    requestPath: entry.requestPath,
+    requestMethod: entry.requestMethod,
+    requestUrl: entry.requestUrl,
+    requestInitiatedAtMs: toNumber(entry.requestInitiatedAtMs),
+    requestCompletedAtMs,
+    requestLatencyMs,
+    statusCode: toNumber(entry.statusCode),
+    success: typeof entry.success === 'boolean' ? entry.success : null,
+    hasRetries: typeof entry.hasRetries === 'boolean' ? entry.hasRetries : null,
+    configuredRetries: toNumber(entry.configuredRetries),
+    timeoutSeconds: toNumber(entry.timeoutSeconds),
+    errorMessage: typeof entry.errorMessage === 'string' ? entry.errorMessage : null,
+    toolToWebhookCompletionGapMs,
+    webhookToToolResultGapMs,
+    roundTripMs,
+    matchedUsing: entry.toolCallId
+      ? 'tool_call_id_from_vapi_artifact_webhook'
+      : 'endpoint_path_and_time_from_vapi_artifact_webhook'
+  };
+}
+
 function matchToolTracesToExecutions(traceRefs, executions) {
   const executionsByWorkflowId = new Map();
   for (const execution of safeArray(executions)) {
@@ -792,10 +1019,136 @@ function matchToolTracesToCaddyEntries(traceRefs, accessEntries) {
   };
 }
 
+function matchToolTracesToVapiWebhookEntries(traceRefs, transportEntries) {
+  const entriesByToolCallId = new Map();
+  const entriesByPath = new Map();
+  const normalizedEntries = safeArray(transportEntries)
+    .map((entry, index) => {
+      const source = safeObject(entry);
+      if (!source) {
+        return null;
+      }
+      return {
+        ...source,
+        matchKey: `${typeof source.entryId === 'string' ? source.entryId : 'vapi-transport-entry'}::${index}`
+      };
+    })
+    .filter(Boolean);
+
+  for (const entry of normalizedEntries) {
+    if (entry.toolCallId) {
+      const current = entriesByToolCallId.get(entry.toolCallId) || [];
+      current.push(entry);
+      entriesByToolCallId.set(entry.toolCallId, current);
+    }
+    if (entry.requestPath) {
+      const current = entriesByPath.get(entry.requestPath) || [];
+      current.push(entry);
+      entriesByPath.set(entry.requestPath, current);
+    }
+  }
+
+  for (const entryList of entriesByToolCallId.values()) {
+    entryList.sort((left, right) => (left.requestInitiatedAtMs || 0) - (right.requestInitiatedAtMs || 0));
+  }
+  for (const entryList of entriesByPath.values()) {
+    entryList.sort((left, right) => (left.requestInitiatedAtMs || 0) - (right.requestInitiatedAtMs || 0));
+  }
+
+  const usedEntryIds = new Set();
+  let matchedTraceCount = 0;
+  let totalTraceCount = 0;
+
+  for (const traceRef of safeArray(traceRefs)) {
+    totalTraceCount += 1;
+    const matchingWindowStartMs = traceRef.requestedAtMs - 5000;
+    const matchingWindowEndMs = traceRef.completedAtMs + 5000;
+    const directCandidates = traceRef.trace?.tool_call_id
+      ? (entriesByToolCallId.get(traceRef.trace.tool_call_id) || [])
+      : [];
+    const fallbackCandidates = traceRef.endpointPath
+      ? (entriesByPath.get(traceRef.endpointPath) || [])
+      : [];
+    const candidates = (directCandidates.length > 0 ? directCandidates : fallbackCandidates)
+      .filter((entry) => !usedEntryIds.has(entry.matchKey))
+      .filter((entry) => {
+        const startedAtMs = toNumber(entry.requestInitiatedAtMs);
+        const completedAtMs = toNumber(entry.requestCompletedAtMs) ?? startedAtMs;
+        if (startedAtMs === null) {
+          return false;
+        }
+        return startedAtMs <= matchingWindowEndMs && completedAtMs >= matchingWindowStartMs;
+      })
+      .sort((left, right) => {
+        const leftScore = Math.abs((toNumber(left.requestInitiatedAtMs) || 0) - traceRef.requestedAtMs)
+          + Math.abs((toNumber(left.requestCompletedAtMs) || toNumber(left.requestInitiatedAtMs) || 0) - traceRef.completedAtMs);
+        const rightScore = Math.abs((toNumber(right.requestInitiatedAtMs) || 0) - traceRef.requestedAtMs)
+          + Math.abs((toNumber(right.requestCompletedAtMs) || toNumber(right.requestInitiatedAtMs) || 0) - traceRef.completedAtMs);
+        return leftScore - rightScore;
+      });
+
+    const matchedEntry = candidates[0] || null;
+    if (!matchedEntry) {
+      continue;
+    }
+
+    traceRef.trace.vapiWebhookTransport = buildTraceVapiWebhookMatch(traceRef, matchedEntry);
+    usedEntryIds.add(matchedEntry.matchKey);
+    matchedTraceCount += 1;
+  }
+
+  return {
+    matchedTraceCount,
+    totalTraceCount,
+    transportEntryCount: normalizedEntries.length
+  };
+}
+
 function refreshSuiteRunLatencyDiagnostics(suiteRuns) {
   for (const suiteRun of safeArray(suiteRuns)) {
     suiteRun.run.call.latency_diagnostics = deriveLatencyDiagnostics(suiteRun.fullCall, suiteRun.run.tool_trace);
   }
+}
+
+async function enrichSuiteRunsWithVapiWebhookTransport(suiteRuns) {
+  const traceRefs = buildToolTraceRefs(suiteRuns);
+  if (traceRefs.length === 0) {
+    return {
+      enabled: true,
+      source: 'vapi_artifact_log',
+      matchedTraceCount: 0,
+      totalTraceCount: 0,
+      transportEntryCount: 0
+    };
+  }
+
+  const transportEntries = [];
+  const warnings = [];
+
+  for (const suiteRun of safeArray(suiteRuns)) {
+    const logUrl = suiteRun?.fullCall?.artifact?.logUrl;
+    if (typeof logUrl !== 'string' || !logUrl.trim()) {
+      continue;
+    }
+    try {
+      const rawEntries = await fetchArtifactLogEntries(logUrl);
+      transportEntries.push(...parseVapiArtifactWebhookEntries(rawEntries));
+    } catch (error) {
+      warnings.push(
+        `${suiteRun?.run?.call?.call_id || 'unknown'}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  const matchSummary = matchToolTracesToVapiWebhookEntries(traceRefs, transportEntries);
+  return {
+    enabled: true,
+    source: 'vapi_artifact_log',
+    matchedTraceCount: matchSummary.matchedTraceCount,
+    totalTraceCount: matchSummary.totalTraceCount,
+    transportEntryCount: matchSummary.transportEntryCount,
+    ...(warnings.length > 0 ? { warning: warnings.join(' | ') } : {})
+  };
 }
 
 async function enrichSuiteRunsWithN8nLatency(suiteRuns, environment) {
@@ -1304,6 +1657,7 @@ function summarizeSuite({
   startedAt,
   completedAt,
   policyPath,
+  vapiTransportEnrichment = null,
   latencyEnrichment = null,
   edgeEnrichment = null
 }) {
@@ -1316,6 +1670,8 @@ function summarizeSuite({
   const maxTranscriberLatencies = [];
   const maxEndpointingLatencies = [];
   const maxToolRoundTripLatencies = [];
+  const maxToolVapiWebhookLatencies = [];
+  const maxToolVapiWebhookToResultGaps = [];
   const maxToolBackendWorkflowLatencies = [];
   const maxToolBackendExternalLatencies = [];
   const maxToolBackendInternalLatencies = [];
@@ -1381,6 +1737,12 @@ function summarizeSuite({
     if (typeof maxToolRoundTripLatencyMs === 'number') {
       maxToolRoundTripLatencies.push(maxToolRoundTripLatencyMs);
     }
+    if (typeof latency?.maxToolVapiWebhookLatencyMs === 'number') {
+      maxToolVapiWebhookLatencies.push(latency.maxToolVapiWebhookLatencyMs);
+    }
+    if (typeof latency?.maxToolVapiWebhookToToolResultGapMs === 'number') {
+      maxToolVapiWebhookToResultGaps.push(latency.maxToolVapiWebhookToToolResultGapMs);
+    }
     if (typeof latency?.maxToolBackendWorkflowLatencyMs === 'number') {
       maxToolBackendWorkflowLatencies.push(latency.maxToolBackendWorkflowLatencyMs);
     }
@@ -1442,6 +1804,8 @@ function summarizeSuite({
       average_max_transcriber_latency_ms: roundMaybe(average(maxTranscriberLatencies)),
       average_max_endpointing_latency_ms: roundMaybe(average(maxEndpointingLatencies)),
       average_max_tool_round_trip_latency_ms: roundMaybe(average(maxToolRoundTripLatencies)),
+      average_max_tool_vapi_webhook_latency_ms: roundMaybe(average(maxToolVapiWebhookLatencies)),
+      average_max_tool_vapi_webhook_to_result_gap_ms: roundMaybe(average(maxToolVapiWebhookToResultGaps)),
       average_max_tool_backend_workflow_latency_ms: roundMaybe(average(maxToolBackendWorkflowLatencies)),
       average_max_tool_backend_external_latency_ms: roundMaybe(average(maxToolBackendExternalLatencies)),
       average_max_tool_backend_internal_latency_ms: roundMaybe(average(maxToolBackendInternalLatencies)),
@@ -1479,6 +1843,29 @@ function summarizeSuite({
         ? latencyEnrichment.executionCount
         : 0,
       warning: typeof latencyEnrichment?.warning === 'string' ? latencyEnrichment.warning : null
+    },
+    vapi_transport_enrichment: {
+      enabled: Boolean(vapiTransportEnrichment?.enabled),
+      source: vapiTransportEnrichment?.source || null,
+      matched_trace_count: typeof vapiTransportEnrichment?.matchedTraceCount === 'number'
+        ? vapiTransportEnrichment.matchedTraceCount
+        : 0,
+      total_trace_count: typeof vapiTransportEnrichment?.totalTraceCount === 'number'
+        ? vapiTransportEnrichment.totalTraceCount
+        : 0,
+      unmatched_trace_count: Math.max(
+        (typeof vapiTransportEnrichment?.totalTraceCount === 'number'
+          ? vapiTransportEnrichment.totalTraceCount
+          : 0)
+          - (typeof vapiTransportEnrichment?.matchedTraceCount === 'number'
+            ? vapiTransportEnrichment.matchedTraceCount
+            : 0),
+        0
+      ),
+      transport_entry_count: typeof vapiTransportEnrichment?.transportEntryCount === 'number'
+        ? vapiTransportEnrichment.transportEntryCount
+        : 0,
+      warning: typeof vapiTransportEnrichment?.warning === 'string' ? vapiTransportEnrichment.warning : null
     },
     edge_latency_enrichment: {
       enabled: Boolean(edgeEnrichment?.enabled),
@@ -1559,6 +1946,7 @@ function renderSuiteReport(summary) {
   }
 
   const latencySummary = safeObject(summary.latency_summary) || {};
+  const vapiTransportEnrichment = safeObject(summary.vapi_transport_enrichment) || {};
   const latencyEnrichment = safeObject(summary.latency_enrichment) || {};
   const edgeLatencyEnrichment = safeObject(summary.edge_latency_enrichment) || {};
   if (
@@ -1566,6 +1954,8 @@ function renderSuiteReport(summary) {
     || typeof latencySummary.average_max_transcriber_latency_ms === 'number'
     || typeof latencySummary.average_max_endpointing_latency_ms === 'number'
     || typeof latencySummary.average_max_tool_round_trip_latency_ms === 'number'
+    || typeof latencySummary.average_max_tool_vapi_webhook_latency_ms === 'number'
+    || typeof latencySummary.average_max_tool_vapi_webhook_to_result_gap_ms === 'number'
     || typeof latencySummary.average_max_tool_backend_workflow_latency_ms === 'number'
     || typeof latencySummary.average_max_tool_backend_external_latency_ms === 'number'
     || typeof latencySummary.average_max_tool_backend_internal_latency_ms === 'number'
@@ -1603,6 +1993,12 @@ function renderSuiteReport(summary) {
     } else if (typeof latencySummary.average_max_webhook_latency_ms === 'number') {
       lines.push(`- Average max tool round-trip latency: ${latencySummary.average_max_webhook_latency_ms}ms`);
       lines.push('- Tool round-trip latency is inferred from Vapi tool-call and tool-result timestamps; it is not raw backend runtime.');
+    }
+    if (typeof latencySummary.average_max_tool_vapi_webhook_latency_ms === 'number') {
+      lines.push(`- Average max Vapi webhook request latency: ${latencySummary.average_max_tool_vapi_webhook_latency_ms}ms`);
+    }
+    if (typeof latencySummary.average_max_tool_vapi_webhook_to_result_gap_ms === 'number') {
+      lines.push(`- Average max Vapi webhook-to-result gap: ${latencySummary.average_max_tool_vapi_webhook_to_result_gap_ms}ms`);
     }
     if (typeof latencySummary.average_max_tool_dispatch_gap_ms === 'number') {
       lines.push(`- Average max tool dispatch gap: ${latencySummary.average_max_tool_dispatch_gap_ms}ms`);
@@ -1656,6 +2052,17 @@ function renderSuiteReport(summary) {
         );
       } else {
         lines.push('- Edge latency enrichment: no completed tool traces required matching.');
+      }
+    }
+    if (vapiTransportEnrichment.warning) {
+      lines.push(`- Vapi transport enrichment warning: ${vapiTransportEnrichment.warning}`);
+    } else if (vapiTransportEnrichment.enabled) {
+      if (vapiTransportEnrichment.total_trace_count > 0) {
+        lines.push(
+          `- Vapi transport enrichment: matched ${vapiTransportEnrichment.matched_trace_count || 0} of ${vapiTransportEnrichment.total_trace_count} tool traces across ${vapiTransportEnrichment.transport_entry_count || 0} artifact webhook entries.`
+        );
+      } else {
+        lines.push('- Vapi transport enrichment: no completed tool traces required matching.');
       }
     }
     if (latencyEnrichment.warning) {
@@ -1732,6 +2139,12 @@ function renderSuiteReport(summary) {
         if (typeof maxToolRoundTripLatencyMs === 'number') {
           latencyParts.push(`tool_round_trip=${maxToolRoundTripLatencyMs}ms`);
         }
+        if (typeof latency.maxToolVapiWebhookLatencyMs === 'number') {
+          latencyParts.push(`vapi_webhook=${latency.maxToolVapiWebhookLatencyMs}ms`);
+        }
+        if (typeof latency.maxToolVapiWebhookToToolResultGapMs === 'number') {
+          latencyParts.push(`vapi_webhook_to_result=${latency.maxToolVapiWebhookToToolResultGapMs}ms`);
+        }
         if (typeof latency.maxToolDispatchGapMs === 'number') {
           latencyParts.push(`dispatch=${latency.maxToolDispatchGapMs}ms`);
         }
@@ -1785,6 +2198,12 @@ function renderSuiteReport(summary) {
           const detailParts = [];
           if (typeof slowestToolTrace.roundTripMs === 'number') {
             detailParts.push(`round_trip=${slowestToolTrace.roundTripMs}ms`);
+          }
+          if (typeof slowestToolTrace.vapiWebhookLatencyMs === 'number') {
+            detailParts.push(`vapi_webhook=${slowestToolTrace.vapiWebhookLatencyMs}ms`);
+          }
+          if (typeof slowestToolTrace.vapiWebhookToToolResultGapMs === 'number') {
+            detailParts.push(`vapi_webhook_to_result=${slowestToolTrace.vapiWebhookToToolResultGapMs}ms`);
           }
           if (typeof slowestToolTrace.dispatchGapMs === 'number') {
             detailParts.push(`dispatch=${slowestToolTrace.dispatchGapMs}ms`);
@@ -1846,6 +2265,15 @@ function renderSuiteReport(summary) {
           }
           if (typeof slowestToolTrace.edgeStatus === 'number') {
             detailParts.push(`edge_status=${slowestToolTrace.edgeStatus}`);
+          }
+          if (typeof slowestToolTrace.vapiWebhookSuccess === 'boolean') {
+            detailParts.push(`vapi_webhook_success=${slowestToolTrace.vapiWebhookSuccess}`);
+          }
+          if (typeof slowestToolTrace.vapiWebhookHasRetries === 'boolean') {
+            detailParts.push(`vapi_webhook_retries=${slowestToolTrace.vapiWebhookHasRetries}`);
+          }
+          if (slowestToolTrace.vapiWebhookErrorMessage) {
+            detailParts.push(`vapi_webhook_error=${JSON.stringify(slowestToolTrace.vapiWebhookErrorMessage)}`);
           }
           if (slowestToolTrace.executionId) {
             detailParts.push(`execution=${slowestToolTrace.executionId}`);
@@ -1947,6 +2375,7 @@ async function main() {
     });
   }
 
+  const vapiTransportEnrichment = await enrichSuiteRunsWithVapiWebhookTransport(suiteRuns);
   const latencyEnrichment = await enrichSuiteRunsWithN8nLatency(suiteRuns, options.environment);
   const edgeEnrichment = await enrichSuiteRunsWithCaddyEdgeLatency(suiteRuns, options.environment);
   refreshSuiteRunLatencyDiagnostics(suiteRuns);
@@ -1981,6 +2410,7 @@ async function main() {
     startedAt,
     completedAt,
     policyPath: path.relative(ROOT_DIR, POLICY_PATH),
+    vapiTransportEnrichment,
     latencyEnrichment,
     edgeEnrichment
   });
@@ -2008,10 +2438,13 @@ module.exports = {
   buildSshContext,
   buildN8nExecutionSummaries,
   buildToolTraceRefs,
+  enrichSuiteRunsWithVapiWebhookTransport,
   enrichSuiteRunsWithCaddyEdgeLatency,
   enrichSuiteRunsWithN8nLatency,
+  matchToolTracesToVapiWebhookEntries,
   matchToolTracesToCaddyEntries,
   matchToolTracesToExecutions,
+  parseVapiArtifactWebhookEntries,
   parseCaddyAccessLogBundle,
   parseN8nEventLogBundle,
   renderSuiteReport,

@@ -1190,10 +1190,24 @@ function deriveLatencyDiagnostics(record, toolTrace) {
         : completedAt - requestedAt;
       const n8nLatency = safeObject(trace?.n8nLatency);
       const edgeLatency = safeObject(trace?.edgeLatency);
+      const vapiWebhookTransport = safeObject(trace?.vapiWebhookTransport);
+      const vapiWebhookCompletedAtMs = toNumber(vapiWebhookTransport?.requestCompletedAtMs);
       return {
         toolName: typeof trace?.tool_name === 'string' ? trace.tool_name : null,
         toolCallId: typeof trace?.tool_call_id === 'string' ? trace.tool_call_id : null,
         roundTripMs,
+        vapiWebhookLatencyMs: toNumber(vapiWebhookTransport?.requestLatencyMs),
+        vapiWebhookToToolResultGapMs: vapiWebhookCompletedAtMs === null || completedAt === null
+          ? null
+          : Math.max(completedAt - vapiWebhookCompletedAtMs, 0),
+        vapiWebhookSuccess: typeof vapiWebhookTransport?.success === 'boolean' ? vapiWebhookTransport.success : null,
+        vapiWebhookStatusCode: toNumber(vapiWebhookTransport?.statusCode),
+        vapiWebhookHasRetries: typeof vapiWebhookTransport?.hasRetries === 'boolean'
+          ? vapiWebhookTransport.hasRetries
+          : null,
+        vapiWebhookErrorMessage: typeof vapiWebhookTransport?.errorMessage === 'string'
+          ? vapiWebhookTransport.errorMessage
+          : null,
         backendWorkflowLatencyMs: toNumber(n8nLatency?.workflowDurationMs),
         backendExternalLatencyMs: toNumber(n8nLatency?.externalDurationMs),
         backendInternalLatencyMs: toNumber(n8nLatency?.internalDurationMs),
@@ -1217,6 +1231,8 @@ function deriveLatencyDiagnostics(record, toolTrace) {
     })
     .filter((detail) => detail.roundTripMs !== null);
   const maxToolRoundTripLatencyMs = maxLatencyValue(toolLatencyDetails, 'roundTripMs');
+  const maxToolVapiWebhookLatencyMs = maxLatencyValue(toolLatencyDetails, 'vapiWebhookLatencyMs');
+  const maxToolVapiWebhookToToolResultGapMs = maxLatencyValue(toolLatencyDetails, 'vapiWebhookToToolResultGapMs');
   const maxToolBackendWorkflowLatencyMs = maxLatencyValue(toolLatencyDetails, 'backendWorkflowLatencyMs');
   const maxToolBackendExternalLatencyMs = maxLatencyValue(toolLatencyDetails, 'backendExternalLatencyMs');
   const maxToolBackendInternalLatencyMs = maxLatencyValue(toolLatencyDetails, 'backendInternalLatencyMs');
@@ -1241,7 +1257,9 @@ function deriveLatencyDiagnostics(record, toolTrace) {
       return String(left.toolName || '').localeCompare(String(right.toolName || ''));
     })[0] || null;
   const hasDecomposedToolLatency =
-    maxToolBackendWorkflowLatencyMs !== null
+    maxToolVapiWebhookLatencyMs !== null
+    || maxToolVapiWebhookToToolResultGapMs !== null
+    || maxToolBackendWorkflowLatencyMs !== null
     || maxToolDispatchGapMs !== null
     || maxToolReturnGapMs !== null
     || maxToolPlatformGapMs !== null
@@ -1254,6 +1272,8 @@ function deriveLatencyDiagnostics(record, toolTrace) {
     || maxToolEdgeObservedGapMs !== null;
   const dominantCandidates = [
     { stage: 'model', value: maxModelLatencyMs, priority: 4 },
+    { stage: 'tool_vapi_webhook_to_result_gap', value: maxToolVapiWebhookToToolResultGapMs, priority: 7 },
+    { stage: 'tool_vapi_webhook_request', value: maxToolVapiWebhookLatencyMs, priority: 6 },
     { stage: 'tool_edge_to_result_gap', value: maxToolEdgeToToolResultGapMs, priority: 6 },
     { stage: 'tool_to_edge_start_gap', value: maxToolToEdgeStartGapMs, priority: 5 },
     { stage: 'tool_edge_observed_gap', value: maxToolEdgeObservedGapMs, priority: 4 },
@@ -1280,6 +1300,8 @@ function deriveLatencyDiagnostics(record, toolTrace) {
     maxTranscriberLatencyMs,
     maxEndpointingLatencyMs,
     maxToolRoundTripLatencyMs,
+    ...(maxToolVapiWebhookLatencyMs !== null ? { maxToolVapiWebhookLatencyMs } : {}),
+    ...(maxToolVapiWebhookToToolResultGapMs !== null ? { maxToolVapiWebhookToToolResultGapMs } : {}),
     ...(maxToolBackendWorkflowLatencyMs !== null ? { maxToolBackendWorkflowLatencyMs } : {}),
     ...(maxToolBackendExternalLatencyMs !== null ? { maxToolBackendExternalLatencyMs } : {}),
     ...(maxToolBackendInternalLatencyMs !== null ? { maxToolBackendInternalLatencyMs } : {}),
@@ -1303,6 +1325,24 @@ function deriveLatencyDiagnostics(record, toolTrace) {
             toolName: slowestToolTrace.toolName,
             toolCallId: slowestToolTrace.toolCallId,
             roundTripMs: slowestToolTrace.roundTripMs,
+            ...(slowestToolTrace.vapiWebhookLatencyMs !== null
+              ? { vapiWebhookLatencyMs: slowestToolTrace.vapiWebhookLatencyMs }
+              : {}),
+            ...(slowestToolTrace.vapiWebhookToToolResultGapMs !== null
+              ? { vapiWebhookToToolResultGapMs: slowestToolTrace.vapiWebhookToToolResultGapMs }
+              : {}),
+            ...(slowestToolTrace.vapiWebhookSuccess !== null
+              ? { vapiWebhookSuccess: slowestToolTrace.vapiWebhookSuccess }
+              : {}),
+            ...(slowestToolTrace.vapiWebhookStatusCode !== null
+              ? { vapiWebhookStatusCode: slowestToolTrace.vapiWebhookStatusCode }
+              : {}),
+            ...(slowestToolTrace.vapiWebhookHasRetries !== null
+              ? { vapiWebhookHasRetries: slowestToolTrace.vapiWebhookHasRetries }
+              : {}),
+            ...(slowestToolTrace.vapiWebhookErrorMessage
+              ? { vapiWebhookErrorMessage: slowestToolTrace.vapiWebhookErrorMessage }
+              : {}),
             ...(slowestToolTrace.backendWorkflowLatencyMs !== null
               ? { backendWorkflowLatencyMs: slowestToolTrace.backendWorkflowLatencyMs }
               : {}),

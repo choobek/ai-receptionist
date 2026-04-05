@@ -38,8 +38,10 @@ const {
   buildSshContext,
   buildN8nExecutionSummaries,
   buildToolTraceRefs,
+  matchToolTracesToVapiWebhookEntries,
   matchToolTracesToCaddyEntries,
   matchToolTracesToExecutions,
+  parseVapiArtifactWebhookEntries,
   parseCaddyAccessLogBundle,
   renderSuiteReport
 } = require(path.join(
@@ -5319,6 +5321,133 @@ test('live autoeval falls back to the default Caddy container name when only SSH
   }
 });
 
+test('live autoeval matches Vapi artifact webhook transport to tool traces', () => {
+  const requestUrl = 'https://example.com/webhook/ai-receptionist/check-availability?secret=REDACTED';
+  const suiteRuns = [{
+    run: {
+      tool_trace: [{
+        tool_name: 'checkAvailability',
+        tool_call_id: 'call_123',
+        requested_at_ms: 1000,
+        completed_at_ms: 7000
+      }]
+    }
+  }];
+  const transportEntries = parseVapiArtifactWebhookEntries([
+    {
+      time: 1018,
+      body: 'Request initiated: tool-calls',
+      attributes: {
+        category: 'webhook',
+        messageType: 'tool-calls',
+        url: requestUrl,
+        requestMethod: 'POST',
+        timeout: 20,
+        retries: 0,
+        requestBody: {
+          message: {
+            toolCalls: [{
+              id: 'call_123',
+              function: {
+                name: 'checkAvailability'
+              }
+            }]
+          }
+        }
+      }
+    },
+    {
+      time: 1459,
+      body: 'Request failed: tool-calls',
+      attributes: {
+        category: 'webhook',
+        messageType: 'tool-calls',
+        url: requestUrl,
+        latencyMs: 441,
+        errorMessage: ''
+      }
+    },
+    {
+      time: 1459,
+      body: 'Request completed: tool-calls',
+      attributes: {
+        category: 'webhook',
+        messageType: 'tool-calls',
+        url: requestUrl,
+        totalLatencyMs: 441,
+        success: false,
+        hasRetries: false
+      }
+    }
+  ]);
+
+  const matchSummary = matchToolTracesToVapiWebhookEntries(buildToolTraceRefs(suiteRuns), transportEntries);
+  const trace = suiteRuns[0].run.tool_trace[0];
+
+  assert.deepEqual(matchSummary, {
+    matchedTraceCount: 1,
+    totalTraceCount: 1,
+    transportEntryCount: 1
+  });
+  assert.deepEqual(trace.vapiWebhookTransport, {
+    source: 'vapi_artifact_log',
+    requestPath: '/webhook/ai-receptionist/check-availability',
+    requestMethod: 'POST',
+    requestUrl,
+    requestInitiatedAtMs: 1018,
+    requestCompletedAtMs: 1459,
+    requestLatencyMs: 441,
+    statusCode: null,
+    success: false,
+    hasRetries: false,
+    configuredRetries: 0,
+    timeoutSeconds: 20,
+    errorMessage: '',
+    toolToWebhookCompletionGapMs: 459,
+    webhookToToolResultGapMs: 5541,
+    roundTripMs: 6000,
+    matchedUsing: 'tool_call_id_from_vapi_artifact_webhook'
+  });
+});
+
+test('latency diagnostics surface Vapi webhook transport failures before edge matching exists', () => {
+  const latency = deriveLatencyDiagnostics(
+    {
+      artifact: {
+        performanceMetrics: {
+          turnLatencies: []
+        }
+      }
+    },
+    [{
+      tool_name: 'checkAvailability',
+      tool_call_id: 'call_123',
+      requested_at_ms: 1000,
+      completed_at_ms: 7000,
+      vapiWebhookTransport: {
+        requestCompletedAtMs: 1459,
+        requestLatencyMs: 441,
+        success: false,
+        hasRetries: false,
+        errorMessage: ''
+      }
+    }]
+  );
+
+  assert.equal(latency.maxToolVapiWebhookLatencyMs, 441);
+  assert.equal(latency.maxToolVapiWebhookToToolResultGapMs, 5541);
+  assert.equal(latency.dominantLatencyStage, 'tool_vapi_webhook_to_result_gap');
+  assert.deepEqual(latency.slowestToolTrace, {
+    toolName: 'checkAvailability',
+    toolCallId: 'call_123',
+    roundTripMs: 6000,
+    vapiWebhookLatencyMs: 441,
+    vapiWebhookToToolResultGapMs: 5541,
+    vapiWebhookSuccess: false,
+    vapiWebhookHasRetries: false
+  });
+});
+
 test('live autoeval report renders decomposed tool latency attribution and enrichment coverage', () => {
   const report = renderSuiteReport({
     suite_run_id: 'staging-vapi-live-autoeval-20260405T120000Z',
@@ -5338,6 +5467,8 @@ test('live autoeval report renders decomposed tool latency attribution and enric
       average_max_transcriber_latency_ms: 0,
       average_max_endpointing_latency_ms: 1001,
       average_max_tool_round_trip_latency_ms: 21159,
+      average_max_tool_vapi_webhook_latency_ms: 441,
+      average_max_tool_vapi_webhook_to_result_gap_ms: 5541,
       average_max_tool_dispatch_gap_ms: 1041,
       average_max_tool_to_edge_start_gap_ms: 284,
       average_max_tool_backend_workflow_latency_ms: 652,
@@ -5365,6 +5496,15 @@ test('live autoeval report renders decomposed tool latency attribution and enric
       execution_count: 1,
       warning: null
     },
+    vapi_transport_enrichment: {
+      enabled: true,
+      source: 'vapi_artifact_log',
+      matched_trace_count: 1,
+      total_trace_count: 1,
+      unmatched_trace_count: 0,
+      transport_entry_count: 1,
+      warning: null
+    },
     edge_latency_enrichment: {
       enabled: true,
       source: 'caddy_access_log',
@@ -5390,6 +5530,8 @@ test('live autoeval report renders decomposed tool latency attribution and enric
           maxTranscriberLatencyMs: 0,
           maxEndpointingLatencyMs: 1001,
           maxToolRoundTripLatencyMs: 21159,
+          maxToolVapiWebhookLatencyMs: 441,
+          maxToolVapiWebhookToToolResultGapMs: 5541,
           maxToolDispatchGapMs: 1041,
           maxToolToEdgeStartGapMs: 284,
           maxToolBackendWorkflowLatencyMs: 652,
@@ -5409,6 +5551,10 @@ test('live autoeval report renders decomposed tool latency attribution and enric
           slowestToolTrace: {
             toolName: 'checkAvailability',
             roundTripMs: 21159,
+            vapiWebhookLatencyMs: 441,
+            vapiWebhookToToolResultGapMs: 5541,
+            vapiWebhookSuccess: false,
+            vapiWebhookHasRetries: false,
             dispatchGapMs: 1041,
             toolToEdgeStartGapMs: 284,
             backendWorkflowLatencyMs: 652,
@@ -5434,6 +5580,8 @@ test('live autoeval report renders decomposed tool latency attribution and enric
   });
 
   assert.match(report, /Average max tool dispatch gap: 1041ms/);
+  assert.match(report, /Average max Vapi webhook request latency: 441ms/);
+  assert.match(report, /Average max Vapi webhook-to-result gap: 5541ms/);
   assert.match(report, /Average max tool-to-edge start gap: 284ms/);
   assert.match(report, /Average max tool backend workflow latency: 652ms/);
   assert.match(report, /Average max edge request duration: 8326ms/);
@@ -5443,11 +5591,12 @@ test('live autoeval report renders decomposed tool latency attribution and enric
   assert.match(report, /Average max edge-to-result gap: 12549ms/);
   assert.match(report, /Average max tool return gap: 19466ms/);
   assert.match(report, /Average max tool platform gap: 20507ms/);
+  assert.match(report, /Vapi transport enrichment: matched 1 of 1 tool traces across 1 artifact webhook entries\./);
   assert.match(report, /Edge latency enrichment: matched 1 of 1 tool traces across 1 Caddy access entries\./);
   assert.match(report, /N8N latency enrichment: matched 1 of 1 tool traces across 1 executions\./);
   assert.match(
     report,
-    /Slowest tool trace: checkAvailability round_trip=21159ms, dispatch=1041ms, to_edge=284ms, backend=652ms \(external=410ms, internal=242ms\), edge=8326ms \(upstream=649ms, header=187ms\), edge_ingress=757ms, edge_observed=7674ms, edge_egress=6917ms, return=19466ms, edge_to_result=12549ms, platform=20507ms, edge_status=200, execution=2583/
+    /Slowest tool trace: checkAvailability round_trip=21159ms, vapi_webhook=441ms, vapi_webhook_to_result=5541ms, dispatch=1041ms, to_edge=284ms, backend=652ms \(external=410ms, internal=242ms\), edge=8326ms \(upstream=649ms, header=187ms\), edge_ingress=757ms, edge_observed=7674ms, edge_egress=6917ms, return=19466ms, edge_to_result=12549ms, platform=20507ms, edge_status=200, vapi_webhook_success=false, vapi_webhook_retries=false, execution=2583/
   );
 });
 
