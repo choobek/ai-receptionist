@@ -894,9 +894,9 @@ test('checkAvailability preserves calendar provider failures as structured unava
   const formatted = executeCode(getNodeCode(loadWorkflow('tool_check-availability.json'), 'Format Success'), {
     $json: result
   })[0].json;
-  const formattedPayload = JSON.parse(formatted.results[0].error);
-  assert.equal(formatted.results[0].name, 'checkAvailability');
-  assert.equal(formatted.results[0].message?.type, 'request-failed');
+  const formattedPayload = formatted.results[0].result;
+  assert.equal(formatted.results[0].toolCallId, result.toolCallId);
+  assert.equal(formatted.results[0].message, undefined);
   assert.equal(formattedPayload.error.code, 'CALENDAR_PROVIDER_REJECTED');
   assert.match(
     normalizeSearchText(formattedPayload.message),
@@ -1062,17 +1062,16 @@ test('checkAvailability formats a speech-safe tool-complete message for Vapi', (
   const formatted = executeCode(getNodeCode(loadWorkflow('tool_check-availability.json'), 'Format Success'), {
     $json: result
   })[0].json;
-  const formattedPayload = JSON.parse(formatted.results[0].result);
+  const formattedPayload = formatted.results[0].result;
 
-  assert.equal(formatted.results[0].name, 'checkAvailability');
-  assert.equal(typeof formatted.results[0].result, 'string');
-  assert.equal(formatted.results[0].message?.type, 'request-complete');
-  assert.equal(typeof formatted.results[0].message?.content, 'string');
+  assert.equal(formatted.results[0].toolCallId, result.toolCallId);
+  assert.equal(typeof formatted.results[0].result, 'object');
+  assert.equal(formatted.results[0].message, undefined);
   assert.equal(formattedPayload.message, result.message);
-  assert.equal(/\d/.test(formatted.results[0].message?.content || ''), false);
-  assert.equal(containsPolishDiacritics(formatted.results[0].message?.content || ''), true);
+  assert.equal(/\d/.test(formattedPayload.message || ''), false);
+  assert.equal(containsPolishDiacritics(formattedPayload.message || ''), true);
   assert.match(
-    normalizeSearchText(formatted.results[0].message?.content || ''),
+    normalizeSearchText(formattedPayload.message || ''),
     /najblizsze wolne terminy|moge zaproponowac/i
   );
 });
@@ -1282,9 +1281,9 @@ test('createEvent preserves calendar provider failures for reception fallback', 
   const formatted = executeCode(getNodeCode(loadWorkflow('tool_create-event.json'), 'Format Conflict'), {
     $json: availabilityResult
   })[0].json;
-  const formattedPayload = JSON.parse(formatted.results[0].error);
-  assert.equal(formatted.results[0].name, 'createEvent');
-  assert.equal(formatted.results[0].message?.type, 'request-failed');
+  const formattedPayload = formatted.results[0].result;
+  assert.equal(formatted.results[0].toolCallId, availabilityResult.toolCallId);
+  assert.equal(formatted.results[0].message, undefined);
   assert.equal(formattedPayload.error.code, 'CALENDAR_PROVIDER_REJECTED');
   assert.match(
     normalizeSearchText(formattedPayload.message),
@@ -1360,8 +1359,10 @@ test('createEvent captures caller phone metadata from Vapi tool payloads', () =>
       message: 'Potwierdzenie SMS po rezerwacji zostalo przygotowane.'
     }
   })[0].json;
-  const bookedResult = formatResult.results?.[0]?.result
-    ? JSON.parse(formatResult.results[0].result)
+  const bookedResult = formatResult.results?.[0]
+    ? (typeof formatResult.results[0].result === 'string'
+        ? JSON.parse(formatResult.results[0].result)
+        : formatResult.results[0].result)
     : formatResult;
   assert.deepEqual(bookedResult.phoneContext, {
     declaredPhoneE164: '+48500111001',
@@ -2785,15 +2786,14 @@ test('lookupPatient formats exact speech-safe completion and retry messages for 
   const okFormatted = executeCode(getNodeCode(workflow, 'Format Ready'), {
     $json: okLookupResult
   })[0].json;
-  const okPayload = JSON.parse(okFormatted.results[0].result);
+  const okPayload = okFormatted.results[0].result;
 
-  assert.equal(okFormatted.results[0].name, 'lookupPatient');
-  assert.equal(typeof okFormatted.results[0].result, 'string');
-  assert.equal(okFormatted.results[0].message?.type, 'request-complete');
-  assert.equal(okFormatted.results[0].message?.content, okLookupResult.message);
+  assert.equal(okFormatted.results[0].toolCallId, okLookupResult.toolCallId);
+  assert.equal(typeof okFormatted.results[0].result, 'object');
+  assert.equal(okFormatted.results[0].message, undefined);
   assert.equal(okPayload.message, okLookupResult.message);
-  assert.equal(/\d/.test(okFormatted.results[0].message?.content || ''), false);
-  assert.equal(containsPolishDiacritics(okFormatted.results[0].message?.content || ''), true);
+  assert.equal(/\d/.test(okPayload.message || ''), false);
+  assert.equal(containsPolishDiacritics(okPayload.message || ''), true);
 
   const failedParseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
     $json: {
@@ -2813,14 +2813,14 @@ test('lookupPatient formats exact speech-safe completion and retry messages for 
   const failedFormatted = executeCode(getNodeCode(workflow, 'Format Validation Error'), {
     $json: failedParseResult
   })[0].json;
-  const failedPayload = JSON.parse(failedFormatted.results[0].error);
+  const failedPayload = failedFormatted.results[0].result;
 
-  assert.equal(failedFormatted.results[0].name, 'lookupPatient');
-  assert.equal(failedFormatted.results[0].message?.type, 'request-failed');
+  assert.equal(failedFormatted.results[0].toolCallId, failedParseResult.toolCallId);
+  assert.equal(failedFormatted.results[0].message, undefined);
   assert.equal(failedPayload.error.code, 'VALIDATION_ERROR');
-  assert.equal(/\d/.test(failedFormatted.results[0].message?.content || ''), false);
+  assert.equal(/\d/.test(failedPayload.message || ''), false);
   assert.match(
-    normalizeSearchText(failedFormatted.results[0].message?.content || ''),
+    normalizeSearchText(failedPayload.message || ''),
     /prosze podac go jeszcze raz, cyfra po cyfrze/i
   );
 });
@@ -2867,17 +2867,15 @@ test('createEvent formats a speech-safe tool-complete confirmation for Vapi', ()
       message: 'Booking confirmation SMS sent.'
     }
   })[0].json;
-  const formattedPayload = JSON.parse(formatted.results[0].result);
+  const formattedPayload = formatted.results[0].result;
 
-  assert.equal(formatted.results[0].name, 'createEvent');
-  assert.equal(typeof formatted.results[0].result, 'string');
-  assert.equal(formatted.results[0].message?.type, 'request-complete');
-  assert.equal(typeof formatted.results[0].message?.content, 'string');
-  assert.equal(formattedPayload.message, formatted.results[0].message?.content);
-  assert.equal(/\d/.test(formatted.results[0].message?.content || ''), false);
-  assert.equal(containsPolishDiacritics(formatted.results[0].message?.content || ''), true);
+  assert.equal(formatted.results[0].toolCallId, 'tool_call_create_event_voice_message');
+  assert.equal(typeof formatted.results[0].result, 'object');
+  assert.equal(formatted.results[0].message, undefined);
+  assert.equal(/\d/.test(formattedPayload.message || ''), false);
+  assert.equal(containsPolishDiacritics(formattedPayload.message || ''), true);
   assert.match(
-    normalizeSearchText(formatted.results[0].message?.content || ''),
+    normalizeSearchText(formattedPayload.message || ''),
     /wizyta zostala potwierdzona/i
   );
 });

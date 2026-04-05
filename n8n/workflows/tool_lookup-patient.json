@@ -112,7 +112,7 @@
         -120
       ],
       "parameters": {
-        "jsCode": "const toolName = 'lookupPatient';\nconst speechMessage = typeof $json.message === 'string' ? $json.message.trim() : '';\nconst result = {\n  requestId: $json.requestId,\n  phone: $json.phone || null,\n  message: speechMessage || null\n};\nconst resultItem = {\n  toolCallId: $json.toolCallId,\n  name: toolName,\n  result: JSON.stringify(result)\n};\nif (speechMessage) {\n  resultItem.message = {\n    type: 'request-complete',\n    content: speechMessage\n  };\n}\nconst body = $json.toolCallId\n  ? { results: [resultItem] }\n  : result;\nreturn [{ json: body }];"
+        "jsCode": "const speechMessage = typeof $json.message === 'string' ? $json.message.trim() : '';\nconst result = {\n  requestId: $json.requestId,\n  phone: $json.phone || null,\n  message: speechMessage || null\n};\nconst body = $json.toolCallId\n  ? { results: [{ toolCallId: $json.toolCallId, result }] }\n  : result;\nreturn [{ json: body }];"
       }
     },
     {
@@ -125,7 +125,7 @@
         20
       ],
       "parameters": {
-        "jsCode": "const toolName = 'lookupPatient';\nconst speechMessage = typeof $json.message === 'string' && $json.message.trim()\n  ? $json.message.trim()\n  : 'Nie udało mi się potwierdzić tego numeru. Proszę podać go jeszcze raz, cyfra po cyfrze.';\nconst result = {\n  requestId: $json.requestId,\n  phone: $json.phone || null,\n  message: speechMessage,\n  error: {\n    code: 'PHONE_NORMALIZATION_FAILED',\n    details: ['phone helper could not be prepared']\n  }\n};\nconst resultItem = {\n  toolCallId: $json.toolCallId,\n  name: toolName,\n  error: JSON.stringify(result),\n  message: {\n    type: 'request-failed',\n    content: speechMessage\n  }\n};\nconst body = $json.toolCallId\n  ? { results: [resultItem] }\n  : result;\nreturn [{ json: body }];"
+        "jsCode": "const speechMessage = typeof $json.message === 'string' && $json.message.trim()\n  ? $json.message.trim()\n  : 'Nie udało mi się potwierdzić tego numeru. Proszę podać go jeszcze raz, cyfra po cyfrze.';\nconst result = {\n  requestId: $json.requestId,\n  phone: $json.phone || null,\n  message: speechMessage,\n  error: {\n    code: 'PHONE_NORMALIZATION_FAILED',\n    details: ['phone helper could not be prepared']\n  }\n};\nconst body = $json.toolCallId\n  ? { results: [{ toolCallId: $json.toolCallId, result }] }\n  : result;\nreturn [{ json: body }];"
       }
     },
     {
@@ -138,7 +138,7 @@
         180
       ],
       "parameters": {
-        "jsCode": "const toolName = 'lookupPatient';\nconst validationErrors = $json.validationErrors || [];\nconst unauthorized = validationErrors.includes('webhook request is unauthorized');\nconst missingPhone = validationErrors.includes('phoneE164 or phoneRaw is required');\nconst invalidLanguage = validationErrors.includes('language is invalid');\nconst speechMessage = unauthorized\n  ? 'Nie można zweryfikować wywołania webhooka.'\n  : (missingPhone\n      ? 'Brakuje numeru telefonu do potwierdzenia.'\n      : (invalidLanguage\n          ? 'Nie udało mi się ustalić języka readbacku numeru.'\n          : 'Nie udało mi się potwierdzić tego numeru. Proszę podać go jeszcze raz, cyfra po cyfrze.'));\nconst result = {\n  requestId: $json.requestId,\n  phone: null,\n  message: speechMessage,\n  error: {\n    code: unauthorized ? 'UNAUTHORIZED' : 'VALIDATION_ERROR',\n    details: validationErrors\n  }\n};\nconst resultItem = {\n  toolCallId: $json.toolCallId,\n  name: toolName,\n  error: JSON.stringify(result),\n  message: {\n    type: 'request-failed',\n    content: speechMessage\n  }\n};\nconst body = $json.toolCallId\n  ? { results: [resultItem] }\n  : result;\nreturn [{ json: body }];"
+        "jsCode": "const validationErrors = $json.validationErrors || [];\nconst unauthorized = validationErrors.includes('webhook request is unauthorized');\nconst missingPhone = validationErrors.includes('phoneE164 or phoneRaw is required');\nconst invalidLanguage = validationErrors.includes('language is invalid');\nconst speechMessage = unauthorized\n  ? 'Nie można zweryfikować wywołania webhooka.'\n  : (missingPhone\n      ? 'Brakuje numeru telefonu do potwierdzenia.'\n      : (invalidLanguage\n          ? 'Nie udało mi się ustalić języka readbacku numeru.'\n          : 'Nie udało mi się potwierdzić tego numeru. Proszę podać go jeszcze raz, cyfra po cyfrze.'));\nconst result = {\n  requestId: $json.requestId,\n  phone: null,\n  message: speechMessage,\n  error: {\n    code: unauthorized ? 'UNAUTHORIZED' : 'VALIDATION_ERROR',\n    details: validationErrors\n  }\n};\nconst body = $json.toolCallId\n  ? { results: [{ toolCallId: $json.toolCallId, result }] }\n  : result;\nreturn [{ json: body }];"
       }
     },
     {
