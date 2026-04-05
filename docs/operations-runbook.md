@@ -156,6 +156,7 @@ Interpretation:
 
 - The probe hits safe public webhooks directly and records repeated end-to-end timings with response-shape validation.
 - The default suite covers `lookupPatient`, `searchKnowledgeBase`, two `checkAvailability` variants, and `createReceptionTask`.
+- Availability probes must fail on provider-level errors such as `CALENDAR_PROVIDER_REJECTED`; treat those as production incidents, not healthy `available=false` responses.
 - `createEvent` is intentionally excluded from the default suite because it writes calendar state.
 - When a tool definition has a delayed-response budget, the report flags probes that exceed that budget.
 

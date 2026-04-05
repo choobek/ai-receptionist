@@ -344,6 +344,10 @@ function validateAvailabilityResponse(response) {
   if (!Array.isArray(response.slots)) {
     throw new Error('slots are missing');
   }
+  if (response?.error && typeof response.error === 'object') {
+    const errorCode = typeof response.error.code === 'string' ? response.error.code : 'unknown_error';
+    throw new Error(`availability probe returned provider error: ${errorCode}`);
+  }
   if (response.available === true && response.slots.length === 0) {
     throw new Error('available=true but slots are empty');
   }
