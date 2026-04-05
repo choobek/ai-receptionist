@@ -245,7 +245,8 @@ function buildSshContext(environment) {
   const port = readContextEnv(environment, 'VPS_SSH_PORT', 'VPS_SSH_PORT') || '22';
   const identityFile = readContextEnv(environment, 'VPS_SSH_IDENTITY_FILE', 'VPS_SSH_IDENTITY_FILE');
   const n8nContainer = readContextEnv(environment, 'VPS_N8N_CONTAINER_NAME', 'VPS_N8N_CONTAINER_NAME');
-  const caddyContainer = readContextEnv(environment, 'VPS_CADDY_CONTAINER_NAME', 'CADDY_CONTAINER_NAME');
+  const caddyContainer = readContextEnv(environment, 'VPS_CADDY_CONTAINER_NAME', 'CADDY_CONTAINER_NAME')
+    || 'ai-receptionist-caddy';
 
   if (!host || !user || !n8nContainer) {
     return null;
@@ -2004,6 +2005,7 @@ async function main() {
 }
 
 module.exports = {
+  buildSshContext,
   buildN8nExecutionSummaries,
   buildToolTraceRefs,
   enrichSuiteRunsWithCaddyEdgeLatency,

@@ -35,6 +35,7 @@ const {
   'ingest-vapi-call-log.js'
 ));
 const {
+  buildSshContext,
   buildN8nExecutionSummaries,
   buildToolTraceRefs,
   matchToolTracesToCaddyEntries,
@@ -5294,6 +5295,28 @@ test('live autoeval matches tool traces to Caddy access logs and preserves edge 
     roundTripMs: 21159,
     matchedUsing: 'nearest_edge_request_for_tool_endpoint'
   });
+});
+
+test('live autoeval falls back to the default Caddy container name when only SSH and n8n container env vars are set', () => {
+  const restoreEnv = { ...process.env };
+  try {
+    delete process.env.PRODUCTION_VPS_CADDY_CONTAINER_NAME;
+    delete process.env.CADDY_CONTAINER_NAME;
+    process.env.PRODUCTION_VPS_SSH_HOST = 'example.com';
+    process.env.PRODUCTION_VPS_SSH_USER = 'deploy';
+    process.env.PRODUCTION_VPS_N8N_CONTAINER_NAME = 'ai-receptionist-n8n';
+    const sshContext = buildSshContext('production');
+    assert.deepEqual(sshContext, {
+      host: 'example.com',
+      user: 'deploy',
+      port: '22',
+      identityFile: '',
+      n8nContainer: 'ai-receptionist-n8n',
+      caddyContainer: 'ai-receptionist-caddy'
+    });
+  } finally {
+    process.env = restoreEnv;
+  }
 });
 
 test('live autoeval report renders decomposed tool latency attribution and enrichment coverage', () => {
