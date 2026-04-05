@@ -1,0 +1,161 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "nearest-then-specific-day-availability",
+  "title": "Nearest-term lookup stays broad, then exact-day follow-up stays bounded",
+  "description": "The caller first asks for the nearest available first-consultation terms, then follows up with one explicit date. The first lookup should use broad first_available semantics without requestedDate or searchDays, and the second lookup should stay bounded to the requested day with searchDays set to 1.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "availability",
+    "follow-up",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "real_call_regression",
+    "references": [
+      "configs/vapi/assistant.v2.json",
+      "n8n/workflows/tool_check-availability.json",
+      "autonomy/runs/generated/vapi-live-autoeval/staging-vapi-live-autoeval-20260405T125031Z/normalized-runs/staging-019d5da4-2279-7000-867a-85c148e472f8.run.v1.json"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 2
+  },
+  "turns": [
+    {
+      "turn_id": "ask-for-nearest-terms",
+      "user": "Chcialabym umowic pierwsza konsultacje. To moja pierwsza wizyta. Jakie sa najblizsze wolne terminy?"
+    },
+    {
+      "turn_id": "ask-for-specific-day",
+      "user": "A prosze jeszcze sprawdzic tylko 9 kwietnia 2027."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "two-availability-lookups",
+      "description": "The assistant should perform one availability lookup for each turn.",
+      "severity": "critical",
+      "root_cause_hint": "assistant stopped refreshing availability when the caller narrowed the request to one explicit day",
+      "rule": {
+        "type": "tool_call_count_at_least",
+        "tool_name": "checkAvailability",
+        "min": 2
+      }
+    },
+    {
+      "criterion_id": "first-lookup-uses-first-available",
+      "description": "The broad nearest-availability request should normalize to first_available.",
+      "severity": "high",
+      "root_cause_hint": "assistant stopped mapping nearest-term requests to first_available",
+      "rule": {
+        "type": "tool_arg_equals",
+        "tool_name": "checkAvailability",
+        "occurrence": "first",
+        "path": "timePreference",
+        "equals": "first_available"
+      }
+    },
+    {
+      "criterion_id": "first-lookup-omits-requested-date",
+      "description": "The broad nearest-availability request should not pin an exact requestedDate.",
+      "severity": "critical",
+      "root_cause_hint": "assistant is still converting nearest-term requests into an exact-date lookup",
+      "rule": {
+        "type": "tool_arg_missing",
+        "tool_name": "checkAvailability",
+        "occurrence": "first",
+        "path": "requestedDate"
+      }
+    },
+    {
+      "criterion_id": "first-lookup-omits-search-days",
+      "description": "The broad nearest-availability request should let the backend choose the default horizon.",
+      "severity": "medium",
+      "root_cause_hint": "assistant is still hard-coding searchDays on broad nearest-term lookups",
+      "rule": {
+        "type": "tool_arg_missing",
+        "tool_name": "checkAvailability",
+        "occurrence": "first",
+        "path": "searchDays"
+      }
+    },
+    {
+      "criterion_id": "second-lookup-stays-first-available",
+      "description": "The explicit-day follow-up should still use first_available, but only for that day.",
+      "severity": "high",
+      "root_cause_hint": "assistant lost the specific-day first_available mapping on follow-up",
+      "rule": {
+        "type": "tool_arg_equals",
+        "tool_name": "checkAvailability",
+        "occurrence": "last",
+        "path": "timePreference",
+        "equals": "first_available"
+      }
+    },
+    {
+      "criterion_id": "second-lookup-targets-the-explicit-day",
+      "description": "The explicit-day follow-up should pass the requestedDate from the caller.",
+      "severity": "critical",
+      "root_cause_hint": "assistant is ignoring the explicit-day follow-up and reusing generic nearest-term search arguments",
+      "rule": {
+        "type": "tool_arg_equals",
+        "tool_name": "checkAvailability",
+        "occurrence": "last",
+        "path": "requestedDate",
+        "equals": "2027-04-09"
+      }
+    },
+    {
+      "criterion_id": "second-lookup-bounds-search-days-to-one",
+      "description": "The explicit-day follow-up should set searchDays to 1.",
+      "severity": "critical",
+      "root_cause_hint": "assistant is still widening explicit-day follow-ups into a multi-day search",
+      "rule": {
+        "type": "tool_arg_equals",
+        "tool_name": "checkAvailability",
+        "occurrence": "last",
+        "path": "searchDays",
+        "equals": 1
+      }
+    },
+    {
+      "criterion_id": "second-result-preserves-primary-request",
+      "description": "The workflow result should preserve the explicit requestedDate and bounded search in normalizedRequest.",
+      "severity": "high",
+      "root_cause_hint": "workflow result stopped preserving the primary bounded request after fallback handling",
+      "rule": {
+        "type": "tool_result_path_equals",
+        "tool_name": "checkAvailability",
+        "occurrence": "last",
+        "path": "normalizedRequest.requestedDate",
+        "equals": "2027-04-09"
+      }
+    },
+    {
+      "criterion_id": "second-result-preserves-bounded-search-days",
+      "description": "The workflow result should preserve searchDays 1 in normalizedRequest for the explicit-day search.",
+      "severity": "high",
+      "root_cause_hint": "workflow result normalized the fallback search instead of preserving the explicit-day request",
+      "rule": {
+        "type": "tool_result_path_equals",
+        "tool_name": "checkAvailability",
+        "occurrence": "last",
+        "path": "normalizedRequest.searchDays",
+        "equals": 1
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "This lookup-only scenario must not create a booking.",
+      "severity": "high",
+      "root_cause_hint": "assistant advanced into booking before the caller selected a concrete slot",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    }
+  ]
+}
