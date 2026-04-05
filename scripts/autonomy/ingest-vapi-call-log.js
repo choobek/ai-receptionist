@@ -1175,20 +1175,58 @@ function deriveLatencyDiagnostics(record, toolTrace) {
   const maxModelLatencyMs = maxLatencyValue(turnLatencies, 'modelLatency');
   const maxTranscriberLatencyMs = maxLatencyValue(turnLatencies, 'transcriberLatency');
   const maxEndpointingLatencyMs = maxLatencyValue(turnLatencies, 'endpointingLatency');
-  const completedToolLatencies = safeArray(toolTrace)
+  const toolLatencyDetails = safeArray(toolTrace)
     .map((trace) => {
       const requestedAt = toNumber(trace?.requested_at_ms);
       const completedAt = toNumber(trace?.completed_at_ms);
-      if (requestedAt === null || completedAt === null || completedAt < requestedAt) {
-        return null;
-      }
-      return completedAt - requestedAt;
+      const roundTripMs = requestedAt === null || completedAt === null || completedAt < requestedAt
+        ? null
+        : completedAt - requestedAt;
+      const n8nLatency = safeObject(trace?.n8nLatency);
+      return {
+        toolName: typeof trace?.tool_name === 'string' ? trace.tool_name : null,
+        toolCallId: typeof trace?.tool_call_id === 'string' ? trace.tool_call_id : null,
+        roundTripMs,
+        backendWorkflowLatencyMs: toNumber(n8nLatency?.workflowDurationMs),
+        backendExternalLatencyMs: toNumber(n8nLatency?.externalDurationMs),
+        backendInternalLatencyMs: toNumber(n8nLatency?.internalDurationMs),
+        dispatchGapMs: toNumber(n8nLatency?.preWorkflowGapMs),
+        returnGapMs: toNumber(n8nLatency?.postWorkflowGapMs),
+        platformGapMs: toNumber(n8nLatency?.platformGapMs),
+        workflowId: typeof n8nLatency?.workflowId === 'string' ? n8nLatency.workflowId : null,
+        executionId: n8nLatency?.executionId == null ? null : String(n8nLatency.executionId),
+        matchedUsing: typeof n8nLatency?.matchedUsing === 'string' ? n8nLatency.matchedUsing : null
+      };
     })
-    .filter((value) => value !== null);
-  const maxWebhookLatencyMs = completedToolLatencies.length > 0 ? Math.max(...completedToolLatencies) : null;
+    .filter((detail) => detail.roundTripMs !== null);
+  const maxToolRoundTripLatencyMs = maxLatencyValue(toolLatencyDetails, 'roundTripMs');
+  const maxToolBackendWorkflowLatencyMs = maxLatencyValue(toolLatencyDetails, 'backendWorkflowLatencyMs');
+  const maxToolBackendExternalLatencyMs = maxLatencyValue(toolLatencyDetails, 'backendExternalLatencyMs');
+  const maxToolBackendInternalLatencyMs = maxLatencyValue(toolLatencyDetails, 'backendInternalLatencyMs');
+  const maxToolDispatchGapMs = maxLatencyValue(toolLatencyDetails, 'dispatchGapMs');
+  const maxToolReturnGapMs = maxLatencyValue(toolLatencyDetails, 'returnGapMs');
+  const maxToolPlatformGapMs = maxLatencyValue(toolLatencyDetails, 'platformGapMs');
+  const slowestToolTrace = toolLatencyDetails
+    .slice()
+    .sort((left, right) => {
+      const byRoundTrip = (right.roundTripMs || 0) - (left.roundTripMs || 0);
+      if (byRoundTrip !== 0) {
+        return byRoundTrip;
+      }
+      return String(left.toolName || '').localeCompare(String(right.toolName || ''));
+    })[0] || null;
+  const hasDecomposedToolLatency =
+    maxToolBackendWorkflowLatencyMs !== null
+    || maxToolDispatchGapMs !== null
+    || maxToolReturnGapMs !== null
+    || maxToolPlatformGapMs !== null;
   const dominantCandidates = [
     { stage: 'model', value: maxModelLatencyMs, priority: 4 },
-    { stage: 'webhook', value: maxWebhookLatencyMs, priority: 3 },
+    { stage: 'tool_platform_gap', value: maxToolPlatformGapMs, priority: 3 },
+    { stage: 'tool_backend_workflow', value: maxToolBackendWorkflowLatencyMs, priority: 2 },
+    ...(hasDecomposedToolLatency
+      ? []
+      : [{ stage: 'tool_round_trip', value: maxToolRoundTripLatencyMs, priority: 1 }]),
     { stage: 'endpointing', value: maxEndpointingLatencyMs, priority: 2 },
     { stage: 'transcriber', value: maxTranscriberLatencyMs, priority: 1 }
   ].filter((candidate) => candidate.value !== null);
@@ -1204,8 +1242,40 @@ function deriveLatencyDiagnostics(record, toolTrace) {
     maxModelLatencyMs,
     maxTranscriberLatencyMs,
     maxEndpointingLatencyMs,
-    maxWebhookLatencyMs,
+    maxToolRoundTripLatencyMs,
+    ...(maxToolBackendWorkflowLatencyMs !== null ? { maxToolBackendWorkflowLatencyMs } : {}),
+    ...(maxToolBackendExternalLatencyMs !== null ? { maxToolBackendExternalLatencyMs } : {}),
+    ...(maxToolBackendInternalLatencyMs !== null ? { maxToolBackendInternalLatencyMs } : {}),
+    ...(maxToolDispatchGapMs !== null ? { maxToolDispatchGapMs } : {}),
+    ...(maxToolReturnGapMs !== null ? { maxToolReturnGapMs } : {}),
+    ...(maxToolPlatformGapMs !== null ? { maxToolPlatformGapMs } : {}),
+    maxWebhookLatencyMs: maxToolRoundTripLatencyMs,
+    webhookLatencyMetricSource: 'tool_trace_round_trip',
     dominantLatencyStage: dominantCandidates[0]?.stage || null,
+    ...(slowestToolTrace
+      ? {
+          slowestToolTrace: {
+            toolName: slowestToolTrace.toolName,
+            toolCallId: slowestToolTrace.toolCallId,
+            roundTripMs: slowestToolTrace.roundTripMs,
+            ...(slowestToolTrace.backendWorkflowLatencyMs !== null
+              ? { backendWorkflowLatencyMs: slowestToolTrace.backendWorkflowLatencyMs }
+              : {}),
+            ...(slowestToolTrace.backendExternalLatencyMs !== null
+              ? { backendExternalLatencyMs: slowestToolTrace.backendExternalLatencyMs }
+              : {}),
+            ...(slowestToolTrace.backendInternalLatencyMs !== null
+              ? { backendInternalLatencyMs: slowestToolTrace.backendInternalLatencyMs }
+              : {}),
+            ...(slowestToolTrace.dispatchGapMs !== null ? { dispatchGapMs: slowestToolTrace.dispatchGapMs } : {}),
+            ...(slowestToolTrace.returnGapMs !== null ? { returnGapMs: slowestToolTrace.returnGapMs } : {}),
+            ...(slowestToolTrace.platformGapMs !== null ? { platformGapMs: slowestToolTrace.platformGapMs } : {}),
+            ...(slowestToolTrace.workflowId ? { workflowId: slowestToolTrace.workflowId } : {}),
+            ...(slowestToolTrace.executionId ? { executionId: slowestToolTrace.executionId } : {}),
+            ...(slowestToolTrace.matchedUsing ? { matchedUsing: slowestToolTrace.matchedUsing } : {})
+          }
+        }
+      : {}),
     slowTurnCount: turnLatencies.filter((turn) => {
       const turnLatency = toNumber(turn?.turnLatency);
       return turnLatency !== null && turnLatency >= 4000;

@@ -26,12 +26,24 @@ const {
 ));
 const {
   buildRun,
+  deriveLatencyDiagnostics,
   pickCallEntries
 } = require(path.join(
   rootDir,
   'scripts',
   'autonomy',
   'ingest-vapi-call-log.js'
+));
+const {
+  buildN8nExecutionSummaries,
+  buildToolTraceRefs,
+  matchToolTracesToExecutions,
+  renderSuiteReport
+} = require(path.join(
+  rootDir,
+  'scripts',
+  'autonomy',
+  'run-vapi-live-autoeval.js'
 ));
 
 function usage() {
@@ -422,9 +434,10 @@ test('checkAvailability first_available search window skips closed weekend days'
     defaultEnv
   );
   assert.equal(result.ok, true);
+  assert.equal(result.searchDays, 30);
   assert.ok(new Date(result.windowEnd) > new Date(result.windowStart));
   assert.ok(['2026-03-20', '2026-03-23'].includes(result.windowStart.slice(0, 10)));
-  assert.ok(['2026-03-23', '2026-03-24'].includes(result.windowEnd.slice(0, 10)));
+  assert.equal(result.windowEnd.slice(0, 10), '2026-04-30');
   assert.notEqual(result.windowStart.slice(0, 10), '2026-03-21');
   assert.notEqual(result.windowStart.slice(0, 10), '2026-03-22');
 });
@@ -518,7 +531,7 @@ test('checkAvailability returns only weekday slots inside clinic hours', () => {
   assert.ok(result.slots.every((slot) => slot.end.slice(11, 16) <= '21:00'));
 });
 
-test('checkAvailability prefers slots adjacent to existing appointments and splits earlier/later offers', () => {
+test('checkAvailability keeps first_available ordering chronological even when later slots sit next to busy events', () => {
   const parseResult = {
     requestId: 'req_gapless',
     toolCallId: null,
@@ -554,7 +567,7 @@ test('checkAvailability prefers slots adjacent to existing appointments and spli
   assert.equal(result.available, true);
   assert.deepEqual(
     result.slots.slice(0, 2).map((slot) => slot.start),
-    ['2026-03-16T13:15:00+01:00', '2026-03-16T14:45:00+01:00']
+    ['2026-03-16T09:00:00+01:00', '2026-03-16T09:15:00+01:00']
   );
 });
 
@@ -690,11 +703,158 @@ test('checkAvailability falls back to first_available when the requested afterno
   assert.equal(result.available, true);
   assert.equal(result.normalizedRequest?.timePreference, 'first_available');
   assert.equal(result.normalizedRequest?.searchDays, 5);
-  assert.ok(result.slots.some((slot) => slot.start.startsWith('2026-03-16T12:15:00+01:00')));
+  assert.deepEqual(
+    result.slots.map((slot) => slot.start),
+    [
+      '2026-03-16T09:00:00+01:00',
+      '2026-03-16T09:15:00+01:00',
+      '2026-03-16T09:30:00+01:00'
+    ]
+  );
   assert.ok(result.slots.every((slot) => slot.start.slice(11, 16) < '13:00'));
   assert.match(
     normalizeSearchText(result.message),
     /nie widze wolnych terminow na poniedzialek, szesnastego marca po poludniu/i
+  );
+});
+
+test('checkAvailability explains the fixed first_available business-day horizon when no slots exist', () => {
+  const parseResult = runParse(
+    'tool_check-availability.json',
+    'Parse Request',
+    {
+      service: { id: 'urgent_consultation' },
+      requestedDate: '2026-03-16',
+      timePreference: 'first_available',
+      searchDays: 5,
+      timezone: 'Europe/Warsaw'
+    },
+    defaultEnv
+  );
+  assert.equal(parseResult.ok, true);
+  assert.equal(parseResult.searchPlans?.length, 1);
+  assert.equal(parseResult.searchPlans?.[0]?.stage, 'primary');
+  assert.equal(parseResult.searchPlans?.[0]?.searchDays, 30);
+
+  const blockedBusinessDates = [
+    '2026-03-16',
+    '2026-03-17',
+    '2026-03-18',
+    '2026-03-19',
+    '2026-03-20',
+    '2026-03-23',
+    '2026-03-24',
+    '2026-03-25',
+    '2026-03-26',
+    '2026-03-27',
+    '2026-03-30',
+    '2026-03-31',
+    '2026-04-01',
+    '2026-04-02',
+    '2026-04-03',
+    '2026-04-06',
+    '2026-04-07',
+    '2026-04-08',
+    '2026-04-09',
+    '2026-04-10',
+    '2026-04-13',
+    '2026-04-14',
+    '2026-04-15',
+    '2026-04-16',
+    '2026-04-17',
+    '2026-04-20',
+    '2026-04-21',
+    '2026-04-22',
+    '2026-04-23',
+    '2026-04-24'
+  ];
+
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    blockedBusinessDates.map((dateText) => {
+      const offset = dateText >= '2026-03-30' ? '+02:00' : '+01:00';
+      return {
+        start: { dateTime: dateText + 'T09:00:00' + offset },
+        end: { dateTime: dateText + 'T21:00:00' + offset }
+      };
+    }),
+    defaultEnv
+  );
+
+  assert.equal(result.available, false);
+  assert.match(
+    normalizeSearchText(result.message),
+    /najblizszych trzydziesci dni roboczych/i
+  );
+  assert.doesNotMatch(
+    normalizeSearchText(result.message),
+    /podanym zakresie/i
+  );
+});
+
+test('checkAvailability deterministically returns first_available slots in strict chronological order', () => {
+  const parseResult = runParse(
+    'tool_check-availability.json',
+    'Parse Request',
+    {
+      service: { id: 'urgent_consultation' },
+      requestedDate: '2026-03-16',
+      timePreference: 'first_available',
+      searchDays: 5,
+      timezone: 'Europe/Warsaw'
+    },
+    defaultEnv
+  );
+  assert.equal(parseResult.ok, true);
+  assert.equal(parseResult.searchPlans?.length, 1);
+  assert.equal(parseResult.searchPlans?.[0]?.stage, 'primary');
+  assert.equal(parseResult.searchPlans?.[0]?.searchDays, 30);
+
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    [
+      {
+        start: { dateTime: '2026-03-16T09:00:00+01:00' },
+        end: { dateTime: '2026-03-16T21:00:00+01:00' }
+      },
+      {
+        start: { dateTime: '2026-03-17T09:00:00+01:00' },
+        end: { dateTime: '2026-03-17T21:00:00+01:00' }
+      },
+      {
+        start: { dateTime: '2026-03-18T09:00:00+01:00' },
+        end: { dateTime: '2026-03-18T21:00:00+01:00' }
+      },
+      {
+        start: { dateTime: '2026-03-19T09:00:00+01:00' },
+        end: { dateTime: '2026-03-19T21:00:00+01:00' }
+      },
+      {
+        start: { dateTime: '2026-03-20T09:00:00+01:00' },
+        end: { dateTime: '2026-03-20T21:00:00+01:00' }
+      }
+    ],
+    defaultEnv
+  );
+
+  assert.equal(result.available, true);
+  assert.equal(result.normalizedRequest?.timePreference, 'first_available');
+  assert.equal(result.normalizedRequest?.searchDays, 30);
+  assert.deepEqual(
+    result.slots.map((slot) => slot.start),
+    [
+      '2026-03-23T09:00:00+01:00',
+      '2026-03-23T09:15:00+01:00',
+      '2026-03-23T09:30:00+01:00'
+    ]
+  );
+  assert.doesNotMatch(
+    normalizeSearchText(result.message),
+    /sprawdzilam tez kolejne/i
   );
 });
 
@@ -793,6 +953,84 @@ test('checkAvailability returns speech-safe slot wording for voice playback', ()
   assert.match(normalizeSearchText(firstSlot.spokenLabel), /o dziewiatej/);
 });
 
+test('checkAvailability names doctor Magdalena Szajnar for default first-visit consultation offers', () => {
+  const parseResult = {
+    requestId: 'req_first_visit_doctor_name',
+    toolCallId: 'tool_call_first_visit_doctor_name',
+    calendarId: 'primary',
+    timezone: 'Europe/Warsaw',
+    service: { id: 'consultation' },
+    patient: { isExistingPatient: false },
+    requestedDate: '2026-03-16',
+    requestedTime: null,
+    timePreference: 'first_available',
+    durationMinutes: 45,
+    limit: 2,
+    incrementMinutes: 15,
+    slotSearchIncrementMinutes: 15,
+    searchDays: 1,
+    workingStart: '09:00',
+    workingEnd: '21:00',
+    openWeekdays: [1, 2, 3, 4, 5],
+    windowStart: '2026-03-16T08:00:00.000Z',
+    windowEnd: '2026-03-16T20:00:00.000Z'
+  };
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    [],
+    defaultEnv
+  );
+
+  assert.equal(result.available, true);
+  assert.match(
+    normalizeSearchText(result.message),
+    /magdaleny szajnar/i
+  );
+  assert.match(
+    normalizeSearchText(result.message),
+    /najblizsze wolne terminy do doktor magdaleny szajnar|moge zaproponowac termin do doktor magdaleny szajnar/i
+  );
+});
+
+test('checkAvailability keeps generic offer wording outside the default first-visit path', () => {
+  const parseResult = {
+    requestId: 'req_generic_offer_wording',
+    toolCallId: 'tool_call_generic_offer_wording',
+    calendarId: 'primary',
+    timezone: 'Europe/Warsaw',
+    service: { id: 'consultation' },
+    patient: { isExistingPatient: true },
+    requestedDate: '2026-03-16',
+    requestedTime: null,
+    timePreference: 'first_available',
+    durationMinutes: 45,
+    limit: 2,
+    incrementMinutes: 15,
+    slotSearchIncrementMinutes: 15,
+    searchDays: 1,
+    workingStart: '09:00',
+    workingEnd: '21:00',
+    openWeekdays: [1, 2, 3, 4, 5],
+    windowStart: '2026-03-16T08:00:00.000Z',
+    windowEnd: '2026-03-16T20:00:00.000Z'
+  };
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    [],
+    defaultEnv
+  );
+
+  assert.equal(result.available, true);
+  assert.doesNotMatch(
+    normalizeSearchText(result.message),
+    /magdaleny szajnar/i
+  );
+});
+
 test('checkAvailability formats a speech-safe tool-complete message for Vapi', () => {
   const parseResult = {
     requestId: 'req_spoken_slot_message',
@@ -865,6 +1103,13 @@ test('createEvent Vapi schema requires digit-only E.164 phone numbers', () => {
     schema.properties?.telephony?.properties?.callerPhoneE164?.pattern,
     '^\\+[1-9]\\d{7,14}$'
   );
+});
+
+test('checkAvailability Vapi schema exposes patient.isExistingPatient for first-visit routing', () => {
+  const schema = loadSchema('checkAvailability.vapi.request.json');
+  assert.equal(schema.properties?.patient?.type, 'object');
+  assert.equal(schema.properties?.patient?.additionalProperties, false);
+  assert.equal(schema.properties?.patient?.properties?.isExistingPatient?.type, 'boolean');
 });
 
 test('createEvent rejects unsupported service IDs', () => {
@@ -1519,6 +1764,10 @@ test('Vapi tool sync scripts keep searchKnowledgeBase and delayed tool messages 
   assert.equal(searchKnowledgeBase?.schemaPath, 'schemas/searchKnowledgeBase.request.json');
   assert.equal(searchKnowledgeBase?.endpoint, '/webhook/ai-receptionist/search-knowledge-base');
   assert.equal(searchKnowledgeBase?.messages?.[1]?.type, 'request-response-delayed');
+  assert.match(checkAvailability?.description || '', /fixed .* business-day horizon/i);
+  assert.doesNotMatch(checkAvailability?.description || '', /searchDays 14/i);
+  assert.match(checkAvailability?.description || '', /patient\.isExistingPatient/);
+  assert.match(createEvent?.description || '', /confirmed the phone/);
   assert.equal(checkAvailability?.messages?.[1]?.timingMilliseconds, 1800);
   assert.equal(checkAvailability?.messages?.[0]?.content, 'Już sprawdzam dostępne terminy.');
   assert.equal(createEvent?.messages?.[1]?.content, 'Jeszcze moment, finalizuję rezerwację wizyty.');
@@ -2203,6 +2452,26 @@ test('searchKnowledgeBase matches the staging veneers-versus-bonding phrasing wi
   assert.equal(searchResult.matches[0].id, 'kb_veneers_vs_bonding');
 });
 
+test('searchKnowledgeBase matches the runtime veneers-versus-bonding query with extra pricing qualifiers', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Czym różnią się licówki od bondingu? Różnice, trwałość, zakres zabiegu, cena orientacyjna jeśli dostępna.',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.equal(searchResult.matches[0].id, 'kb_veneers_vs_bonding');
+});
+
 test('searchKnowledgeBase matches direct veneers availability questions', () => {
   const workflow = loadWorkflow('tool_search-knowledge-base.json');
   const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
@@ -2782,8 +3051,9 @@ assistantInvariantTest('assistant prompt keeps the urgent first-available overri
   );
   assert.match(
     normalizedPrompt,
-    /checkAvailability z service\.id urgent_consultation, timePreference first_available, timezone Europe\/Warsaw i searchDays 5/i
+    /checkAvailability z service\.id urgent_consultation, timePreference first_available i timezone Europe\/Warsaw/i
   );
+  assert.doesNotMatch(normalizedPrompt, /searchDays 5/i);
   assert.match(
     normalizedPrompt,
     /nie zadawaj dodatkowych pytan o objawy przed .* narzedzia/i
@@ -2821,6 +3091,31 @@ assistantInvariantTest('assistant prompt keeps the latency-first first-visit def
   assert.match(
     normalizedPrompt,
     /przy samej pierwszej wizycie nie pytaj o rodzaj problemu/i
+  );
+});
+
+assistantInvariantTest('assistant prompt keeps the first-visit pricing formula explicit but scoped to the final summary', () => {
+  const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt());
+
+  assert.match(
+    normalizedPrompt,
+    /koszt pierwszej wizyty wynosi dwiescie zlotych/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /zdjecie tomograficzne jest w cenie konsultacji na poczet leczenia w klinice/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /jesli pacjent chce zabrac zdjecie ze soba, dodatkowy koszt wynosi dwiescie zlotych/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /powiedz dokladnie|nie parafrazuj/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /nie dodawaj tego przy pierwszej ofercie terminu/i
   );
 });
 
@@ -2984,7 +3279,7 @@ test('assistant renderer excludes the direct patient SMS tool from staging bindi
   assert.equal(rendered.toolBindings.some((binding) => binding.name === 'sendSmsToPatient'), false);
 });
 
-test('assistant renderer applies staging latency-first speech endpointing overrides', () => {
+test('assistant renderer keeps staging on explicit Vapi smart endpointing with conservative thresholds', () => {
   const shared = loadAssistantConfig();
   const rendered = renderAssistantConfig('staging', {
     STAGING_N8N_PUBLIC_BASE_URL: 'https://staging.example.test',
@@ -3000,17 +3295,18 @@ test('assistant renderer applies staging latency-first speech endpointing overri
   assert.equal(rendered.assistant?.transcriber?.language, 'pl');
   assert.equal(shared.assistant?.voice?.chunkPlan?.minCharacters, 48);
   assert.equal(shared.assistant?.startSpeakingPlan?.waitSeconds, 0.35);
+  assert.equal(shared.assistant?.startSpeakingPlan?.smartEndpointingPlan, undefined);
   assert.equal(rendered.assistant?.voice?.chunkPlan?.minCharacters, 32);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.2);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.2);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 1.0);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 0.4);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.35);
   assert.equal(rendered.assistant?.startSpeakingPlan?.smartEndpointingPlan?.provider, 'vapi');
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.35);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 1.8);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 0.9);
   assert.equal(rendered.assistant?.silenceTimeoutSeconds, 60);
   assert.deepEqual(rendered.assistant?.hooks, []);
 });
 
-test('assistant renderer keeps production on the shared speech endpointing settings', () => {
+test('assistant renderer keeps production on explicit Vapi smart endpointing', () => {
   const shared = loadAssistantConfig();
   const rendered = renderAssistantConfig('production', {
     PRODUCTION_N8N_PUBLIC_BASE_URL: 'https://production.example.test',
@@ -3026,6 +3322,7 @@ test('assistant renderer keeps production on the shared speech endpointing setti
   assert.equal(rendered.assistant?.transcriber?.language, 'pl');
   assert.equal(rendered.assistant?.voice?.chunkPlan?.minCharacters, 48);
   assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.35);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.smartEndpointingPlan?.provider, 'vapi');
   assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.35);
   assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 1.8);
   assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 0.9);
@@ -3261,9 +3558,11 @@ assistantInvariantTest('booking without an exposed caller number asks for the sp
       'prosze o numer telefonu',
       'prosze o podanie numeru telefonu do kontaktu',
       'poprosze o numer telefonu',
+      'prosze jeszcze o numer telefonu kontaktowego',
       'poprosze jeszcze numer telefonu do kontaktu',
       'poprosze jeszcze o numer telefonu do potwierdzenia rezerwacji',
       'numer telefonu do kontaktu',
+      'numer telefonu kontaktowego',
       'numer telefonu do kontakt',
       'numer telefonu do potwierdzenia wizyty',
       'numer telefonu do potwierdzenia rezerwacji',
@@ -4332,10 +4631,300 @@ test('real-call ingest derives latency diagnostics from turn metrics and tool ro
     maxModelLatencyMs: 4540,
     maxTranscriberLatencyMs: 724,
     maxEndpointingLatencyMs: 500,
+    maxToolRoundTripLatencyMs: 1799,
     maxWebhookLatencyMs: 1799,
+    webhookLatencyMetricSource: 'tool_trace_round_trip',
     dominantLatencyStage: 'model',
+    slowestToolTrace: {
+      toolName: 'checkAvailability',
+      toolCallId: 'tool_call_latency_001',
+      roundTripMs: 1799
+    },
     slowTurnCount: 1
   });
+});
+
+test('real-call ingest derives decomposed tool latency diagnostics from matched n8n executions', () => {
+  const record = {
+    startedAt: '2026-04-05T10:54:27.118Z',
+    endedAt: '2026-04-05T10:56:03.186Z',
+    artifact: {
+      performanceMetrics: {
+        turnLatencies: [
+          {
+            modelLatency: 514,
+            transcriberLatency: 0,
+            endpointingLatency: 1001,
+            turnLatency: 1515
+          }
+        ]
+      }
+    }
+  };
+
+  const diagnostics = deriveLatencyDiagnostics(record, [
+    {
+      tool_name: 'checkAvailability',
+      tool_call_id: 'tool_call_latency_002',
+      requested_at_ms: 10000,
+      completed_at_ms: 31159,
+      n8nLatency: {
+        workflowId: 'aiReceptionistCheckAvailability',
+        executionId: '2583',
+        workflowDurationMs: 652,
+        externalDurationMs: 410,
+        internalDurationMs: 242,
+        preWorkflowGapMs: 1041,
+        postWorkflowGapMs: 19466,
+        platformGapMs: 20507,
+        matchedUsing: 'nearest_workflow_start_after_tool_request'
+      }
+    }
+  ]);
+
+  assert.deepEqual(diagnostics, {
+    maxModelLatencyMs: 514,
+    maxTranscriberLatencyMs: 0,
+    maxEndpointingLatencyMs: 1001,
+    maxToolRoundTripLatencyMs: 21159,
+    maxToolBackendWorkflowLatencyMs: 652,
+    maxToolBackendExternalLatencyMs: 410,
+    maxToolBackendInternalLatencyMs: 242,
+    maxToolDispatchGapMs: 1041,
+    maxToolReturnGapMs: 19466,
+    maxToolPlatformGapMs: 20507,
+    maxWebhookLatencyMs: 21159,
+    webhookLatencyMetricSource: 'tool_trace_round_trip',
+    dominantLatencyStage: 'tool_platform_gap',
+    slowestToolTrace: {
+      toolName: 'checkAvailability',
+      toolCallId: 'tool_call_latency_002',
+      roundTripMs: 21159,
+      backendWorkflowLatencyMs: 652,
+      backendExternalLatencyMs: 410,
+      backendInternalLatencyMs: 242,
+      dispatchGapMs: 1041,
+      returnGapMs: 19466,
+      platformGapMs: 20507,
+      workflowId: 'aiReceptionistCheckAvailability',
+      executionId: '2583',
+      matchedUsing: 'nearest_workflow_start_after_tool_request'
+    },
+    slowTurnCount: 0
+  });
+});
+
+test('live autoeval matches tool traces to n8n executions and preserves stage breakdown', () => {
+  const suiteRuns = [
+    {
+      run: {
+        call: {},
+        tool_trace: [
+          {
+            tool_name: 'checkAvailability',
+            tool_call_id: 'tool_call_latency_match',
+            requested_at_ms: 10000,
+            completed_at_ms: 31159
+          }
+        ]
+      }
+    }
+  ];
+
+  const executions = buildN8nExecutionSummaries([
+    {
+      eventName: 'n8n.workflow.started',
+      payload: {
+        executionId: '2583',
+        workflowId: 'aiReceptionistCheckAvailability',
+        workflowName: 'aiReceptionistCheckAvailability'
+      },
+      __file: 'n8nEventLog.log',
+      __tsMs: 11041
+    },
+    {
+      eventName: 'n8n.node.started',
+      payload: {
+        executionId: '2583',
+        workflowId: 'aiReceptionistCheckAvailability',
+        workflowName: 'aiReceptionistCheckAvailability',
+        nodeName: 'Google Calendar',
+        nodeType: 'n8n-nodes-base.googleCalendar'
+      },
+      __file: 'n8nEventLog.log',
+      __tsMs: 11041
+    },
+    {
+      eventName: 'n8n.node.finished',
+      payload: {
+        executionId: '2583',
+        workflowId: 'aiReceptionistCheckAvailability',
+        workflowName: 'aiReceptionistCheckAvailability',
+        nodeName: 'Google Calendar',
+        nodeType: 'n8n-nodes-base.googleCalendar'
+      },
+      __file: 'n8nEventLog.log',
+      __tsMs: 11451
+    },
+    {
+      eventName: 'n8n.node.started',
+      payload: {
+        executionId: '2583',
+        workflowId: 'aiReceptionistCheckAvailability',
+        workflowName: 'aiReceptionistCheckAvailability',
+        nodeName: 'Build Slots',
+        nodeType: 'n8n-nodes-base.code'
+      },
+      __file: 'n8nEventLog.log',
+      __tsMs: 11451
+    },
+    {
+      eventName: 'n8n.node.finished',
+      payload: {
+        executionId: '2583',
+        workflowId: 'aiReceptionistCheckAvailability',
+        workflowName: 'aiReceptionistCheckAvailability',
+        nodeName: 'Build Slots',
+        nodeType: 'n8n-nodes-base.code'
+      },
+      __file: 'n8nEventLog.log',
+      __tsMs: 11693
+    },
+    {
+      eventName: 'n8n.workflow.success',
+      payload: {
+        executionId: '2583',
+        workflowId: 'aiReceptionistCheckAvailability',
+        workflowName: 'aiReceptionistCheckAvailability'
+      },
+      __file: 'n8nEventLog.log',
+      __tsMs: 11693
+    }
+  ]);
+
+  const matchSummary = matchToolTracesToExecutions(buildToolTraceRefs(suiteRuns), executions);
+  const trace = suiteRuns[0].run.tool_trace[0];
+
+  assert.deepEqual(matchSummary, {
+    matchedTraceCount: 1,
+    totalTraceCount: 1,
+    executionCount: 1
+  });
+  assert.deepEqual(trace.n8nLatency, {
+    source: 'n8n_event_log',
+    workflowId: 'aiReceptionistCheckAvailability',
+    workflowName: 'aiReceptionistCheckAvailability',
+    executionId: '2583',
+    workflowStartedAtMs: 11041,
+    workflowFinishedAtMs: 11693,
+    workflowDurationMs: 652,
+    externalDurationMs: 410,
+    internalDurationMs: 242,
+    preWorkflowGapMs: 1041,
+    postWorkflowGapMs: 19466,
+    platformGapMs: 20507,
+    externalNodes: [
+      {
+        nodeName: 'Google Calendar',
+        nodeType: 'n8n-nodes-base.googleCalendar',
+        count: 1,
+        durationMs: 410
+      }
+    ],
+    files: ['n8nEventLog.log'],
+    matchedUsing: 'nearest_workflow_start_after_tool_request'
+  });
+});
+
+test('live autoeval report renders decomposed tool latency attribution and enrichment coverage', () => {
+  const report = renderSuiteReport({
+    suite_run_id: 'staging-vapi-live-autoeval-20260405T120000Z',
+    environment: 'staging',
+    assistant_id: 'assistant_123',
+    started_at: '2026-04-05T12:00:00Z',
+    completed_at: '2026-04-05T12:05:00Z',
+    call_count: 1,
+    review_required_count: 1,
+    pass_count: 0,
+    policy_path: 'configs/vapi/autoevaluation-policy.v1.json',
+    average_scorecards: [],
+    reason_counts: [],
+    coverage_warning_counts: [],
+    latency_summary: {
+      average_max_model_latency_ms: 514,
+      average_max_transcriber_latency_ms: 0,
+      average_max_endpointing_latency_ms: 1001,
+      average_max_tool_round_trip_latency_ms: 21159,
+      average_max_tool_dispatch_gap_ms: 1041,
+      average_max_tool_backend_workflow_latency_ms: 652,
+      average_max_tool_backend_external_latency_ms: 410,
+      average_max_tool_backend_internal_latency_ms: 242,
+      average_max_tool_return_gap_ms: 19466,
+      average_max_tool_platform_gap_ms: 20507,
+      dominant_latency_stage_counts: [
+        { stage: 'tool_platform_gap', count: 1 }
+      ]
+    },
+    latency_enrichment: {
+      enabled: true,
+      source: 'n8n_event_log',
+      matched_trace_count: 1,
+      total_trace_count: 1,
+      unmatched_trace_count: 0,
+      execution_count: 1,
+      warning: null
+    },
+    calls: [
+      {
+        call_id: 'call_123',
+        ended_at: '2026-04-05T10:56:03Z',
+        run_path: 'autonomy/runs/generated/vapi-live-autoeval/example.run.v1.json',
+        raw_call_path: null,
+        failure_category: 'other',
+        severity: 'medium',
+        requires_review: true,
+        summary: 'Synthetic latency attribution example.',
+        scorecards: [],
+        latency_diagnostics: {
+          maxModelLatencyMs: 514,
+          maxTranscriberLatencyMs: 0,
+          maxEndpointingLatencyMs: 1001,
+          maxToolRoundTripLatencyMs: 21159,
+          maxToolDispatchGapMs: 1041,
+          maxToolBackendWorkflowLatencyMs: 652,
+          maxToolBackendExternalLatencyMs: 410,
+          maxToolBackendInternalLatencyMs: 242,
+          maxToolReturnGapMs: 19466,
+          maxToolPlatformGapMs: 20507,
+          dominantLatencyStage: 'tool_platform_gap',
+          slowTurnCount: 0,
+          slowestToolTrace: {
+            toolName: 'checkAvailability',
+            roundTripMs: 21159,
+            dispatchGapMs: 1041,
+            backendWorkflowLatencyMs: 652,
+            backendExternalLatencyMs: 410,
+            backendInternalLatencyMs: 242,
+            returnGapMs: 19466,
+            platformGapMs: 20507,
+            executionId: '2583'
+          }
+        },
+        coverage_warnings: [],
+        reasons: []
+      }
+    ]
+  });
+
+  assert.match(report, /Average max tool dispatch gap: 1041ms/);
+  assert.match(report, /Average max tool backend workflow latency: 652ms/);
+  assert.match(report, /Average max tool return gap: 19466ms/);
+  assert.match(report, /Average max tool platform gap: 20507ms/);
+  assert.match(report, /N8N latency enrichment: matched 1 of 1 tool traces across 1 executions\./);
+  assert.match(
+    report,
+    /Slowest tool trace: checkAvailability round_trip=21159ms, dispatch=1041ms, backend=652ms \(external=410ms, internal=242ms\), return=19466ms, platform=20507ms, execution=2583/
+  );
 });
 
 (async () => {

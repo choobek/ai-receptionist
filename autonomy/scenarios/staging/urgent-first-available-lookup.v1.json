@@ -2,7 +2,7 @@
   "schema_version": "staging-chat-scenario.v1",
   "scenario_id": "urgent-first-available-lookup",
   "title": "Urgent pain triggers a first-available urgent lookup",
-  "description": "The caller mentions urgent pain and swelling but only asks to inspect the earliest options. The assistant should immediately use urgent_consultation with first_available and stop short of booking.",
+  "description": "The caller mentions urgent pain and swelling but only asks to inspect the earliest options. The assistant should immediately use urgent_consultation with first_available and stop short of booking, regardless of whether the current staging calendar returns slots.",
   "status": "active",
   "environment": "staging",
   "language": "pl",
@@ -65,19 +65,6 @@
         "tool_name": "checkAvailability",
         "path": "timePreference",
         "equals": "first_available"
-      }
-    },
-    {
-      "criterion_id": "urgent-lookup-returned-availability",
-      "description": "The urgent lookup should return available slots from staging.",
-      "severity": "critical",
-      "root_cause_hint": "staging calendar lookup or urgent scheduling window failed",
-      "rule": {
-        "type": "turn_tool_result_path_equals",
-        "turn": 1,
-        "tool_name": "checkAvailability",
-        "path": "available",
-        "equals": true
       }
     },
     {

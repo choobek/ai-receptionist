@@ -2,7 +2,7 @@
   "schema_version": "staging-chat-scenario.v1",
   "scenario_id": "booking-confirmation-sms",
   "title": "Confirmed booking returns embedded patient SMS result from createEvent",
-  "description": "The caller asks to book a first consultation, explicitly requests an SMS confirmation, selects the first slot, confirms synthetic identity details, and then confirms the booking. The assistant should not call a separate patient-SMS tool. Instead, createEvent should complete the booking and return the embedded booking-confirmation SMS result.",
+  "description": "The caller asks to book a first consultation, explicitly requests an SMS confirmation, selects the first slot, confirms synthetic identity details, and then confirms the booking. On the first slot offer, the assistant should name doctor Magdalena Szajnar, and on the final pre-booking summary it should repeat the legacy first-visit pricing and tomography wording. The assistant should not call a separate patient-SMS tool. Instead, createEvent should complete the booking and return the embedded booking-confirmation SMS result.",
   "status": "active",
   "environment": "staging",
   "language": "pl",
@@ -90,6 +90,17 @@
             "turn": 4,
             "tool_name": "sendSmsToPatient"
           }
+        },
+        {
+          "criterion_id": "no-booking-before-phone-confirmation",
+          "description": "The assistant must not create the booking before the caller confirms the phone readback.",
+          "severity": "critical",
+          "root_cause_hint": "assistant tried to call createEvent before the phone confirmation step completed",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 4,
+            "tool_name": "createEvent"
+          }
         }
       ]
     },
@@ -150,6 +161,24 @@
       }
     },
     {
+      "criterion_id": "first-visit-slot-offer-names-szajnar",
+      "description": "The first offered first-visit slot should explicitly mention doctor Magdalena Szajnar in the same utterance.",
+      "severity": "high",
+      "root_cause_hint": "assistant stopped naming doctor Magdalena Szajnar when offering the first-visit slot",
+      "rule": {
+        "type": "turn_assistant_text_contains_any",
+        "turn": 1,
+        "contains_any": [
+          "u doktor Magdaleny Szajnar",
+          "do doktor Magdaleny Szajnar",
+          "u dr Magdaleny Szajnar",
+          "do dr Magdaleny Szajnar",
+          "doktor Magdalena Szajnar",
+          "doktor Magdaleny Szajnar"
+        ]
+      }
+    },
+    {
       "criterion_id": "phone-readback-uses-spoken-text",
       "description": "The phone readback should also avoid raw numerals and stay speech-safe.",
       "severity": "high",
@@ -168,6 +197,45 @@
           "7",
           "8",
           "9"
+        ]
+      }
+    },
+    {
+      "criterion_id": "first-visit-summary-restores-legacy-pricing-formula",
+      "description": "The final pre-booking summary for a first consultation should keep the legacy cost and tomography wording.",
+      "severity": "high",
+      "root_cause_hint": "assistant stripped the first-visit pricing or tomography formula from the booking summary",
+      "rule": {
+        "type": "turn_assistant_text_contains_all",
+        "turn": 4,
+        "contains_all": [
+          "koszt pierwszej wizyty wynosi dwiescie zlotych",
+          "zdjecie tomograficzne jest w cenie konsultacji na poczet leczenia w klinice",
+          "dodatkowy koszt wynosi dwiescie zlotych"
+        ]
+      }
+    },
+    {
+      "criterion_id": "first-visit-summary-keeps-takeaway-photo-condition",
+      "description": "The final pre-booking summary should mention the extra charge only in the context of taking the scan image away.",
+      "severity": "high",
+      "root_cause_hint": "assistant mentioned the extra photo charge without preserving the legacy takeaway-photo condition",
+      "rule": {
+        "type": "turn_assistant_text_contains_any",
+        "turn": 4,
+        "contains_any": [
+          "zabrac zdjecie ze soba",
+          "zabrac je ze soba",
+          "zabrania zdjecia ze soba",
+          "zabrac to zdjecie ze soba",
+          "zabrac fotografie ze soba",
+          "zabrac skan ze soba",
+          "chcialaby je pani zabrac ze soba",
+          "chcialby pan je zabrac ze soba",
+          "chce pani zabrac je ze soba",
+          "chce pan zabrac je ze soba",
+          "zechce je pani zabrac ze soba",
+          "zechce pan je zabrac ze soba"
         ]
       }
     },

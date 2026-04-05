@@ -10,11 +10,14 @@
       }
     },
     "startSpeakingPlan": {
-      "waitSeconds": 0.2,
+      "waitSeconds": 0.35,
+      "smartEndpointingPlan": {
+        "provider": "vapi"
+      },
       "transcriptionEndpointingPlan": {
-        "onPunctuationSeconds": 0.2,
-        "onNoPunctuationSeconds": 1.0,
-        "onNumberSeconds": 0.4
+        "onPunctuationSeconds": 0.35,
+        "onNoPunctuationSeconds": 1.8,
+        "onNumberSeconds": 0.9
       }
     }
   },

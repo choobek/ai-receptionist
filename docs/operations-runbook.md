@@ -137,6 +137,28 @@ Interpretation:
 - Treat this as the live-call review queue and drift monitor.
 - Keep the repo-local workflow regression checks and staging regression suite as the release gate.
 
+### Direct Webhook Latency Probe
+
+Run the direct webhook probe lane against the public n8n tools:
+
+```bash
+./scripts/run-webhook-latency-probe.sh staging
+./scripts/run-webhook-latency-probe.sh staging --samples 5 --fail-on-budget
+./scripts/run-webhook-latency-probe.sh staging --probe check-availability-first-available
+```
+
+Artifacts land under:
+
+- `autonomy/runs/generated/codex/<suite-run-id>/`
+- `autonomy/reports/generated/codex/<suite-run-id>.md`
+
+Interpretation:
+
+- The probe hits safe public webhooks directly and records repeated end-to-end timings with response-shape validation.
+- The default suite covers `lookupPatient`, `searchKnowledgeBase`, two `checkAvailability` variants, and `createReceptionTask`.
+- `createEvent` is intentionally excluded from the default suite because it writes calendar state.
+- When a tool definition has a delayed-response budget, the report flags probes that exceed that budget.
+
 ## 3. Sync Embedded Workflow Data
 
 If you edit either repo-backed workflow dataset:

@@ -4,7 +4,7 @@
     "lookupPatient": {
       "schemaPath": "schemas/lookupPatient.vapi.request.json",
       "endpoint": "/webhook/ai-receptionist/lookup-patient",
-      "description": "Use only when a phone number is ambiguous or incomplete and you need deterministic normalization or repair. If result.message exists, say it verbatim.",
+      "description": "Use only when a phone number is ambiguous or incomplete and needs deterministic normalization or repair. Say result.message verbatim.",
       "messages": [
         {
           "type": "request-start",
@@ -31,7 +31,7 @@
     "checkAvailability": {
       "schemaPath": "schemas/checkAvailability.vapi.request.json",
       "endpoint": "/webhook/ai-receptionist/check-availability",
-      "description": "Return appointment availability for a known visit type and time preference in Europe/Warsaw. Use specific_time for exact hours, broad windows for morning/afternoon/evening, or first_available for nearest slots. Prefer spokenLabel or spokenTime. If result.message exists, say it verbatim.",
+      "description": "Return appointment availability for a known visit type and time preference in Europe/Warsaw. Use specific_time for exact hours, broad windows for morning/afternoon/evening, or first_available for nearest slots. For first_available, the backend uses a fixed deterministic business-day horizon. When known, pass patient.isExistingPatient. Prefer spokenLabel or spokenTime. Say result.message verbatim.",
       "messages": [
         {
           "type": "request-start",
@@ -73,7 +73,7 @@
     "createEvent": {
       "schemaPath": "schemas/createEvent.vapi.request.json",
       "endpoint": "/webhook/ai-receptionist/create-event",
-      "description": "Create a booking only after the caller selected one slot and confirmed the summary. Pass slotStart and slotEnd exactly with service, timezone, language, patient full name, and either a normalized phone or a clear raw phone number. Never confirm booking before success. Booking SMS must stay non-blocking. If result.message exists, say it verbatim.",
+      "description": "Create booking only after the caller selected one slot, confirmed the phone, and confirmed the summary. Pass exact slotStart and slotEnd with service, timezone, language, full name, and a normalized or clear raw phone. Never confirm booking before success. Booking SMS stays non-blocking. Say result.message verbatim.",
       "parameters": [
         {
           "key": "patientPhoneE164",

@@ -3,7 +3,13 @@
   "environment": "production",
   "assistantId": "6db99c99-3f93-41e3-ae4e-fefe3974e2d6",
   "assistantName": "Ola",
-  "assistantOverrides": {},
+  "assistantOverrides": {
+    "startSpeakingPlan": {
+      "smartEndpointingPlan": {
+        "provider": "vapi"
+      }
+    }
+  },
   "publicBaseUrlEnv": "PRODUCTION_N8N_PUBLIC_BASE_URL",
   "webhookSecretEnv": "PRODUCTION_AI_RECEPTIONIST_WEBHOOK_SECRET",
   "structuredOutputIds": [
