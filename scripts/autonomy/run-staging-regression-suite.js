@@ -8,6 +8,7 @@ const DEFAULT_SCENARIOS_DIR = path.join(ROOT_DIR, 'autonomy', 'scenarios', 'stag
 const DEFAULT_RUNS_DIR = path.join(ROOT_DIR, 'autonomy', 'runs', 'generated', 'staging');
 const DEFAULT_REPORTS_DIR = path.join(ROOT_DIR, 'autonomy', 'reports', 'generated', 'staging');
 const STAGING_BINDINGS_PATH = path.join(ROOT_DIR, 'configs', 'vapi', 'environments', 'staging.json');
+const RETRYABLE_CHAT_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
 
 function usage() {
   console.log(`Usage:
@@ -119,6 +120,18 @@ function compactTimestamp() {
 
 function stableNowIso() {
   return new Date().toISOString();
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getRetryDelayMs(response, attempt) {
+  const retryAfter = response.headers.get('retry-after');
+  if (retryAfter && /^\d+$/.test(retryAfter.trim())) {
+    return Number.parseInt(retryAfter.trim(), 10) * 1000;
+  }
+  return attempt * 2000;
 }
 
 function normalizeText(value) {
@@ -311,25 +324,39 @@ async function callVapiChat({ assistantId, apiKey, baseUrl, previousChatId, inpu
   const payload = previousChatId
     ? { assistantId, previousChatId, input }
     : { assistantId, input };
+  const maxAttempts = Number.parseInt(process.env.STAGING_VAPI_CHAT_MAX_ATTEMPTS || '5', 10);
 
-  const response = await fetch(`${baseUrl}/chat`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const response = await fetch(`${baseUrl}/chat`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
 
-  const body = await response.text();
-  let parsedBody;
-  try {
-    parsedBody = JSON.parse(body);
-  } catch {
-    parsedBody = { raw: body };
-  }
+    const body = await response.text();
+    let parsedBody;
+    try {
+      parsedBody = JSON.parse(body);
+    } catch {
+      parsedBody = { raw: body };
+    }
 
-  if (!response.ok) {
+    if (response.ok) {
+      return parsedBody;
+    }
+
+    if (RETRYABLE_CHAT_STATUS_CODES.has(response.status) && attempt < maxAttempts) {
+      const waitMs = getRetryDelayMs(response, attempt);
+      console.error(
+        `Retrying Vapi chat after HTTP ${response.status}; waiting ${Math.ceil(waitMs / 1000)}s (attempt ${attempt}/${maxAttempts})`
+      );
+      await sleep(waitMs);
+      continue;
+    }
+
     const message = typeof parsedBody?.message === 'string'
       ? parsedBody.message
       : `Vapi chat request failed with HTTP ${response.status}`;
@@ -339,7 +366,7 @@ async function callVapiChat({ assistantId, apiKey, baseUrl, previousChatId, inpu
     throw error;
   }
 
-  return parsedBody;
+  throw new Error('Vapi chat request failed without a response');
 }
 
 function createContext(scenario) {

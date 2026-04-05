@@ -3383,11 +3383,15 @@ assistantInvariantTest('assistant prompt keeps the first-visit pricing formula e
   );
   assert.match(
     normalizedPrompt,
+    /po potwierdzeniu numeru/i
+  );
+  assert.match(
+    normalizedPrompt,
     /powiedz dokladnie|nie parafrazuj/i
   );
   assert.match(
     normalizedPrompt,
-    /nie dodawaj tego przy pierwszej ofercie terminu/i
+    /nie dodawaj tego przy pierwszej ofercie terminu|nie mow tego przy pierwszej ofercie/i
   );
 });
 
