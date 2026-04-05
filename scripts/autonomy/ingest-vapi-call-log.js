@@ -1189,6 +1189,7 @@ function deriveLatencyDiagnostics(record, toolTrace) {
         ? null
         : completedAt - requestedAt;
       const n8nLatency = safeObject(trace?.n8nLatency);
+      const edgeLatency = safeObject(trace?.edgeLatency);
       return {
         toolName: typeof trace?.tool_name === 'string' ? trace.tool_name : null,
         toolCallId: typeof trace?.tool_call_id === 'string' ? trace.tool_call_id : null,
@@ -1199,6 +1200,16 @@ function deriveLatencyDiagnostics(record, toolTrace) {
         dispatchGapMs: toNumber(n8nLatency?.preWorkflowGapMs),
         returnGapMs: toNumber(n8nLatency?.postWorkflowGapMs),
         platformGapMs: toNumber(n8nLatency?.platformGapMs),
+        toolToEdgeStartGapMs: toNumber(edgeLatency?.toolToEdgeStartGapMs),
+        edgeDurationMs: toNumber(edgeLatency?.edgeDurationMs),
+        edgeUpstreamDurationMs: toNumber(edgeLatency?.upstreamDurationMs),
+        edgeUpstreamLatencyMs: toNumber(edgeLatency?.upstreamLatencyMs),
+        edgeIngressGapMs: toNumber(edgeLatency?.edgeIngressGapMs),
+        edgeObservedGapMs: toNumber(edgeLatency?.edgeObservedGapMs),
+        edgeEgressGapMs: toNumber(edgeLatency?.edgeEgressGapMs),
+        edgeToToolResultGapMs: toNumber(edgeLatency?.edgeToToolResultGapMs),
+        edgeStatus: toNumber(edgeLatency?.status),
+        requestPath: typeof edgeLatency?.requestPath === 'string' ? edgeLatency.requestPath : null,
         workflowId: typeof n8nLatency?.workflowId === 'string' ? n8nLatency.workflowId : null,
         executionId: n8nLatency?.executionId == null ? null : String(n8nLatency.executionId),
         matchedUsing: typeof n8nLatency?.matchedUsing === 'string' ? n8nLatency.matchedUsing : null
@@ -1210,8 +1221,16 @@ function deriveLatencyDiagnostics(record, toolTrace) {
   const maxToolBackendExternalLatencyMs = maxLatencyValue(toolLatencyDetails, 'backendExternalLatencyMs');
   const maxToolBackendInternalLatencyMs = maxLatencyValue(toolLatencyDetails, 'backendInternalLatencyMs');
   const maxToolDispatchGapMs = maxLatencyValue(toolLatencyDetails, 'dispatchGapMs');
+  const maxToolToEdgeStartGapMs = maxLatencyValue(toolLatencyDetails, 'toolToEdgeStartGapMs');
   const maxToolReturnGapMs = maxLatencyValue(toolLatencyDetails, 'returnGapMs');
   const maxToolPlatformGapMs = maxLatencyValue(toolLatencyDetails, 'platformGapMs');
+  const maxToolEdgeDurationMs = maxLatencyValue(toolLatencyDetails, 'edgeDurationMs');
+  const maxToolEdgeUpstreamDurationMs = maxLatencyValue(toolLatencyDetails, 'edgeUpstreamDurationMs');
+  const maxToolEdgeUpstreamLatencyMs = maxLatencyValue(toolLatencyDetails, 'edgeUpstreamLatencyMs');
+  const maxToolEdgeIngressGapMs = maxLatencyValue(toolLatencyDetails, 'edgeIngressGapMs');
+  const maxToolEdgeObservedGapMs = maxLatencyValue(toolLatencyDetails, 'edgeObservedGapMs');
+  const maxToolEdgeEgressGapMs = maxLatencyValue(toolLatencyDetails, 'edgeEgressGapMs');
+  const maxToolEdgeToToolResultGapMs = maxLatencyValue(toolLatencyDetails, 'edgeToToolResultGapMs');
   const slowestToolTrace = toolLatencyDetails
     .slice()
     .sort((left, right) => {
@@ -1225,10 +1244,22 @@ function deriveLatencyDiagnostics(record, toolTrace) {
     maxToolBackendWorkflowLatencyMs !== null
     || maxToolDispatchGapMs !== null
     || maxToolReturnGapMs !== null
-    || maxToolPlatformGapMs !== null;
+    || maxToolPlatformGapMs !== null
+    || maxToolToEdgeStartGapMs !== null
+    || maxToolEdgeToToolResultGapMs !== null
+    || maxToolEdgeObservedGapMs !== null;
+  const hasEdgeDecomposedToolLatency =
+    maxToolToEdgeStartGapMs !== null
+    || maxToolEdgeToToolResultGapMs !== null
+    || maxToolEdgeObservedGapMs !== null;
   const dominantCandidates = [
     { stage: 'model', value: maxModelLatencyMs, priority: 4 },
-    { stage: 'tool_platform_gap', value: maxToolPlatformGapMs, priority: 3 },
+    { stage: 'tool_edge_to_result_gap', value: maxToolEdgeToToolResultGapMs, priority: 6 },
+    { stage: 'tool_to_edge_start_gap', value: maxToolToEdgeStartGapMs, priority: 5 },
+    { stage: 'tool_edge_observed_gap', value: maxToolEdgeObservedGapMs, priority: 4 },
+    ...(hasEdgeDecomposedToolLatency
+      ? []
+      : [{ stage: 'tool_platform_gap', value: maxToolPlatformGapMs, priority: 3 }]),
     { stage: 'tool_backend_workflow', value: maxToolBackendWorkflowLatencyMs, priority: 2 },
     ...(hasDecomposedToolLatency
       ? []
@@ -1253,8 +1284,16 @@ function deriveLatencyDiagnostics(record, toolTrace) {
     ...(maxToolBackendExternalLatencyMs !== null ? { maxToolBackendExternalLatencyMs } : {}),
     ...(maxToolBackendInternalLatencyMs !== null ? { maxToolBackendInternalLatencyMs } : {}),
     ...(maxToolDispatchGapMs !== null ? { maxToolDispatchGapMs } : {}),
+    ...(maxToolToEdgeStartGapMs !== null ? { maxToolToEdgeStartGapMs } : {}),
     ...(maxToolReturnGapMs !== null ? { maxToolReturnGapMs } : {}),
     ...(maxToolPlatformGapMs !== null ? { maxToolPlatformGapMs } : {}),
+    ...(maxToolEdgeDurationMs !== null ? { maxToolEdgeDurationMs } : {}),
+    ...(maxToolEdgeUpstreamDurationMs !== null ? { maxToolEdgeUpstreamDurationMs } : {}),
+    ...(maxToolEdgeUpstreamLatencyMs !== null ? { maxToolEdgeUpstreamLatencyMs } : {}),
+    ...(maxToolEdgeIngressGapMs !== null ? { maxToolEdgeIngressGapMs } : {}),
+    ...(maxToolEdgeObservedGapMs !== null ? { maxToolEdgeObservedGapMs } : {}),
+    ...(maxToolEdgeEgressGapMs !== null ? { maxToolEdgeEgressGapMs } : {}),
+    ...(maxToolEdgeToToolResultGapMs !== null ? { maxToolEdgeToToolResultGapMs } : {}),
     maxWebhookLatencyMs: maxToolRoundTripLatencyMs,
     webhookLatencyMetricSource: 'tool_trace_round_trip',
     dominantLatencyStage: dominantCandidates[0]?.stage || null,
@@ -1274,8 +1313,26 @@ function deriveLatencyDiagnostics(record, toolTrace) {
               ? { backendInternalLatencyMs: slowestToolTrace.backendInternalLatencyMs }
               : {}),
             ...(slowestToolTrace.dispatchGapMs !== null ? { dispatchGapMs: slowestToolTrace.dispatchGapMs } : {}),
+            ...(slowestToolTrace.toolToEdgeStartGapMs !== null
+              ? { toolToEdgeStartGapMs: slowestToolTrace.toolToEdgeStartGapMs }
+              : {}),
             ...(slowestToolTrace.returnGapMs !== null ? { returnGapMs: slowestToolTrace.returnGapMs } : {}),
             ...(slowestToolTrace.platformGapMs !== null ? { platformGapMs: slowestToolTrace.platformGapMs } : {}),
+            ...(slowestToolTrace.edgeDurationMs !== null ? { edgeDurationMs: slowestToolTrace.edgeDurationMs } : {}),
+            ...(slowestToolTrace.edgeUpstreamDurationMs !== null
+              ? { edgeUpstreamDurationMs: slowestToolTrace.edgeUpstreamDurationMs }
+              : {}),
+            ...(slowestToolTrace.edgeUpstreamLatencyMs !== null
+              ? { edgeUpstreamLatencyMs: slowestToolTrace.edgeUpstreamLatencyMs }
+              : {}),
+            ...(slowestToolTrace.edgeIngressGapMs !== null ? { edgeIngressGapMs: slowestToolTrace.edgeIngressGapMs } : {}),
+            ...(slowestToolTrace.edgeObservedGapMs !== null ? { edgeObservedGapMs: slowestToolTrace.edgeObservedGapMs } : {}),
+            ...(slowestToolTrace.edgeEgressGapMs !== null ? { edgeEgressGapMs: slowestToolTrace.edgeEgressGapMs } : {}),
+            ...(slowestToolTrace.edgeToToolResultGapMs !== null
+              ? { edgeToToolResultGapMs: slowestToolTrace.edgeToToolResultGapMs }
+              : {}),
+            ...(slowestToolTrace.edgeStatus !== null ? { edgeStatus: slowestToolTrace.edgeStatus } : {}),
+            ...(slowestToolTrace.requestPath ? { requestPath: slowestToolTrace.requestPath } : {}),
             ...(slowestToolTrace.workflowId ? { workflowId: slowestToolTrace.workflowId } : {}),
             ...(slowestToolTrace.executionId ? { executionId: slowestToolTrace.executionId } : {}),
             ...(slowestToolTrace.matchedUsing ? { matchedUsing: slowestToolTrace.matchedUsing } : {})

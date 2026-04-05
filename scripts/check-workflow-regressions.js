@@ -37,7 +37,9 @@ const {
 const {
   buildN8nExecutionSummaries,
   buildToolTraceRefs,
+  matchToolTracesToCaddyEntries,
   matchToolTracesToExecutions,
+  parseCaddyAccessLogBundle,
   renderSuiteReport
 } = require(path.join(
   rootDir,
@@ -5015,25 +5017,37 @@ test('real-call ingest derives decomposed tool latency diagnostics from matched 
     }
   };
 
-  const diagnostics = deriveLatencyDiagnostics(record, [
-    {
-      tool_name: 'checkAvailability',
-      tool_call_id: 'tool_call_latency_002',
-      requested_at_ms: 10000,
-      completed_at_ms: 31159,
+	  const diagnostics = deriveLatencyDiagnostics(record, [
+	    {
+	      tool_name: 'checkAvailability',
+	      tool_call_id: 'tool_call_latency_002',
+	      requested_at_ms: 10000,
+	      completed_at_ms: 31159,
       n8nLatency: {
         workflowId: 'aiReceptionistCheckAvailability',
         executionId: '2583',
         workflowDurationMs: 652,
         externalDurationMs: 410,
         internalDurationMs: 242,
-        preWorkflowGapMs: 1041,
-        postWorkflowGapMs: 19466,
-        platformGapMs: 20507,
-        matchedUsing: 'nearest_workflow_start_after_tool_request'
-      }
-    }
-  ]);
+	        preWorkflowGapMs: 1041,
+	        postWorkflowGapMs: 19466,
+	        platformGapMs: 20507,
+	        matchedUsing: 'nearest_workflow_start_after_tool_request'
+	      },
+	      edgeLatency: {
+	        requestPath: '/webhook/ai-receptionist/check-availability',
+	        status: 200,
+	        edgeDurationMs: 8326,
+	        upstreamDurationMs: 649,
+	        upstreamLatencyMs: 187,
+	        toolToEdgeStartGapMs: 284,
+	        edgeIngressGapMs: 757,
+	        edgeObservedGapMs: 7674,
+	        edgeEgressGapMs: 6917,
+	        edgeToToolResultGapMs: 12549
+	      }
+	    }
+	  ]);
 
   assert.deepEqual(diagnostics, {
     maxModelLatencyMs: 514,
@@ -5041,29 +5055,47 @@ test('real-call ingest derives decomposed tool latency diagnostics from matched 
     maxEndpointingLatencyMs: 1001,
     maxToolRoundTripLatencyMs: 21159,
     maxToolBackendWorkflowLatencyMs: 652,
-    maxToolBackendExternalLatencyMs: 410,
-    maxToolBackendInternalLatencyMs: 242,
-    maxToolDispatchGapMs: 1041,
-    maxToolReturnGapMs: 19466,
-    maxToolPlatformGapMs: 20507,
-    maxWebhookLatencyMs: 21159,
-    webhookLatencyMetricSource: 'tool_trace_round_trip',
-    dominantLatencyStage: 'tool_platform_gap',
-    slowestToolTrace: {
-      toolName: 'checkAvailability',
-      toolCallId: 'tool_call_latency_002',
-      roundTripMs: 21159,
-      backendWorkflowLatencyMs: 652,
-      backendExternalLatencyMs: 410,
-      backendInternalLatencyMs: 242,
-      dispatchGapMs: 1041,
-      returnGapMs: 19466,
-      platformGapMs: 20507,
-      workflowId: 'aiReceptionistCheckAvailability',
-      executionId: '2583',
-      matchedUsing: 'nearest_workflow_start_after_tool_request'
-    },
-    slowTurnCount: 0
+	    maxToolBackendExternalLatencyMs: 410,
+	    maxToolBackendInternalLatencyMs: 242,
+	    maxToolDispatchGapMs: 1041,
+	    maxToolToEdgeStartGapMs: 284,
+	    maxToolReturnGapMs: 19466,
+	    maxToolPlatformGapMs: 20507,
+	    maxToolEdgeDurationMs: 8326,
+	    maxToolEdgeUpstreamDurationMs: 649,
+	    maxToolEdgeUpstreamLatencyMs: 187,
+	    maxToolEdgeIngressGapMs: 757,
+	    maxToolEdgeObservedGapMs: 7674,
+	    maxToolEdgeEgressGapMs: 6917,
+	    maxToolEdgeToToolResultGapMs: 12549,
+	    maxWebhookLatencyMs: 21159,
+	    webhookLatencyMetricSource: 'tool_trace_round_trip',
+	    dominantLatencyStage: 'tool_edge_to_result_gap',
+	    slowestToolTrace: {
+	      toolName: 'checkAvailability',
+	      toolCallId: 'tool_call_latency_002',
+	      roundTripMs: 21159,
+	      backendWorkflowLatencyMs: 652,
+	      backendExternalLatencyMs: 410,
+	      backendInternalLatencyMs: 242,
+	      dispatchGapMs: 1041,
+	      toolToEdgeStartGapMs: 284,
+	      returnGapMs: 19466,
+	      platformGapMs: 20507,
+	      edgeDurationMs: 8326,
+	      edgeUpstreamDurationMs: 649,
+	      edgeUpstreamLatencyMs: 187,
+	      edgeIngressGapMs: 757,
+	      edgeObservedGapMs: 7674,
+	      edgeEgressGapMs: 6917,
+	      edgeToToolResultGapMs: 12549,
+	      edgeStatus: 200,
+	      requestPath: '/webhook/ai-receptionist/check-availability',
+	      workflowId: 'aiReceptionistCheckAvailability',
+	      executionId: '2583',
+	      matchedUsing: 'nearest_workflow_start_after_tool_request'
+	    },
+	    slowTurnCount: 0
   });
 });
 
@@ -5163,8 +5195,8 @@ test('live autoeval matches tool traces to n8n executions and preserves stage br
     totalTraceCount: 1,
     executionCount: 1
   });
-  assert.deepEqual(trace.n8nLatency, {
-    source: 'n8n_event_log',
+	assert.deepEqual(trace.n8nLatency, {
+	  source: 'n8n_event_log',
     workflowId: 'aiReceptionistCheckAvailability',
     workflowName: 'aiReceptionistCheckAvailability',
     executionId: '2583',
@@ -5185,7 +5217,76 @@ test('live autoeval matches tool traces to n8n executions and preserves stage br
       }
     ],
     files: ['n8nEventLog.log'],
-    matchedUsing: 'nearest_workflow_start_after_tool_request'
+	  matchedUsing: 'nearest_workflow_start_after_tool_request'
+	});
+});
+
+test('live autoeval matches tool traces to Caddy access logs and preserves edge stage breakdown', () => {
+  const suiteRuns = [
+    {
+      run: {
+        call: {},
+        tool_trace: [
+          {
+            tool_name: 'checkAvailability',
+            tool_call_id: 'tool_call_latency_match',
+            requested_at_ms: 10000,
+            completed_at_ms: 31159,
+            n8nLatency: {
+              workflowStartedAtMs: 11041,
+              workflowFinishedAtMs: 11693,
+              workflowDurationMs: 652
+            }
+          }
+        ]
+      }
+    }
+  ];
+
+  const accessEntries = parseCaddyAccessLogBundle(
+    JSON.stringify({
+      level: 'info',
+      ts: 18.61,
+      logger: 'http.log.access.log0',
+      msg: 'handled request',
+      request: {
+        method: 'POST',
+        uri: '/webhook/ai-receptionist/check-availability?secret=REDACTED'
+      },
+      duration: 8.326,
+      status: 200,
+      upstream_duration_ms: '649',
+      upstream_latency_ms: '187'
+    }),
+    { minMs: 9000, maxMs: 32000 }
+  );
+
+  const matchSummary = matchToolTracesToCaddyEntries(buildToolTraceRefs(suiteRuns), accessEntries);
+  const trace = suiteRuns[0].run.tool_trace[0];
+
+  assert.deepEqual(matchSummary, {
+    matchedTraceCount: 1,
+    totalTraceCount: 1,
+    accessEntryCount: 1
+  });
+  assert.deepEqual(trace.edgeLatency, {
+    source: 'caddy_access_log',
+    requestPath: '/webhook/ai-receptionist/check-availability',
+    method: 'POST',
+    status: 200,
+    edgeStartedAtMs: 10284,
+    edgeCompletedAtMs: 18610,
+    edgeDurationMs: 8326,
+    upstreamDurationMs: 649,
+    upstreamLatencyMs: 187,
+    proxyOverheadMs: 7677,
+    toolToEdgeStartGapMs: 284,
+    edgeIngressGapMs: 757,
+    edgeObservedGapMs: 7674,
+    edgeEgressGapMs: 6917,
+    edgeToToolResultGapMs: 12549,
+    roundTripMs: 21159,
+    matchedUsing: 'nearest_edge_request_for_tool_endpoint'
   });
 });
 
@@ -5209,13 +5310,21 @@ test('live autoeval report renders decomposed tool latency attribution and enric
       average_max_endpointing_latency_ms: 1001,
       average_max_tool_round_trip_latency_ms: 21159,
       average_max_tool_dispatch_gap_ms: 1041,
+      average_max_tool_to_edge_start_gap_ms: 284,
       average_max_tool_backend_workflow_latency_ms: 652,
       average_max_tool_backend_external_latency_ms: 410,
       average_max_tool_backend_internal_latency_ms: 242,
+      average_max_tool_edge_duration_ms: 8326,
+      average_max_tool_edge_upstream_duration_ms: 649,
+      average_max_tool_edge_upstream_latency_ms: 187,
+      average_max_tool_edge_ingress_gap_ms: 757,
+      average_max_tool_edge_observed_gap_ms: 7674,
+      average_max_tool_edge_egress_gap_ms: 6917,
       average_max_tool_return_gap_ms: 19466,
+      average_max_tool_edge_to_result_gap_ms: 12549,
       average_max_tool_platform_gap_ms: 20507,
       dominant_latency_stage_counts: [
-        { stage: 'tool_platform_gap', count: 1 }
+        { stage: 'tool_edge_to_result_gap', count: 1 }
       ]
     },
     latency_enrichment: {
@@ -5225,6 +5334,15 @@ test('live autoeval report renders decomposed tool latency attribution and enric
       total_trace_count: 1,
       unmatched_trace_count: 0,
       execution_count: 1,
+      warning: null
+    },
+    edge_latency_enrichment: {
+      enabled: true,
+      source: 'caddy_access_log',
+      matched_trace_count: 1,
+      total_trace_count: 1,
+      unmatched_trace_count: 0,
+      access_entry_count: 1,
       warning: null
     },
     calls: [
@@ -5244,22 +5362,39 @@ test('live autoeval report renders decomposed tool latency attribution and enric
           maxEndpointingLatencyMs: 1001,
           maxToolRoundTripLatencyMs: 21159,
           maxToolDispatchGapMs: 1041,
+          maxToolToEdgeStartGapMs: 284,
           maxToolBackendWorkflowLatencyMs: 652,
           maxToolBackendExternalLatencyMs: 410,
           maxToolBackendInternalLatencyMs: 242,
+          maxToolEdgeDurationMs: 8326,
+          maxToolEdgeUpstreamDurationMs: 649,
+          maxToolEdgeUpstreamLatencyMs: 187,
+          maxToolEdgeIngressGapMs: 757,
+          maxToolEdgeObservedGapMs: 7674,
+          maxToolEdgeEgressGapMs: 6917,
           maxToolReturnGapMs: 19466,
+          maxToolEdgeToToolResultGapMs: 12549,
           maxToolPlatformGapMs: 20507,
-          dominantLatencyStage: 'tool_platform_gap',
+          dominantLatencyStage: 'tool_edge_to_result_gap',
           slowTurnCount: 0,
           slowestToolTrace: {
             toolName: 'checkAvailability',
             roundTripMs: 21159,
             dispatchGapMs: 1041,
+            toolToEdgeStartGapMs: 284,
             backendWorkflowLatencyMs: 652,
             backendExternalLatencyMs: 410,
             backendInternalLatencyMs: 242,
+            edgeDurationMs: 8326,
+            edgeUpstreamDurationMs: 649,
+            edgeUpstreamLatencyMs: 187,
+            edgeIngressGapMs: 757,
+            edgeObservedGapMs: 7674,
+            edgeEgressGapMs: 6917,
             returnGapMs: 19466,
+            edgeToToolResultGapMs: 12549,
             platformGapMs: 20507,
+            edgeStatus: 200,
             executionId: '2583'
           }
         },
@@ -5270,13 +5405,20 @@ test('live autoeval report renders decomposed tool latency attribution and enric
   });
 
   assert.match(report, /Average max tool dispatch gap: 1041ms/);
+  assert.match(report, /Average max tool-to-edge start gap: 284ms/);
   assert.match(report, /Average max tool backend workflow latency: 652ms/);
+  assert.match(report, /Average max edge request duration: 8326ms/);
+  assert.match(report, /Average max edge upstream duration: 649ms/);
+  assert.match(report, /Average max edge ingress gap: 757ms/);
+  assert.match(report, /Average max edge observed gap: 7674ms/);
+  assert.match(report, /Average max edge-to-result gap: 12549ms/);
   assert.match(report, /Average max tool return gap: 19466ms/);
   assert.match(report, /Average max tool platform gap: 20507ms/);
+  assert.match(report, /Edge latency enrichment: matched 1 of 1 tool traces across 1 Caddy access entries\./);
   assert.match(report, /N8N latency enrichment: matched 1 of 1 tool traces across 1 executions\./);
   assert.match(
     report,
-    /Slowest tool trace: checkAvailability round_trip=21159ms, dispatch=1041ms, backend=652ms \(external=410ms, internal=242ms\), return=19466ms, platform=20507ms, execution=2583/
+    /Slowest tool trace: checkAvailability round_trip=21159ms, dispatch=1041ms, to_edge=284ms, backend=652ms \(external=410ms, internal=242ms\), edge=8326ms \(upstream=649ms, header=187ms\), edge_ingress=757ms, edge_observed=7674ms, edge_egress=6917ms, return=19466ms, edge_to_result=12549ms, platform=20507ms, edge_status=200, execution=2583/
   );
 });
 

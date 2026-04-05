@@ -23,7 +23,21 @@
 		X-Frame-Options "DENY"
 	}
 
+	log {
+		output stdout
+		format filter {
+			request>uri query {
+				replace secret REDACTED
+			}
+			request>remote_ip ip_mask 16 32
+			request>client_ip ip_mask 16 32
+		}
+	}
+
 	reverse_proxy n8n:5678
+	log_append upstream_host {rp.upstream.host}
+	log_append upstream_duration_ms {rp.upstream.duration_ms}
+	log_append upstream_latency_ms {rp.upstream.latency_ms}
 }
 
 import caddy.d/*.caddy

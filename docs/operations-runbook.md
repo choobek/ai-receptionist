@@ -133,6 +133,8 @@ Artifacts land under:
 Interpretation:
 
 - The runner fetches recent calls from Vapi, writes minimized normalized `run.v1` artifacts by default, and scores the runs against [`../configs/vapi/autoevaluation-policy.v1.json`](../configs/vapi/autoevaluation-policy.v1.json).
+- When SSH plus container bindings are available, the runner also pulls matched n8n event logs and Caddy access logs from the target VPS to split webhook latency into `dispatch`, `tool-to-edge start`, `edge ingress`, backend workflow, `edge egress`, `edge-to-result`, and full platform gap buckets.
+- For shared-host staging, set `STAGING_VPS_CADDY_CONTAINER_NAME` only when the shared Caddy container is not the default `CADDY_CONTAINER_NAME`.
 - Raw call JSON is written only when `--include-raw-calls` is explicitly requested for short-lived debugging.
 - Treat this as the live-call review queue and drift monitor.
 - Keep the repo-local workflow regression checks and staging regression suite as the release gate.
@@ -308,7 +310,7 @@ Interpretation:
 - `git status --short` should not show accidental secrets, throwaway scripts, or duplicate env templates.
 - `./scripts/check-repo-health.sh` should pass before deploys and after repo cleanup. It now includes workflow regression checks when `node` is installed.
 - `./scripts/run-vapi-eval-suite.sh staging` is a useful observability check, but it is not a substitute for the repo-local workflow regression checks and staging regression suite.
-- `./scripts/run-vapi-live-autoeval.sh staging` is the fastest way to turn recent real calls into a concrete review queue with scorecard thresholds and reason counts.
+- `./scripts/run-vapi-live-autoeval.sh staging` is the fastest way to turn recent real calls into a concrete review queue with scorecard thresholds, reason counts, and proxy-vs-backend latency attribution.
 - `./scripts/check-workflow-regressions.js` is the default must-pass contract/invariant lane. Use `--include-experimental` only for explicit audits of quarantined prompt/config checks.
 - `./scripts/sync-n8n-workflow-data.sh --check` should pass after proof-of-concept data edits.
 - rendered staging and production assistant configs should build cleanly from repo state plus root `.env`.

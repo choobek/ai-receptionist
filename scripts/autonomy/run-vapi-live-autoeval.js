@@ -14,6 +14,7 @@ const RUNS_ROOT = path.join(ROOT_DIR, 'autonomy', 'runs', 'generated', 'vapi-liv
 const REPORTS_ROOT = path.join(ROOT_DIR, 'autonomy', 'reports', 'generated', 'vapi-live-autoeval');
 const POLICY_PATH = path.join(ROOT_DIR, 'configs', 'vapi', 'autoevaluation-policy.v1.json');
 const ENVIRONMENTS_DIR = path.join(ROOT_DIR, 'configs', 'vapi', 'environments');
+const TOOL_DEFINITIONS_PATH = path.join(ROOT_DIR, 'configs', 'vapi', 'tool-definitions.v1.json');
 const MODEL_DOMINANT_REVIEW_THRESHOLD_MS = 4000;
 const MODEL_DOMINANT_HIGH_THRESHOLD_MS = 7000;
 const SPEECH_RENDERING_TOOL_NAMES = new Set(['checkAvailability', 'lookupPatient', 'createEvent']);
@@ -28,6 +29,7 @@ const TOOL_WORKFLOW_IDS = {
   sendSmsToReceptionists: 'aiReceptionistSendSmsToReceptionists',
   sendSmsToPatient: 'aiReceptionistSendSmsToPatient'
 };
+const TOOL_ENDPOINTS = loadToolEndpointMap(TOOL_DEFINITIONS_PATH);
 const EVENT_LOG_FILE_START_MARKER = '__AI_RECEPTIONIST_EVENT_LOG_FILE_START__';
 const EVENT_LOG_FILE_END_MARKER = '__AI_RECEPTIONIST_EVENT_LOG_FILE_END__';
 const DATE_OR_NUMBER_ASCII_PATTERNS = [
@@ -165,8 +167,63 @@ function writeJson(filePath, payload) {
   fs.writeFileSync(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
 }
 
+function loadToolEndpointMap(filePath) {
+  const payload = readJson(filePath);
+  const tools = safeObject(payload?.tools) || {};
+  return Object.fromEntries(
+    Object.entries(tools)
+      .map(([toolName, config]) => [
+        toolName,
+        typeof config?.endpoint === 'string' ? config.endpoint.trim() : ''
+      ])
+      .filter(([, endpoint]) => endpoint)
+  );
+}
+
 function toNumber(value) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function toFiniteNumber(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function toCaddyTimestampMs(value) {
+  const numericValue = toFiniteNumber(value);
+  if (numericValue !== null) {
+    return Math.round(numericValue * 1000);
+  }
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function secondsToMilliseconds(value) {
+  const numericValue = toFiniteNumber(value);
+  if (numericValue === null) {
+    return null;
+  }
+  return Math.max(Math.round(numericValue * 1000), 0);
+}
+
+function normalizeRequestPath(uri) {
+  if (typeof uri !== 'string' || !uri.trim()) {
+    return null;
+  }
+  try {
+    return new URL(uri, 'https://edge.invalid').pathname || null;
+  } catch {
+    return uri.split('?')[0].trim() || null;
+  }
 }
 
 function maxNullable(values) {
@@ -187,9 +244,10 @@ function buildSshContext(environment) {
   const user = readContextEnv(environment, 'VPS_SSH_USER', 'VPS_SSH_USER');
   const port = readContextEnv(environment, 'VPS_SSH_PORT', 'VPS_SSH_PORT') || '22';
   const identityFile = readContextEnv(environment, 'VPS_SSH_IDENTITY_FILE', 'VPS_SSH_IDENTITY_FILE');
-  const container = readContextEnv(environment, 'VPS_N8N_CONTAINER_NAME', 'VPS_N8N_CONTAINER_NAME');
+  const n8nContainer = readContextEnv(environment, 'VPS_N8N_CONTAINER_NAME', 'VPS_N8N_CONTAINER_NAME');
+  const caddyContainer = readContextEnv(environment, 'VPS_CADDY_CONTAINER_NAME', 'CADDY_CONTAINER_NAME');
 
-  if (!host || !user || !container) {
+  if (!host || !user || !n8nContainer) {
     return null;
   }
 
@@ -198,7 +256,8 @@ function buildSshContext(environment) {
     user,
     port,
     identityFile,
-    container
+    n8nContainer,
+    caddyContainer
   };
 }
 
@@ -212,7 +271,7 @@ function fetchRemoteN8nEventLogBundle(sshContext) {
     'bash',
     '-s',
     '--',
-    sshContext.container
+    sshContext.n8nContainer
   );
 
   const remoteScript = `
@@ -238,6 +297,49 @@ done
   if (result.status !== 0) {
     const detail = (result.stderr || result.stdout || '').trim() || `ssh exited with status ${result.status}`;
     throw new Error(`Failed to fetch n8n event logs: ${detail}`);
+  }
+
+  return result.stdout || '';
+}
+
+function fetchRemoteCaddyAccessLogBundle(sshContext, timeWindow) {
+  if (!sshContext.caddyContainer) {
+    throw new Error('Missing VPS Caddy container name for edge latency enrichment.');
+  }
+
+  const sshArgs = ['-p', sshContext.port];
+  if (sshContext.identityFile) {
+    sshArgs.push('-i', sshContext.identityFile);
+  }
+  sshArgs.push(
+    `${sshContext.user}@${sshContext.host}`,
+    'bash',
+    '-s',
+    '--',
+    sshContext.caddyContainer,
+    new Date(timeWindow.minMs).toISOString(),
+    new Date(timeWindow.maxMs).toISOString()
+  );
+
+  const remoteScript = `
+set -euo pipefail
+
+container="$1"
+since_iso="$2"
+until_iso="$3"
+
+docker logs --since "$since_iso" --until "$until_iso" "$container" 2>&1
+`;
+
+  const result = spawnSync('ssh', sshArgs, {
+    input: remoteScript,
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024
+  });
+
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || '').trim() || `ssh exited with status ${result.status}`;
+    throw new Error(`Failed to fetch Caddy access logs: ${detail}`);
   }
 
   return result.stdout || '';
@@ -288,6 +390,64 @@ function parseN8nEventLogBundle(bundleText, timeWindow = null) {
   }
 
   return events;
+}
+
+function parseCaddyAccessLogBundle(bundleText, timeWindow = null) {
+  const entries = [];
+  const minMs = typeof timeWindow?.minMs === 'number' ? timeWindow.minMs : null;
+  const maxMs = typeof timeWindow?.maxMs === 'number' ? timeWindow.maxMs : null;
+  let lineNumber = 0;
+
+  for (const rawLine of String(bundleText || '').split(/\r?\n/)) {
+    lineNumber += 1;
+    const line = rawLine.trim();
+    if (!line || !line.startsWith('{')) {
+      continue;
+    }
+    let event = null;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const logger = typeof event?.logger === 'string' ? event.logger : '';
+    if (!logger.startsWith('http.log.access')) {
+      continue;
+    }
+    const request = safeObject(event?.request) || {};
+    const requestPath = normalizeRequestPath(request.uri);
+    const edgeCompletedAtMs = toCaddyTimestampMs(event?.ts);
+    const edgeDurationMs = secondsToMilliseconds(event?.duration);
+    if (edgeCompletedAtMs === null || requestPath === null) {
+      continue;
+    }
+    const edgeStartedAtMs = edgeDurationMs === null
+      ? edgeCompletedAtMs
+      : Math.max(edgeCompletedAtMs - edgeDurationMs, 0);
+    if (minMs !== null && edgeCompletedAtMs < minMs) {
+      continue;
+    }
+    if (maxMs !== null && edgeStartedAtMs > maxMs) {
+      continue;
+    }
+    const upstreamDurationMs = toFiniteNumber(event?.upstream_duration_ms);
+    entries.push({
+      entryId: `${edgeCompletedAtMs}:${lineNumber}`,
+      requestPath,
+      method: typeof request.method === 'string' ? request.method : null,
+      status: toFiniteNumber(event?.status),
+      edgeStartedAtMs,
+      edgeCompletedAtMs,
+      edgeDurationMs,
+      upstreamDurationMs,
+      upstreamLatencyMs: toFiniteNumber(event?.upstream_latency_ms),
+      proxyOverheadMs: edgeDurationMs !== null && upstreamDurationMs !== null
+        ? Math.max(edgeDurationMs - upstreamDurationMs, 0)
+        : null
+    });
+  }
+
+  return entries.sort((left, right) => left.edgeStartedAtMs - right.edgeStartedAtMs);
 }
 
 function buildN8nExecutionSummaries(events) {
@@ -434,7 +594,8 @@ function buildToolTraceRefs(suiteRuns) {
         trace,
         requestedAtMs,
         completedAtMs,
-        workflowId
+        workflowId,
+        endpointPath: TOOL_ENDPOINTS[trace?.tool_name] || null
       });
     }
   }
@@ -477,6 +638,52 @@ function buildTraceExecutionMatch(traceRef, execution) {
     })),
     files: safeArray(execution.files),
     matchedUsing: 'nearest_workflow_start_after_tool_request'
+  };
+}
+
+function buildTraceEdgeMatch(traceRef, entry) {
+  const roundTripMs = Math.max(traceRef.completedAtMs - traceRef.requestedAtMs, 0);
+  const n8nLatency = safeObject(traceRef.trace?.n8nLatency);
+  const workflowStartedAtMs = toNumber(n8nLatency?.workflowStartedAtMs);
+  const workflowFinishedAtMs = toNumber(n8nLatency?.workflowFinishedAtMs);
+  const workflowDurationMs = toNumber(n8nLatency?.workflowDurationMs);
+  const edgeStartedAtMs = toNumber(entry?.edgeStartedAtMs);
+  const edgeCompletedAtMs = toNumber(entry?.edgeCompletedAtMs);
+  const edgeDurationMs = toNumber(entry?.edgeDurationMs);
+  const toolToEdgeStartGapMs = edgeStartedAtMs === null
+    ? null
+    : Math.max(edgeStartedAtMs - traceRef.requestedAtMs, 0);
+  const edgeToToolResultGapMs = edgeCompletedAtMs === null
+    ? null
+    : Math.max(traceRef.completedAtMs - edgeCompletedAtMs, 0);
+  const edgeIngressGapMs = edgeStartedAtMs === null || workflowStartedAtMs === null
+    ? null
+    : Math.max(workflowStartedAtMs - edgeStartedAtMs, 0);
+  const edgeEgressGapMs = edgeCompletedAtMs === null || workflowFinishedAtMs === null
+    ? null
+    : Math.max(edgeCompletedAtMs - workflowFinishedAtMs, 0);
+  const edgeObservedGapMs = edgeDurationMs === null || workflowDurationMs === null
+    ? null
+    : Math.max(edgeDurationMs - workflowDurationMs, 0);
+
+  return {
+    source: 'caddy_access_log',
+    requestPath: entry.requestPath,
+    method: entry.method,
+    status: toNumber(entry.status),
+    edgeStartedAtMs,
+    edgeCompletedAtMs,
+    edgeDurationMs,
+    upstreamDurationMs: toNumber(entry.upstreamDurationMs),
+    upstreamLatencyMs: toNumber(entry.upstreamLatencyMs),
+    proxyOverheadMs: toNumber(entry.proxyOverheadMs),
+    toolToEdgeStartGapMs,
+    edgeIngressGapMs,
+    edgeObservedGapMs,
+    edgeEgressGapMs,
+    edgeToToolResultGapMs,
+    roundTripMs,
+    matchedUsing: 'nearest_edge_request_for_tool_endpoint'
   };
 }
 
@@ -529,6 +736,67 @@ function matchToolTracesToExecutions(traceRefs, executions) {
   };
 }
 
+function matchToolTracesToCaddyEntries(traceRefs, accessEntries) {
+  const entriesByPath = new Map();
+  for (const entry of safeArray(accessEntries)) {
+    if (!entry.requestPath || typeof entry.edgeStartedAtMs !== 'number') {
+      continue;
+    }
+    const current = entriesByPath.get(entry.requestPath) || [];
+    current.push(entry);
+    entriesByPath.set(entry.requestPath, current);
+  }
+
+  for (const entryList of entriesByPath.values()) {
+    entryList.sort((left, right) => left.edgeStartedAtMs - right.edgeStartedAtMs);
+  }
+
+  const usedEntryIds = new Set();
+  let matchedTraceCount = 0;
+  let totalTraceCount = 0;
+
+  for (const traceRef of safeArray(traceRefs)) {
+    if (!traceRef.endpointPath) {
+      continue;
+    }
+    totalTraceCount += 1;
+    const entryList = entriesByPath.get(traceRef.endpointPath) || [];
+    const matchingWindowStartMs = traceRef.requestedAtMs - 5000;
+    const matchingWindowEndMs = traceRef.completedAtMs + 5000;
+    const candidates = entryList
+      .filter((entry) => !usedEntryIds.has(entry.entryId))
+      .filter((entry) => entry.edgeStartedAtMs <= matchingWindowEndMs && entry.edgeCompletedAtMs >= matchingWindowStartMs)
+      .sort((left, right) => {
+        const leftScore = Math.abs(left.edgeStartedAtMs - traceRef.requestedAtMs)
+          + Math.abs(left.edgeCompletedAtMs - traceRef.completedAtMs);
+        const rightScore = Math.abs(right.edgeStartedAtMs - traceRef.requestedAtMs)
+          + Math.abs(right.edgeCompletedAtMs - traceRef.completedAtMs);
+        return leftScore - rightScore || left.edgeStartedAtMs - right.edgeStartedAtMs;
+      });
+
+    const matchedEntry = candidates[0] || null;
+    if (!matchedEntry) {
+      continue;
+    }
+
+    traceRef.trace.edgeLatency = buildTraceEdgeMatch(traceRef, matchedEntry);
+    usedEntryIds.add(matchedEntry.entryId);
+    matchedTraceCount += 1;
+  }
+
+  return {
+    matchedTraceCount,
+    totalTraceCount,
+    accessEntryCount: safeArray(accessEntries).length
+  };
+}
+
+function refreshSuiteRunLatencyDiagnostics(suiteRuns) {
+  for (const suiteRun of safeArray(suiteRuns)) {
+    suiteRun.run.call.latency_diagnostics = deriveLatencyDiagnostics(suiteRun.fullCall, suiteRun.run.tool_trace);
+  }
+}
+
 async function enrichSuiteRunsWithN8nLatency(suiteRuns, environment) {
   const sshContext = buildSshContext(environment);
   if (!sshContext) {
@@ -564,10 +832,6 @@ async function enrichSuiteRunsWithN8nLatency(suiteRuns, environment) {
     const executions = buildN8nExecutionSummaries(events);
     const matchSummary = matchToolTracesToExecutions(traceRefs, executions);
 
-    for (const suiteRun of safeArray(suiteRuns)) {
-      suiteRun.run.call.latency_diagnostics = deriveLatencyDiagnostics(suiteRun.fullCall, suiteRun.run.tool_trace);
-    }
-
     return {
       enabled: true,
       source: 'n8n_event_log',
@@ -582,6 +846,69 @@ async function enrichSuiteRunsWithN8nLatency(suiteRuns, environment) {
       matchedTraceCount: 0,
       totalTraceCount: traceRefs.length,
       executionCount: 0,
+      warning: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+async function enrichSuiteRunsWithCaddyEdgeLatency(suiteRuns, environment) {
+  const sshContext = buildSshContext(environment);
+  if (!sshContext) {
+    return {
+      enabled: false,
+      source: 'caddy_access_log',
+      matchedTraceCount: 0,
+      totalTraceCount: 0,
+      accessEntryCount: 0,
+      warning: `Missing ${environment.toUpperCase()} VPS SSH env vars for edge latency enrichment.`
+    };
+  }
+  if (!sshContext.caddyContainer) {
+    return {
+      enabled: false,
+      source: 'caddy_access_log',
+      matchedTraceCount: 0,
+      totalTraceCount: 0,
+      accessEntryCount: 0,
+      warning: `Missing ${environment.toUpperCase()} VPS Caddy container env vars for edge latency enrichment.`
+    };
+  }
+
+  const traceRefs = buildToolTraceRefs(suiteRuns).filter((traceRef) => Boolean(traceRef.endpointPath));
+  if (traceRefs.length === 0) {
+    return {
+      enabled: true,
+      source: 'caddy_access_log',
+      matchedTraceCount: 0,
+      totalTraceCount: 0,
+      accessEntryCount: 0
+    };
+  }
+
+  const timeWindow = {
+    minMs: Math.min(...traceRefs.map((traceRef) => traceRef.requestedAtMs)) - 120000,
+    maxMs: Math.max(...traceRefs.map((traceRef) => traceRef.completedAtMs)) + 120000
+  };
+
+  try {
+    const bundleText = fetchRemoteCaddyAccessLogBundle(sshContext, timeWindow);
+    const accessEntries = parseCaddyAccessLogBundle(bundleText, timeWindow);
+    const matchSummary = matchToolTracesToCaddyEntries(traceRefs, accessEntries);
+
+    return {
+      enabled: true,
+      source: 'caddy_access_log',
+      matchedTraceCount: matchSummary.matchedTraceCount,
+      totalTraceCount: matchSummary.totalTraceCount,
+      accessEntryCount: matchSummary.accessEntryCount
+    };
+  } catch (error) {
+    return {
+      enabled: false,
+      source: 'caddy_access_log',
+      matchedTraceCount: 0,
+      totalTraceCount: traceRefs.length,
+      accessEntryCount: 0,
       warning: error instanceof Error ? error.message : String(error)
     };
   }
@@ -976,7 +1303,8 @@ function summarizeSuite({
   startedAt,
   completedAt,
   policyPath,
-  latencyEnrichment = null
+  latencyEnrichment = null,
+  edgeEnrichment = null
 }) {
   const reviewCounts = { high: 0, medium: 0, low: 0 };
   const reasonCounts = new Map();
@@ -991,8 +1319,16 @@ function summarizeSuite({
   const maxToolBackendExternalLatencies = [];
   const maxToolBackendInternalLatencies = [];
   const maxToolDispatchGaps = [];
+  const maxToolToEdgeStartGaps = [];
   const maxToolReturnGaps = [];
   const maxToolPlatformGaps = [];
+  const maxToolEdgeDurations = [];
+  const maxToolEdgeUpstreamDurations = [];
+  const maxToolEdgeUpstreamLatencies = [];
+  const maxToolEdgeIngressGaps = [];
+  const maxToolEdgeObservedGaps = [];
+  const maxToolEdgeEgressGaps = [];
+  const maxToolEdgeToResultGaps = [];
 
   for (const call of calls) {
     if (call.review.requires_review) {
@@ -1056,11 +1392,35 @@ function summarizeSuite({
     if (typeof latency?.maxToolDispatchGapMs === 'number') {
       maxToolDispatchGaps.push(latency.maxToolDispatchGapMs);
     }
+    if (typeof latency?.maxToolToEdgeStartGapMs === 'number') {
+      maxToolToEdgeStartGaps.push(latency.maxToolToEdgeStartGapMs);
+    }
     if (typeof latency?.maxToolReturnGapMs === 'number') {
       maxToolReturnGaps.push(latency.maxToolReturnGapMs);
     }
     if (typeof latency?.maxToolPlatformGapMs === 'number') {
       maxToolPlatformGaps.push(latency.maxToolPlatformGapMs);
+    }
+    if (typeof latency?.maxToolEdgeDurationMs === 'number') {
+      maxToolEdgeDurations.push(latency.maxToolEdgeDurationMs);
+    }
+    if (typeof latency?.maxToolEdgeUpstreamDurationMs === 'number') {
+      maxToolEdgeUpstreamDurations.push(latency.maxToolEdgeUpstreamDurationMs);
+    }
+    if (typeof latency?.maxToolEdgeUpstreamLatencyMs === 'number') {
+      maxToolEdgeUpstreamLatencies.push(latency.maxToolEdgeUpstreamLatencyMs);
+    }
+    if (typeof latency?.maxToolEdgeIngressGapMs === 'number') {
+      maxToolEdgeIngressGaps.push(latency.maxToolEdgeIngressGapMs);
+    }
+    if (typeof latency?.maxToolEdgeObservedGapMs === 'number') {
+      maxToolEdgeObservedGaps.push(latency.maxToolEdgeObservedGapMs);
+    }
+    if (typeof latency?.maxToolEdgeEgressGapMs === 'number') {
+      maxToolEdgeEgressGaps.push(latency.maxToolEdgeEgressGapMs);
+    }
+    if (typeof latency?.maxToolEdgeToToolResultGapMs === 'number') {
+      maxToolEdgeToResultGaps.push(latency.maxToolEdgeToToolResultGapMs);
     }
   }
 
@@ -1085,8 +1445,16 @@ function summarizeSuite({
       average_max_tool_backend_external_latency_ms: roundMaybe(average(maxToolBackendExternalLatencies)),
       average_max_tool_backend_internal_latency_ms: roundMaybe(average(maxToolBackendInternalLatencies)),
       average_max_tool_dispatch_gap_ms: roundMaybe(average(maxToolDispatchGaps)),
+      average_max_tool_to_edge_start_gap_ms: roundMaybe(average(maxToolToEdgeStartGaps)),
       average_max_tool_return_gap_ms: roundMaybe(average(maxToolReturnGaps)),
       average_max_tool_platform_gap_ms: roundMaybe(average(maxToolPlatformGaps)),
+      average_max_tool_edge_duration_ms: roundMaybe(average(maxToolEdgeDurations)),
+      average_max_tool_edge_upstream_duration_ms: roundMaybe(average(maxToolEdgeUpstreamDurations)),
+      average_max_tool_edge_upstream_latency_ms: roundMaybe(average(maxToolEdgeUpstreamLatencies)),
+      average_max_tool_edge_ingress_gap_ms: roundMaybe(average(maxToolEdgeIngressGaps)),
+      average_max_tool_edge_observed_gap_ms: roundMaybe(average(maxToolEdgeObservedGaps)),
+      average_max_tool_edge_egress_gap_ms: roundMaybe(average(maxToolEdgeEgressGaps)),
+      average_max_tool_edge_to_result_gap_ms: roundMaybe(average(maxToolEdgeToResultGaps)),
       average_max_webhook_latency_ms: roundMaybe(average(maxToolRoundTripLatencies)),
       dominant_latency_stage_counts: Array.from(dominantLatencyStageCounts.entries())
         .map(([stage, count]) => ({ stage, count }))
@@ -1110,6 +1478,25 @@ function summarizeSuite({
         ? latencyEnrichment.executionCount
         : 0,
       warning: typeof latencyEnrichment?.warning === 'string' ? latencyEnrichment.warning : null
+    },
+    edge_latency_enrichment: {
+      enabled: Boolean(edgeEnrichment?.enabled),
+      source: edgeEnrichment?.source || null,
+      matched_trace_count: typeof edgeEnrichment?.matchedTraceCount === 'number'
+        ? edgeEnrichment.matchedTraceCount
+        : 0,
+      total_trace_count: typeof edgeEnrichment?.totalTraceCount === 'number'
+        ? edgeEnrichment.totalTraceCount
+        : 0,
+      unmatched_trace_count: Math.max(
+        (typeof edgeEnrichment?.totalTraceCount === 'number' ? edgeEnrichment.totalTraceCount : 0)
+          - (typeof edgeEnrichment?.matchedTraceCount === 'number' ? edgeEnrichment.matchedTraceCount : 0),
+        0
+      ),
+      access_entry_count: typeof edgeEnrichment?.accessEntryCount === 'number'
+        ? edgeEnrichment.accessEntryCount
+        : 0,
+      warning: typeof edgeEnrichment?.warning === 'string' ? edgeEnrichment.warning : null
     },
     average_scorecards: Array.from(scorecardBuckets.entries()).map(([name, values]) => ({
       name,
@@ -1172,6 +1559,7 @@ function renderSuiteReport(summary) {
 
   const latencySummary = safeObject(summary.latency_summary) || {};
   const latencyEnrichment = safeObject(summary.latency_enrichment) || {};
+  const edgeLatencyEnrichment = safeObject(summary.edge_latency_enrichment) || {};
   if (
     typeof latencySummary.average_max_model_latency_ms === 'number'
     || typeof latencySummary.average_max_transcriber_latency_ms === 'number'
@@ -1181,11 +1569,21 @@ function renderSuiteReport(summary) {
     || typeof latencySummary.average_max_tool_backend_external_latency_ms === 'number'
     || typeof latencySummary.average_max_tool_backend_internal_latency_ms === 'number'
     || typeof latencySummary.average_max_tool_dispatch_gap_ms === 'number'
+    || typeof latencySummary.average_max_tool_to_edge_start_gap_ms === 'number'
     || typeof latencySummary.average_max_tool_return_gap_ms === 'number'
     || typeof latencySummary.average_max_tool_platform_gap_ms === 'number'
+    || typeof latencySummary.average_max_tool_edge_duration_ms === 'number'
+    || typeof latencySummary.average_max_tool_edge_upstream_duration_ms === 'number'
+    || typeof latencySummary.average_max_tool_edge_upstream_latency_ms === 'number'
+    || typeof latencySummary.average_max_tool_edge_ingress_gap_ms === 'number'
+    || typeof latencySummary.average_max_tool_edge_observed_gap_ms === 'number'
+    || typeof latencySummary.average_max_tool_edge_egress_gap_ms === 'number'
+    || typeof latencySummary.average_max_tool_edge_to_result_gap_ms === 'number'
     || typeof latencySummary.average_max_webhook_latency_ms === 'number'
     || latencyEnrichment.warning
+    || edgeLatencyEnrichment.warning
     || latencyEnrichment.enabled
+    || edgeLatencyEnrichment.enabled
     || safeArray(latencySummary.dominant_latency_stage_counts).length > 0
   ) {
     lines.push('## Latency Summary', '');
@@ -1208,6 +1606,9 @@ function renderSuiteReport(summary) {
     if (typeof latencySummary.average_max_tool_dispatch_gap_ms === 'number') {
       lines.push(`- Average max tool dispatch gap: ${latencySummary.average_max_tool_dispatch_gap_ms}ms`);
     }
+    if (typeof latencySummary.average_max_tool_to_edge_start_gap_ms === 'number') {
+      lines.push(`- Average max tool-to-edge start gap: ${latencySummary.average_max_tool_to_edge_start_gap_ms}ms`);
+    }
     if (typeof latencySummary.average_max_tool_backend_workflow_latency_ms === 'number') {
       lines.push(`- Average max tool backend workflow latency: ${latencySummary.average_max_tool_backend_workflow_latency_ms}ms`);
     }
@@ -1217,12 +1618,44 @@ function renderSuiteReport(summary) {
     if (typeof latencySummary.average_max_tool_backend_internal_latency_ms === 'number') {
       lines.push(`- Average max tool backend internal latency: ${latencySummary.average_max_tool_backend_internal_latency_ms}ms`);
     }
+    if (typeof latencySummary.average_max_tool_edge_duration_ms === 'number') {
+      lines.push(`- Average max edge request duration: ${latencySummary.average_max_tool_edge_duration_ms}ms`);
+    }
+    if (typeof latencySummary.average_max_tool_edge_upstream_duration_ms === 'number') {
+      lines.push(`- Average max edge upstream duration: ${latencySummary.average_max_tool_edge_upstream_duration_ms}ms`);
+    }
+    if (typeof latencySummary.average_max_tool_edge_upstream_latency_ms === 'number') {
+      lines.push(`- Average max edge upstream header latency: ${latencySummary.average_max_tool_edge_upstream_latency_ms}ms`);
+    }
+    if (typeof latencySummary.average_max_tool_edge_ingress_gap_ms === 'number') {
+      lines.push(`- Average max edge ingress gap: ${latencySummary.average_max_tool_edge_ingress_gap_ms}ms`);
+    }
+    if (typeof latencySummary.average_max_tool_edge_observed_gap_ms === 'number') {
+      lines.push(`- Average max edge observed gap: ${latencySummary.average_max_tool_edge_observed_gap_ms}ms`);
+    }
+    if (typeof latencySummary.average_max_tool_edge_egress_gap_ms === 'number') {
+      lines.push(`- Average max edge egress gap: ${latencySummary.average_max_tool_edge_egress_gap_ms}ms`);
+    }
     if (typeof latencySummary.average_max_tool_return_gap_ms === 'number') {
       lines.push(`- Average max tool return gap: ${latencySummary.average_max_tool_return_gap_ms}ms`);
     }
+    if (typeof latencySummary.average_max_tool_edge_to_result_gap_ms === 'number') {
+      lines.push(`- Average max edge-to-result gap: ${latencySummary.average_max_tool_edge_to_result_gap_ms}ms`);
+    }
     if (typeof latencySummary.average_max_tool_platform_gap_ms === 'number') {
       lines.push(`- Average max tool platform gap: ${latencySummary.average_max_tool_platform_gap_ms}ms`);
-      lines.push('- Backend workflow/external/internal timings come from matched n8n event logs. Platform gap is the part of tool round-trip outside the matched n8n workflow runtime.');
+      lines.push('- Backend workflow/external/internal timings come from matched n8n event logs. Tool-to-edge start and edge-to-result gaps come from matched Caddy access logs. Platform gap remains the full round-trip share outside the matched n8n workflow runtime.');
+    }
+    if (edgeLatencyEnrichment.warning) {
+      lines.push(`- Edge latency enrichment warning: ${edgeLatencyEnrichment.warning}`);
+    } else if (edgeLatencyEnrichment.enabled) {
+      if (edgeLatencyEnrichment.total_trace_count > 0) {
+        lines.push(
+          `- Edge latency enrichment: matched ${edgeLatencyEnrichment.matched_trace_count || 0} of ${edgeLatencyEnrichment.total_trace_count} tool traces across ${edgeLatencyEnrichment.access_entry_count || 0} Caddy access entries.`
+        );
+      } else {
+        lines.push('- Edge latency enrichment: no completed tool traces required matching.');
+      }
     }
     if (latencyEnrichment.warning) {
       lines.push(`- N8N latency enrichment warning: ${latencyEnrichment.warning}`);
@@ -1301,6 +1734,9 @@ function renderSuiteReport(summary) {
         if (typeof latency.maxToolDispatchGapMs === 'number') {
           latencyParts.push(`dispatch=${latency.maxToolDispatchGapMs}ms`);
         }
+        if (typeof latency.maxToolToEdgeStartGapMs === 'number') {
+          latencyParts.push(`to_edge=${latency.maxToolToEdgeStartGapMs}ms`);
+        }
         if (typeof latency.maxToolBackendWorkflowLatencyMs === 'number') {
           latencyParts.push(`backend=${latency.maxToolBackendWorkflowLatencyMs}ms`);
         }
@@ -1310,8 +1746,26 @@ function renderSuiteReport(summary) {
         if (typeof latency.maxToolBackendInternalLatencyMs === 'number') {
           latencyParts.push(`backend_internal=${latency.maxToolBackendInternalLatencyMs}ms`);
         }
+        if (typeof latency.maxToolEdgeDurationMs === 'number') {
+          latencyParts.push(`edge=${latency.maxToolEdgeDurationMs}ms`);
+        }
+        if (typeof latency.maxToolEdgeUpstreamDurationMs === 'number') {
+          latencyParts.push(`edge_upstream=${latency.maxToolEdgeUpstreamDurationMs}ms`);
+        }
+        if (typeof latency.maxToolEdgeIngressGapMs === 'number') {
+          latencyParts.push(`edge_ingress=${latency.maxToolEdgeIngressGapMs}ms`);
+        }
+        if (typeof latency.maxToolEdgeObservedGapMs === 'number') {
+          latencyParts.push(`edge_observed=${latency.maxToolEdgeObservedGapMs}ms`);
+        }
+        if (typeof latency.maxToolEdgeEgressGapMs === 'number') {
+          latencyParts.push(`edge_egress=${latency.maxToolEdgeEgressGapMs}ms`);
+        }
         if (typeof latency.maxToolReturnGapMs === 'number') {
           latencyParts.push(`return=${latency.maxToolReturnGapMs}ms`);
+        }
+        if (typeof latency.maxToolEdgeToToolResultGapMs === 'number') {
+          latencyParts.push(`edge_to_result=${latency.maxToolEdgeToToolResultGapMs}ms`);
         }
         if (typeof latency.maxToolPlatformGapMs === 'number') {
           latencyParts.push(`platform=${latency.maxToolPlatformGapMs}ms`);
@@ -1334,6 +1788,9 @@ function renderSuiteReport(summary) {
           if (typeof slowestToolTrace.dispatchGapMs === 'number') {
             detailParts.push(`dispatch=${slowestToolTrace.dispatchGapMs}ms`);
           }
+          if (typeof slowestToolTrace.toolToEdgeStartGapMs === 'number') {
+            detailParts.push(`to_edge=${slowestToolTrace.toolToEdgeStartGapMs}ms`);
+          }
           if (typeof slowestToolTrace.backendWorkflowLatencyMs === 'number') {
             const backendParts = [`backend=${slowestToolTrace.backendWorkflowLatencyMs}ms`];
             if (
@@ -1351,11 +1808,43 @@ function renderSuiteReport(summary) {
             }
             detailParts.push(backendParts.join(' '));
           }
+          if (typeof slowestToolTrace.edgeDurationMs === 'number') {
+            const edgeParts = [`edge=${slowestToolTrace.edgeDurationMs}ms`];
+            if (
+              typeof slowestToolTrace.edgeUpstreamDurationMs === 'number'
+              || typeof slowestToolTrace.edgeUpstreamLatencyMs === 'number'
+            ) {
+              const subparts = [];
+              if (typeof slowestToolTrace.edgeUpstreamDurationMs === 'number') {
+                subparts.push(`upstream=${slowestToolTrace.edgeUpstreamDurationMs}ms`);
+              }
+              if (typeof slowestToolTrace.edgeUpstreamLatencyMs === 'number') {
+                subparts.push(`header=${slowestToolTrace.edgeUpstreamLatencyMs}ms`);
+              }
+              edgeParts.push(`(${subparts.join(', ')})`);
+            }
+            detailParts.push(edgeParts.join(' '));
+          }
+          if (typeof slowestToolTrace.edgeIngressGapMs === 'number') {
+            detailParts.push(`edge_ingress=${slowestToolTrace.edgeIngressGapMs}ms`);
+          }
+          if (typeof slowestToolTrace.edgeObservedGapMs === 'number') {
+            detailParts.push(`edge_observed=${slowestToolTrace.edgeObservedGapMs}ms`);
+          }
+          if (typeof slowestToolTrace.edgeEgressGapMs === 'number') {
+            detailParts.push(`edge_egress=${slowestToolTrace.edgeEgressGapMs}ms`);
+          }
           if (typeof slowestToolTrace.returnGapMs === 'number') {
             detailParts.push(`return=${slowestToolTrace.returnGapMs}ms`);
           }
+          if (typeof slowestToolTrace.edgeToToolResultGapMs === 'number') {
+            detailParts.push(`edge_to_result=${slowestToolTrace.edgeToToolResultGapMs}ms`);
+          }
           if (typeof slowestToolTrace.platformGapMs === 'number') {
             detailParts.push(`platform=${slowestToolTrace.platformGapMs}ms`);
+          }
+          if (typeof slowestToolTrace.edgeStatus === 'number') {
+            detailParts.push(`edge_status=${slowestToolTrace.edgeStatus}`);
           }
           if (slowestToolTrace.executionId) {
             detailParts.push(`execution=${slowestToolTrace.executionId}`);
@@ -1458,6 +1947,8 @@ async function main() {
   }
 
   const latencyEnrichment = await enrichSuiteRunsWithN8nLatency(suiteRuns, options.environment);
+  const edgeEnrichment = await enrichSuiteRunsWithCaddyEdgeLatency(suiteRuns, options.environment);
+  refreshSuiteRunLatencyDiagnostics(suiteRuns);
 
   const calls = [];
   for (const suiteRun of suiteRuns) {
@@ -1489,7 +1980,8 @@ async function main() {
     startedAt,
     completedAt,
     policyPath: path.relative(ROOT_DIR, POLICY_PATH),
-    latencyEnrichment
+    latencyEnrichment,
+    edgeEnrichment
   });
 
   writeJson(path.join(suitePaths.runDir, 'suite.summary.json'), summary);
@@ -1514,8 +2006,11 @@ async function main() {
 module.exports = {
   buildN8nExecutionSummaries,
   buildToolTraceRefs,
+  enrichSuiteRunsWithCaddyEdgeLatency,
   enrichSuiteRunsWithN8nLatency,
+  matchToolTracesToCaddyEntries,
   matchToolTracesToExecutions,
+  parseCaddyAccessLogBundle,
   parseN8nEventLogBundle,
   renderSuiteReport,
   summarizeSuite
