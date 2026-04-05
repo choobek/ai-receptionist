@@ -1,0 +1,151 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "first-visit-follow-up-keeps-szajnar",
+  "title": "First-visit follow-up offer keeps doctor name on fallback",
+  "description": "The caller asks for the nearest first-consultation terms and then narrows the request to Thursday. Whether the assistant finds a Thursday slot or falls back to the nearest available terms, the spoken follow-up offer should still keep doctor Magdalena Szajnar in the same utterance and stay speech-safe.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "availability",
+    "first-visit",
+    "follow-up",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "real_call",
+    "references": [
+      "configs/vapi/assistant.v2.json",
+      "n8n/workflows/tool_check-availability.json",
+      "autonomy/runs/generated/vapi-live-autoeval/staging-vapi-live-autoeval-20260405T125031Z/raw-calls/019d5da4-2279-7000-867a-85c148e472f8.call.json"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 2
+  },
+  "turns": [
+    {
+      "turn_id": "ask-for-nearest-first-visit-terms",
+      "user": "Chcialbym umowic pierwsza konsultacje. To moja pierwsza wizyta. Jakie sa najblizsze wolne terminy?"
+    },
+    {
+      "turn_id": "ask-about-thursday",
+      "user": "A czy jest cos w czwartek?"
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "first-turn-checks-availability",
+      "description": "The assistant should look up first-visit consultation slots on the initial nearest-term request.",
+      "severity": "critical",
+      "root_cause_hint": "assistant stopped calling checkAvailability for the initial first-visit lookup",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 1,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "first-turn-keeps-szajnar",
+      "description": "The first offered first-visit slots should explicitly mention doctor Magdalena Szajnar.",
+      "severity": "high",
+      "root_cause_hint": "assistant dropped doctor Magdalena Szajnar from the initial first-visit slot offer",
+      "rule": {
+        "type": "turn_assistant_text_contains_any",
+        "turn": 1,
+        "contains_any": [
+          "u doktor Magdaleny Szajnar",
+          "do doktor Magdaleny Szajnar",
+          "u dr Magdaleny Szajnar",
+          "do dr Magdaleny Szajnar",
+          "doktor Magdalena Szajnar",
+          "doktor Magdaleny Szajnar"
+        ]
+      }
+    },
+    {
+      "criterion_id": "first-turn-stays-speech-safe",
+      "description": "The first slot offer should avoid raw numerals in speech output.",
+      "severity": "high",
+      "root_cause_hint": "assistant still speaks raw digits in the initial first-visit slot offer",
+      "rule": {
+        "type": "turn_assistant_text_not_contains_any",
+        "turn": 1,
+        "contains_none": [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9"
+        ]
+      }
+    },
+    {
+      "criterion_id": "second-turn-refreshes-availability",
+      "description": "The Thursday follow-up should trigger a fresh availability lookup.",
+      "severity": "critical",
+      "root_cause_hint": "assistant stopped refreshing availability after the caller asked about Thursday",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 2,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "second-turn-keeps-szajnar",
+      "description": "The spoken follow-up offer after the Thursday question should still mention doctor Magdalena Szajnar.",
+      "severity": "high",
+      "root_cause_hint": "assistant dropped or mutated doctor Magdalena Szajnar on the follow-up offer",
+      "rule": {
+        "type": "turn_assistant_text_contains_any",
+        "turn": 2,
+        "contains_any": [
+          "u doktor Magdaleny Szajnar",
+          "do doktor Magdaleny Szajnar",
+          "u dr Magdaleny Szajnar",
+          "do dr Magdaleny Szajnar",
+          "doktor Magdalena Szajnar",
+          "doktor Magdaleny Szajnar"
+        ]
+      }
+    },
+    {
+      "criterion_id": "second-turn-stays-speech-safe",
+      "description": "The follow-up offer should avoid raw numerals in speech output.",
+      "severity": "high",
+      "root_cause_hint": "assistant still speaks raw digits after the caller narrows the request to Thursday",
+      "rule": {
+        "type": "turn_assistant_text_not_contains_any",
+        "turn": 2,
+        "contains_none": [
+          "0",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9"
+        ]
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "This lookup-only scenario must not create a booking.",
+      "severity": "high",
+      "root_cause_hint": "assistant advanced into booking before the caller selected a slot",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    }
+  ]
+}

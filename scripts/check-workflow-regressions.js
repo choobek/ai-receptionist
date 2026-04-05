@@ -926,7 +926,10 @@ test('checkAvailability preserves calendar provider failures as structured unava
   })[0].json;
   const formattedPayload = formatted.results[0].result;
   assert.equal(formatted.results[0].toolCallId, result.toolCallId);
-  assert.equal(formatted.results[0].message, undefined);
+  assert.deepEqual(formatted.results[0].message, {
+    type: 'request-complete',
+    content: result.message
+  });
   assert.equal(formattedPayload.error.code, 'CALENDAR_PROVIDER_REJECTED');
   assert.match(
     normalizeSearchText(formattedPayload.message),
@@ -1100,7 +1103,10 @@ test('checkAvailability formats a speech-safe tool-complete message for Vapi', (
 
   assert.equal(formatted.results[0].toolCallId, result.toolCallId);
   assert.equal(typeof formatted.results[0].result, 'object');
-  assert.equal(formatted.results[0].message, undefined);
+  assert.deepEqual(formatted.results[0].message, {
+    type: 'request-complete',
+    content: result.message
+  });
   assert.equal(formattedPayload.message, result.message);
   assert.equal(/\d/.test(formattedPayload.message || ''), false);
   assert.equal(containsPolishDiacritics(formattedPayload.message || ''), true);
@@ -1317,7 +1323,10 @@ test('createEvent preserves calendar provider failures for reception fallback', 
   })[0].json;
   const formattedPayload = formatted.results[0].result;
   assert.equal(formatted.results[0].toolCallId, availabilityResult.toolCallId);
-  assert.equal(formatted.results[0].message, undefined);
+  assert.deepEqual(formatted.results[0].message, {
+    type: 'request-complete',
+    content: formattedPayload.message
+  });
   assert.equal(formattedPayload.error.code, 'CALENDAR_PROVIDER_REJECTED');
   assert.match(
     normalizeSearchText(formattedPayload.message),
@@ -2906,7 +2915,10 @@ test('createEvent formats a speech-safe tool-complete confirmation for Vapi', ()
 
   assert.equal(formatted.results[0].toolCallId, 'tool_call_create_event_voice_message');
   assert.equal(typeof formatted.results[0].result, 'object');
-  assert.equal(formatted.results[0].message, undefined);
+  assert.deepEqual(formatted.results[0].message, {
+    type: 'request-complete',
+    content: formattedPayload.message
+  });
   assert.equal(/\d/.test(formattedPayload.message || ''), false);
   assert.equal(containsPolishDiacritics(formattedPayload.message || ''), true);
   assert.match(
