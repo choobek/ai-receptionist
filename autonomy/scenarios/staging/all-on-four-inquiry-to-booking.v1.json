@@ -168,6 +168,25 @@
         "type": "tool_not_called",
         "tool_name": "createReceptionTask"
       }
+    },
+    {
+      "criterion_id": "phone-readback-asks-for-yes-no-confirmation",
+      "description": "After the caller gives the phone number, the assistant should ask whether the repeated number is correct before final booking consent.",
+      "severity": "high",
+      "root_cause_hint": "assistant skipped the explicit phone confirmation question in the implant booking flow",
+      "rule": {
+        "type": "turn_assistant_text_contains_any",
+        "turn": 5,
+        "contains_any": [
+          "czy wszystko się zgadza",
+          "czy wszystko sie zgadza",
+          "czy ten numer się zgadza",
+          "czy ten numer sie zgadza",
+          "czy to poprawny numer",
+          "czy ten numer jest poprawny",
+          "is that correct"
+        ]
+      }
     }
   ]
 }

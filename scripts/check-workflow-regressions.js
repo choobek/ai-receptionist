@@ -3085,6 +3085,11 @@ test('assistant prompt keeps phone-collection logic as plain text without unreso
   assert.equal(/\{%/.test(systemPrompts), false);
   assert.match(normalizedPrompt, /jawnie widzisz konkretny numer dzwoniacego w formacie E\.164/i);
   assert.match(normalizedPrompt, /Popros po prostu o numer telefonu/i);
+  assert.match(
+    normalizedPrompt,
+    /po numerze powtorz go i pytaj tylko: "Czy wszystko sie zgadza\?" \/? "Is that correct\?"/i
+  );
+  assert.match(normalizedPrompt, /przy samych danych najpierw potwierdz numer.*"W czym moge pomoc\?"/i);
 });
 
 assistantInvariantTest('assistant prompt keeps the urgent first-available override explicit', () => {
@@ -3202,7 +3207,7 @@ assistantInvariantTest('assistant prompt keeps speech-safe wording and calendar-
   );
   assert.match(
     normalizedPrompt,
-    /nie wywoluj `?lookupPatient`? w kazdej normalnej sciezce/i
+    /nie wywoluj `?lookupPatient`? tylko po to, zeby przeczytac jasny numer/i
   );
   assert.match(
     normalizedPrompt,
@@ -3258,11 +3263,11 @@ assistantInvariantTest('assistant prompt bundle keeps anti-fragment speech rules
   );
   assert.match(
     normalizedPrompt,
-    /lookupPatient uzyj tylko wtedy, gdy numer jest niepelny, sprzeczny albo nadal wymaga technicznej normalizacji/i
+    /lookupPatient uzyj tylko(?: wtedy)?, gdy numer (?:jest )?(?:niejasny, fragmentaryczny albo nadal wymaga technicznej normalizacji po doprecyzowaniu|niepelny, sprzeczny albo nadal wymaga normalizacji po doprecyzowaniu)/i
   );
   assert.match(
     normalizedPrompt,
-    /rozmowca od razu poda imie, nazwisko i numer.*bez dodatkowego narzedzia do readbacku/i
+    /rozmowca poda imie, nazwisko i numer.*bez prosby o numer drugi raz/i
   );
   assert.match(
     normalizedPrompt,
@@ -3271,6 +3276,22 @@ assistantInvariantTest('assistant prompt bundle keeps anti-fragment speech rules
   assert.match(
     normalizedPrompt,
     /nie pytaj ponownie, czy nadal jest aktualny/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /w nowej rezerwacji albo zanim intencja bedzie pelna, po numerze powtorz go i pytaj tylko/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /nie odpowiadaj samym "Dziekuje\. W czym moge pomoc\?"/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /w sciezce `?createReceptionTask`?.*mozesz pominac osobna ture potwierdzenia/i
+  );
+  assert.doesNotMatch(
+    normalizedPrompt,
+    /jesli numer jest jasny, potwierdz go krotko i przekaz dalej jako patient\.phoneRaw albo patientPhoneRaw/i
   );
 });
 
@@ -3657,6 +3678,7 @@ assistantInvariantTest('assistant SMS staging scenarios require end-to-end workf
   const patientSmsScenario = loadStagingScenario('booking-confirmation-sms.v1.json');
   const receptionSmsScenario = loadStagingScenario('reschedule-handoff-internal-sms-alert.v1.json');
   const existingPatientBookingScenario = loadStagingScenario('existing-patient-booking-handoff-internal-sms-alert.v1.json');
+  const implantBookingScenario = loadStagingScenario('all-on-four-inquiry-to-booking.v1.json');
 
   assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'slot-offer-uses-spoken-text').rule, {
     type: 'turn_assistant_text_not_contains_any',
@@ -3667,6 +3689,19 @@ assistantInvariantTest('assistant SMS staging scenarios require end-to-end workf
     type: 'turn_assistant_text_not_contains_any',
     turn: 4,
     contains_none: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+  });
+  assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'phone-readback-asks-for-yes-no-confirmation').rule, {
+    type: 'turn_assistant_text_contains_any',
+    turn: 4,
+    contains_any: [
+      'czy wszystko się zgadza',
+      'czy wszystko sie zgadza',
+      'czy ten numer się zgadza',
+      'czy ten numer sie zgadza',
+      'czy to poprawny numer',
+      'czy ten numer jest poprawny',
+      'is that correct'
+    ]
   });
   assert.deepEqual(getScenarioCriterion(patientSmsScenario, 'final-confirmation-uses-spoken-text').rule, {
     type: 'turn_assistant_text_not_contains_any',
@@ -3756,6 +3791,19 @@ assistantInvariantTest('assistant SMS staging scenarios require end-to-end workf
     type: 'turn_assistant_text_not_contains_any',
     turn: 1,
     contains_none: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+  });
+  assert.deepEqual(getScenarioCriterion(implantBookingScenario, 'phone-readback-asks-for-yes-no-confirmation').rule, {
+    type: 'turn_assistant_text_contains_any',
+    turn: 5,
+    contains_any: [
+      'czy wszystko się zgadza',
+      'czy wszystko sie zgadza',
+      'czy ten numer się zgadza',
+      'czy ten numer sie zgadza',
+      'czy to poprawny numer',
+      'czy ten numer jest poprawny',
+      'is that correct'
+    ]
   });
   assert.deepEqual(getScenarioCriterion(existingPatientBookingScenario, 'internal-sms-keeps-task-type').rule, {
     type: 'tool_arg_equals',

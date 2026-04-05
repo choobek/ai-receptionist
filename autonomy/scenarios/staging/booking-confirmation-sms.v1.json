@@ -201,13 +201,32 @@
       }
     },
     {
+      "criterion_id": "phone-readback-asks-for-yes-no-confirmation",
+      "description": "After repeating the phone number, the assistant should explicitly ask whether the repeated number is correct.",
+      "severity": "critical",
+      "root_cause_hint": "assistant acknowledged the captured phone number but skipped the yes-no confirmation step",
+      "rule": {
+        "type": "turn_assistant_text_contains_any",
+        "turn": 4,
+        "contains_any": [
+          "czy wszystko się zgadza",
+          "czy wszystko sie zgadza",
+          "czy ten numer się zgadza",
+          "czy ten numer sie zgadza",
+          "czy to poprawny numer",
+          "czy ten numer jest poprawny",
+          "is that correct"
+        ]
+      }
+    },
+    {
       "criterion_id": "first-visit-summary-restores-legacy-pricing-formula",
       "description": "The final pre-booking summary for a first consultation should keep the legacy cost and tomography wording.",
       "severity": "high",
       "root_cause_hint": "assistant stripped the first-visit pricing or tomography formula from the booking summary",
       "rule": {
         "type": "turn_assistant_text_contains_all",
-        "turn": 4,
+        "turn": 5,
         "contains_all": [
           "koszt pierwszej wizyty wynosi dwiescie zlotych",
           "zdjecie tomograficzne jest w cenie konsultacji na poczet leczenia w klinice",
@@ -222,7 +241,7 @@
       "root_cause_hint": "assistant mentioned the extra photo charge without preserving the legacy takeaway-photo condition",
       "rule": {
         "type": "turn_assistant_text_contains_any",
-        "turn": 4,
+        "turn": 5,
         "contains_any": [
           "zabrac zdjecie ze soba",
           "zabrac je ze soba",
