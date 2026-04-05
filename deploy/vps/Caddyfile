@@ -29,6 +29,7 @@
 			request>uri query {
 				replace secret REDACTED
 			}
+			request>headers>X-Ai-Receptionist-Secret delete
 			request>remote_ip ip_mask 16 32
 			request>client_ip ip_mask 16 32
 		}

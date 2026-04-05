@@ -4102,8 +4102,14 @@ test('docker compose files expose SMS runtime variables to n8n', () => {
         new RegExp(line.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
         `Expected ${relativePath} to include ${line}`
       );
-    }
+	}
   }
+});
+
+test('Caddy access log filter redacts webhook secret carriers before observability enrichment', () => {
+  const caddyfile = loadText(path.join(rootDir, 'deploy', 'vps', 'Caddyfile'));
+  assert.match(caddyfile, /request>uri query\s*\{\s*replace secret REDACTED\s*\}/m);
+  assert.match(caddyfile, /request>headers>X-Ai-Receptionist-Secret delete/);
 });
 
 assistantInvariantTest('assistant chat rubric can verify booking SMS metadata returned inside createEvent', () => {
