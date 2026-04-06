@@ -1736,7 +1736,6 @@ test('createEvent booking SMS uses the live caller number even when the declared
     [],
     {
       ...defaultEnv,
-      AI_RECEPTIONIST_BOOKING_SMS_MODE: 'sync',
       AI_RECEPTIONIST_SMS_PROVIDER: 'webhook',
       AI_RECEPTIONIST_SMS_WEBHOOK_URL: 'https://sms-gateway.example.test/send',
       AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN: 'token_123',
@@ -1757,7 +1756,7 @@ test('createEvent booking SMS uses the live caller number even when the declared
   });
 });
 
-test('createEvent booking SMS defaults to deferred dispatch to keep the voice path non-blocking', () => {
+test('createEvent booking SMS keeps explicit deferred dispatch available', () => {
   const parseResult = runParse(
     'tool_create-event.json',
     'Parse Request',
@@ -1814,6 +1813,7 @@ test('createEvent booking SMS defaults to deferred dispatch to keep the voice pa
     [],
     {
       ...defaultEnv,
+      AI_RECEPTIONIST_BOOKING_SMS_MODE: 'deferred',
       AI_RECEPTIONIST_SMS_PROVIDER: 'webhook',
       AI_RECEPTIONIST_SMS_WEBHOOK_URL: 'https://sms-gateway.example.test/send',
       AI_RECEPTIONIST_SMS_WEBHOOK_BEARER_TOKEN: 'token_123',
@@ -1879,12 +1879,12 @@ test('createEvent booking SMS falls back to the declared phone when no live call
   assert.equal(dispatched.accepted, true);
   assert.equal(dispatched.recipientClass, 'declared_phone');
   assert.deepEqual(dispatched.delivery, {
-    status: 'queued',
+    status: 'simulated',
     provider: 'mock',
     recipientCount: 1,
     providerMessageId: null
   });
-  assert.match(dispatched.message || '', /zaplanowane/i);
+  assert.match(dispatched.message || '', /przygotowane/i);
 });
 
 test('createReceptionTask rejects unknown taskType', () => {

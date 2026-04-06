@@ -1492,6 +1492,85 @@ function maxSeverity(left, right) {
   return severityRank(left) >= severityRank(right) ? left : right;
 }
 
+function detectBookingConfirmationSmsRegression(run) {
+  const evaluation = safeObject(run?.evaluation?.result);
+  if (evaluation?.booking_succeeded !== true) {
+    return null;
+  }
+
+  const createEventTrace = safeArray(run?.tool_trace).find((trace) => trace?.tool_name === 'createEvent');
+  const createEventResult = safeObject(createEventTrace?.result);
+  if (createEventResult?.created !== true) {
+    return null;
+  }
+
+  const bookingConfirmationSms = safeObject(createEventResult.bookingConfirmationSms);
+  if (!bookingConfirmationSms) {
+    return {
+      type: 'booking_confirmation_sms_regression',
+      severity: 'high',
+      message: 'booking succeeded but createEvent returned no patient confirmation SMS evidence'
+    };
+  }
+
+  const delivery = safeObject(bookingConfirmationSms.delivery);
+  const provider = typeof delivery?.provider === 'string' ? delivery.provider.toLowerCase() : null;
+  const status = typeof delivery?.status === 'string' ? delivery.status.toLowerCase() : null;
+  const recipientCount = typeof delivery?.recipientCount === 'number' ? delivery.recipientCount : null;
+
+  if (bookingConfirmationSms.accepted !== true) {
+    return {
+      type: 'booking_confirmation_sms_regression',
+      severity: 'high',
+      message: 'booking succeeded but patient confirmation SMS was not accepted by createEvent'
+    };
+  }
+
+  if (!delivery) {
+    return {
+      type: 'booking_confirmation_sms_regression',
+      severity: 'high',
+      message: 'booking succeeded but createEvent returned no patient confirmation SMS delivery summary'
+    };
+  }
+
+  if (recipientCount !== null && recipientCount < 1) {
+    return {
+      type: 'booking_confirmation_sms_regression',
+      severity: 'high',
+      message: 'booking succeeded but patient confirmation SMS had no recipient'
+    };
+  }
+
+  if (status === 'failed') {
+    return {
+      type: 'booking_confirmation_sms_regression',
+      severity: 'high',
+      message: `booking succeeded but patient confirmation SMS failed (${provider || 'unknown provider'})`
+    };
+  }
+
+  const externalNodes = safeArray(createEventTrace?.n8nLatency?.externalNodes);
+  const hasDispatchEvidence = externalNodes.some((node) =>
+    /dispatch booking (twilio|webhook) sms/i.test(String(node?.nodeName || ''))
+  );
+  if (
+    provider
+    && provider !== 'mock'
+    && status === 'queued'
+    && externalNodes.length > 0
+    && !hasDispatchEvidence
+  ) {
+    return {
+      type: 'booking_confirmation_sms_regression',
+      severity: 'high',
+      message: `booking succeeded but patient confirmation SMS was only marked queued with no dispatch trace in createEvent (${provider})`
+    };
+  }
+
+  return null;
+}
+
 function renderReasonMessage(reason) {
   switch (reason.type) {
     case 'failure_category':
@@ -1502,6 +1581,8 @@ function renderReasonMessage(reason) {
       return `${reason.scorecard_name} scored ${reason.score_normalized} below ${reason.threshold}`;
     case 'latency_dominant_pause':
       return `model dominated a slow turn (${reason.max_latency_ms}ms max, ${reason.slow_turn_count} slow turns)`;
+    case 'booking_confirmation_sms_regression':
+      return reason.message || 'booking confirmation SMS regression detected';
     case 'speech_rendering_regression':
       return reason.message || 'speech rendering regression detected';
     case 'scorecards_missing':
@@ -1600,6 +1681,12 @@ function evaluateRunAgainstPolicy(run, policy, rawCall = null) {
       severity: latencySeverity
     });
     severity = maxSeverity(severity, latencySeverity);
+  }
+
+  const bookingConfirmationSmsRegression = detectBookingConfirmationSmsRegression(run);
+  if (bookingConfirmationSmsRegression) {
+    reasons.push(bookingConfirmationSmsRegression);
+    severity = maxSeverity(severity, bookingConfirmationSmsRegression.severity || 'high');
   }
 
   const speechRenderingFindings = detectSpeechRenderingIssues(run, rawCall);
