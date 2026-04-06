@@ -1,0 +1,145 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "existing-patient-doctor-question-brief-answer",
+  "title": "Existing-patient doctor question gets a brief answer before handoff",
+  "description": "The caller says they already know the clinic and asks about terms with a named doctor, but does not provide identity details yet. The assistant should not jump straight into a dry handoff. It should first give one short operational answer that reception checks such doctor-specific terms, then ask only for the missing identity data and hand the case to reception without trying direct scheduling.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "handoff",
+    "existing-patient",
+    "doctor-question",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "real_call_regression",
+    "references": [
+      "configs/vapi/assistant.v2.json",
+      "autonomy/runs/generated/vapi-live-autoeval/production-vapi-live-autoeval-20260406T152045Z/normalized-runs/production-019d6357-2055-799c-904a-9bde61679780.run.v1.json"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 2
+  },
+  "turns": [
+    {
+      "turn_id": "ask-about-a-named-doctor-without-identity",
+      "user": "Bylam juz u was. Chcialabym znowu umowic sie do doktora Kaluzy. Czy sa jakies wolne terminy w najblizszym czasie?",
+      "assertions": [
+        {
+          "criterion_id": "turn-one-does-not-handoff-without-identity",
+          "description": "Without the caller identity details, the assistant should not create the reception task yet.",
+          "severity": "critical",
+          "root_cause_hint": "assistant skipped the missing-data step and created the handoff task too early",
+          "rule": {
+            "type": "turn_tool_not_called",
+            "turn": 1,
+            "tool_name": "createReceptionTask"
+          }
+        }
+      ]
+    },
+    {
+      "turn_id": "provide-identity-for-handoff",
+      "user": "Mam na imie Test Kaluza Handoff, moj numer to siedem zero dwa, zero zero trzy, zero zero siedem."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "turn-one-gives-a-brief-operational-answer",
+      "description": "The assistant should first answer briefly that reception handles or checks doctor-specific terms.",
+      "severity": "critical",
+      "root_cause_hint": "assistant steamrolled past the caller question and skipped the short direct answer before handoff",
+      "rule": {
+        "type": "turn_assistant_text_contains_all",
+        "turn": 1,
+        "contains_all": [
+          "sprawdza recepcja",
+          "termin"
+        ]
+      }
+    },
+    {
+      "criterion_id": "turn-one-asks-only-for-missing-identity",
+      "description": "After the brief answer, the assistant should move straight to the missing identity details.",
+      "severity": "high",
+      "root_cause_hint": "assistant answered the doctor question but did not continue efficiently into the handoff data capture",
+      "rule": {
+        "type": "turn_assistant_text_contains_all",
+        "turn": 1,
+        "contains_all": [
+          "nazwisko",
+          "numer telefonu"
+        ]
+      }
+    },
+    {
+      "criterion_id": "turn-one-does-not-check-availability",
+      "description": "The doctor-specific existing-patient question should not enter direct scheduling.",
+      "severity": "critical",
+      "root_cause_hint": "assistant tried to check direct doctor availability instead of routing the case to reception",
+      "rule": {
+        "type": "turn_tool_not_called",
+        "turn": 1,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "turn-two-creates-reception-task",
+      "description": "Once the caller provides identity details, the assistant should create the handoff task.",
+      "severity": "critical",
+      "root_cause_hint": "assistant failed to hand the doctor-specific follow-up to reception after collecting the missing details",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 2,
+        "tool_name": "createReceptionTask"
+      }
+    },
+    {
+      "criterion_id": "existing-patient-booking-task-type-used",
+      "description": "The handoff should keep the existing_patient_booking task type.",
+      "severity": "critical",
+      "root_cause_hint": "assistant mapped the doctor-specific existing-patient follow-up to the wrong task type",
+      "rule": {
+        "type": "tool_arg_equals",
+        "tool_name": "createReceptionTask",
+        "path": "taskType",
+        "equals": "existing_patient_booking"
+      }
+    },
+    {
+      "criterion_id": "reception-task-created",
+      "description": "The doctor-specific existing-patient request should create a reception task.",
+      "severity": "critical",
+      "root_cause_hint": "assistant prompt or handoff workflow did not create the reception task after the brief-answer path",
+      "rule": {
+        "type": "tool_result_path_equals",
+        "tool_name": "createReceptionTask",
+        "path": "accepted",
+        "equals": true
+      }
+    },
+    {
+      "criterion_id": "no-availability-check",
+      "description": "This branch must not call checkAvailability.",
+      "severity": "critical",
+      "root_cause_hint": "assistant still tried to schedule the named doctor directly",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "This handoff branch must not create a booking directly.",
+      "severity": "critical",
+      "root_cause_hint": "assistant created a booking instead of routing the existing patient to reception",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    }
+  ]
+}

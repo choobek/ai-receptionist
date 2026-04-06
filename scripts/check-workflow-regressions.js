@@ -3377,6 +3377,22 @@ test('assistant config makes silence handling explicit and repo-owned', () => {
   assert.equal(config.assistant?.server?.timeoutSeconds, 20);
 });
 
+test('assistant spoken voice strings drop the dotted domain for TTS-safe branding', () => {
+  const config = loadAssistantConfig();
+  const systemPrompts = (config.assistant?.model?.messages || [])
+    .filter((message) => message.role === 'system' && typeof message.content === 'string')
+    .map((message) => message.content)
+    .join('\n');
+
+  assert.equal(typeof config.assistant?.firstMessage, 'string');
+  assert.equal(typeof config.assistant?.voicemailMessage, 'string');
+  assert.match(config.assistant.firstMessage, /centrum stomatologii Ipokrzyku/i);
+  assert.match(config.assistant.voicemailMessage, /centrum stomatologii Ipokrzyku/i);
+  assert.doesNotMatch(config.assistant.firstMessage, /Ipokrzyku\.pl/);
+  assert.doesNotMatch(config.assistant.voicemailMessage, /Ipokrzyku\.pl/);
+  assert.doesNotMatch(systemPrompts, /Ipokrzyku\.pl/);
+});
+
 test('assistant prompt keeps phone-collection logic as plain text without unresolved liquid control flow', () => {
   const config = loadAssistantConfig();
   const systemPrompts = (config.assistant?.model?.messages || [])
@@ -3519,6 +3535,34 @@ assistantInvariantTest('assistant prompt keeps gender recognition but forbids re
   );
 });
 
+assistantInvariantTest('assistant prompt forbids small talk and keeps the brief-answer handoff explicit', () => {
+  const config = loadAssistantConfig();
+  const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt(config));
+  const normalizedSystemMessages = normalizeSearchText(
+    (config.assistant?.model?.messages || [])
+      .filter((message) => message.role === 'system' && typeof message.content === 'string')
+      .map((message) => message.content)
+      .join('\n')
+  );
+
+  assert.match(
+    normalizedPrompt,
+    /nie uzywaj small talku/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /nie nazywaj kliniki salonem/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /takie terminy sprawdza recepcja.*przejdz do brakujacej danej albo do createReceptionTask/i
+  );
+  assert.match(
+    normalizedSystemMessages,
+    /jesli rozmowca zadaje krotkie pytanie operacyjne przed handoffem, odpowiedz jednym zdaniem i od razu przejdz do brakujacej danej/i
+  );
+});
+
 assistantInvariantTest('assistant prompt keeps speech-safe wording and calendar-failure handoff explicit', () => {
   const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt());
 
@@ -3553,6 +3597,30 @@ assistantInvariantTest('assistant prompt keeps speech-safe wording and calendar-
   assert.match(
     normalizedPrompt,
     /checkAvailability zwrocilo available false z error\.code CALENDAR_PROVIDER_REJECTED/i
+  );
+});
+
+assistantInvariantTest('assistant prompt keeps explicit day-plus-daypart lookups bounded', () => {
+  const config = loadAssistantConfig();
+  const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt(config));
+  const normalizedSystemMessages = normalizeSearchText(
+    (config.assistant?.model?.messages || [])
+      .filter((message) => message.role === 'system' && typeof message.content === 'string')
+      .map((message) => message.content)
+      .join('\n')
+  );
+
+  assert.match(
+    normalizedPrompt,
+    /konkretny dzien albo data razem z pora dnia -> requestedDate na ten dzien, odpowiedni timePreference i searchDays 1/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /po pytaniu o pierwsza wizyte rozmowca poda konkretny dzien albo date razem z pora dnia.*uzyj checkAvailability z requestedDate na ten dzien/i
+  );
+  assert.match(
+    normalizedSystemMessages,
+    /jesli rozmowca poda konkretny dzien albo date razem z pora dnia, checkAvailability musi zachowac requestedDate i searchDays 1/i
   );
 });
 
@@ -3883,6 +3951,79 @@ assistantInvariantTest('existing-patient booking handoff scenario routes directl
     path: 'taskId',
     source_tool_name: 'createReceptionTask',
     source_path: 'taskId'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-availability-check').rule, {
+    type: 'tool_not_called',
+    tool_name: 'checkAvailability'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-booking-created').rule, {
+    type: 'tool_not_called',
+    tool_name: 'createEvent'
+  });
+});
+
+assistantInvariantTest('first-visit date-evening scenario keeps requestedDate bounded after the first-visit gate', () => {
+  const scenario = loadStagingScenario('first-visit-date-evening-keeps-requested-date.v1.json');
+
+  assert.deepEqual(getScenarioCriterion(scenario, 'turn-two-checks-availability').rule, {
+    type: 'turn_tool_called',
+    turn: 2,
+    tool_name: 'checkAvailability'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'turn-two-targets-the-explicit-date').rule, {
+    type: 'turn_tool_arg_equals',
+    turn: 2,
+    tool_name: 'checkAvailability',
+    path: 'requestedDate',
+    equals: '2027-04-09'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'turn-two-keeps-evening-preference').rule, {
+    type: 'turn_tool_arg_equals',
+    turn: 2,
+    tool_name: 'checkAvailability',
+    path: 'timePreference',
+    equals: 'evening'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'turn-two-bounds-search-days-to-one').rule, {
+    type: 'turn_tool_arg_equals',
+    turn: 2,
+    tool_name: 'checkAvailability',
+    path: 'searchDays',
+    equals: 1
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'turn-two-avoids-small-talk-and-salon-wording').rule, {
+    type: 'turn_assistant_text_not_contains_any',
+    turn: 2,
+    contains_none: ['czesc', 'jak sie masz', 'salon']
+  });
+});
+
+assistantInvariantTest('existing-patient doctor-question scenario answers briefly before handoff and still avoids scheduling', () => {
+  const scenario = loadStagingScenario('existing-patient-doctor-question-brief-answer.v1.json');
+
+  assert.deepEqual(getScenarioCriterion(scenario, 'turn-one-does-not-handoff-without-identity').rule, {
+    type: 'turn_tool_not_called',
+    turn: 1,
+    tool_name: 'createReceptionTask'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'turn-one-gives-a-brief-operational-answer').rule, {
+    type: 'turn_assistant_text_contains_all',
+    turn: 1,
+    contains_all: [
+      'sprawdza recepcja',
+      'termin'
+    ]
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'turn-two-creates-reception-task').rule, {
+    type: 'turn_tool_called',
+    turn: 2,
+    tool_name: 'createReceptionTask'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'existing-patient-booking-task-type-used').rule, {
+    type: 'tool_arg_equals',
+    tool_name: 'createReceptionTask',
+    path: 'taskType',
+    equals: 'existing_patient_booking'
   });
   assert.deepEqual(getScenarioCriterion(scenario, 'no-availability-check').rule, {
     type: 'tool_not_called',

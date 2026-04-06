@@ -1,0 +1,137 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "first-visit-date-evening-keeps-requested-date",
+  "title": "First-visit gate keeps explicit date plus evening bounded",
+  "description": "The caller first asks for the nearest available appointment without first-visit status, then answers the gate with first-visit status plus an explicit date and evening preference. The assistant should go straight to checkAvailability on turn 2 and keep requestedDate plus evening plus searchDays 1 instead of widening back to a broad first_available lookup.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "availability",
+    "first-visit",
+    "follow-up",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "real_call_regression",
+    "references": [
+      "configs/vapi/assistant.v2.json",
+      "autonomy/runs/generated/vapi-live-autoeval/production-vapi-live-autoeval-20260406T152045Z/normalized-runs/production-019d6352-843e-7222-bdf1-ea6600747cd7.run.v1.json"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 2
+  },
+  "turns": [
+    {
+      "turn_id": "ask-for-nearest-slot-without-first-visit-status",
+      "user": "Chcialabym umowic sie na najblizszy wolny termin."
+    },
+    {
+      "turn_id": "confirm-first-visit-with-explicit-date-and-evening",
+      "user": "Tak, to moja pierwsza wizyta. Prosze sprawdzic 9 kwietnia 2027 wieczorem."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "turn-one-does-not-schedule-yet",
+      "description": "Without first-visit status, the assistant should not call checkAvailability on the first turn.",
+      "severity": "critical",
+      "root_cause_hint": "assistant guessed the booking branch before it knew whether this was a first visit",
+      "rule": {
+        "type": "turn_tool_not_called",
+        "turn": 1,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "turn-two-checks-availability",
+      "description": "After the caller confirms a first visit and gives a date plus evening preference, the assistant should immediately check availability.",
+      "severity": "critical",
+      "root_cause_hint": "assistant inserted another clarification turn instead of checking the bounded requested date",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 2,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "turn-two-uses-consultation-service",
+      "description": "The first-visit fast path should still map to the default consultation service.",
+      "severity": "critical",
+      "root_cause_hint": "assistant lost the default consultation mapping after the first-visit confirmation",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 2,
+        "tool_name": "checkAvailability",
+        "path": "service.id",
+        "equals": "consultation"
+      }
+    },
+    {
+      "criterion_id": "turn-two-targets-the-explicit-date",
+      "description": "The explicit follow-up date should be preserved as requestedDate.",
+      "severity": "critical",
+      "root_cause_hint": "assistant ignored the explicit follow-up date and widened back to a broad search",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 2,
+        "tool_name": "checkAvailability",
+        "path": "requestedDate",
+        "equals": "2027-04-09"
+      }
+    },
+    {
+      "criterion_id": "turn-two-keeps-evening-preference",
+      "description": "The explicit evening preference should stay on the bounded requested date.",
+      "severity": "critical",
+      "root_cause_hint": "assistant dropped the evening preference when the caller gave an explicit day",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 2,
+        "tool_name": "checkAvailability",
+        "path": "timePreference",
+        "equals": "evening"
+      }
+    },
+    {
+      "criterion_id": "turn-two-bounds-search-days-to-one",
+      "description": "A date plus daypart request should remain bounded to one requested day.",
+      "severity": "critical",
+      "root_cause_hint": "assistant widened the explicit date plus evening request into a multi-day search",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 2,
+        "tool_name": "checkAvailability",
+        "path": "searchDays",
+        "equals": 1
+      }
+    },
+    {
+      "criterion_id": "turn-two-avoids-small-talk-and-salon-wording",
+      "description": "The assistant should answer the bounded lookup directly without casual filler or salon wording.",
+      "severity": "high",
+      "root_cause_hint": "assistant drifted into casual filler or salon wording on the booking path",
+      "rule": {
+        "type": "turn_assistant_text_not_contains_any",
+        "turn": 2,
+        "contains_none": [
+          "czesc",
+          "jak sie masz",
+          "salon"
+        ]
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "This scenario only checks the bounded lookup and must not create a booking.",
+      "severity": "high",
+      "root_cause_hint": "assistant advanced into createEvent before the caller selected a concrete slot",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    }
+  ]
+}
