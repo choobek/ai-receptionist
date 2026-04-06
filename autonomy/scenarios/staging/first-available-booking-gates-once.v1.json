@@ -1,0 +1,141 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "first-available-booking-gates-once",
+  "title": "Nearest-available booking asks only one first-visit gating question",
+  "description": "The caller asks for the nearest available appointment without saying whether this is the first visit. To avoid pre-tool silence and unnecessary clarifications, the assistant should spend the first turn only on the first-visit gate, then issue checkAvailability immediately on the next turn once the caller confirms a first visit.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "availability",
+    "latency",
+    "first-visit",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "real_call_regression",
+    "references": [
+      "configs/vapi/assistant.v2.json",
+      "autonomy/runs/generated/vapi-live-autoeval/production-vapi-live-autoeval-20260406T125241Z/normalized-runs/production-019d62d6-329f-7000-8f35-640fc447cea1.run.v1.json"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 2
+  },
+  "turns": [
+    {
+      "turn_id": "ask-for-nearest-slot-without-first-visit-status",
+      "user": "Chcialabym umowic sie na najblizszy wolny termin."
+    },
+    {
+      "turn_id": "confirm-first-visit",
+      "user": "Tak, to moja pierwsza wizyta."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "turn-one-does-not-schedule-yet",
+      "description": "Without first-visit status, the assistant should not call checkAvailability on the first turn.",
+      "severity": "critical",
+      "root_cause_hint": "assistant guessed the booking branch before it knew whether this was a first visit",
+      "rule": {
+        "type": "turn_tool_not_called",
+        "turn": 1,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "turn-one-asks-only-the-first-visit-gate",
+      "description": "The first turn should ask whether this is the first visit or whether the caller has already been to the clinic.",
+      "severity": "critical",
+      "root_cause_hint": "assistant spent the first turn on a broader clarification instead of resolving the first-visit gate",
+      "rule": {
+        "type": "turn_assistant_text_contains_any",
+        "turn": 1,
+        "contains_any": [
+          "czy to pierwsza wizyta",
+          "czy to bedzie pierwsza wizyta",
+          "czy to pani pierwsza wizyta",
+          "czy to bedzie pani pierwsza wizyta",
+          "czy to pana pierwsza wizyta",
+          "czy to bedzie pana pierwsza wizyta",
+          "czy byla juz pani u nas",
+          "czy byl juz pan u nas",
+          "czy byla pani juz u nas",
+          "czy byl pan juz u nas"
+        ]
+      }
+    },
+    {
+      "criterion_id": "turn-one-does-not-ask-for-time-or-problem",
+      "description": "The gating turn should not also ask for the day, hour, time window, or problem description.",
+      "severity": "high",
+      "root_cause_hint": "assistant is still layering extra questions before the availability lookup",
+      "rule": {
+        "type": "turn_assistant_text_not_contains_any",
+        "turn": 1,
+        "contains_none": [
+          "jaki dzien",
+          "ktory dzien",
+          "na kiedy",
+          "jaka godzina",
+          "o jakiej godzinie",
+          "rano czy po poludniu",
+          "po poludniu czy wieczorem",
+          "jaki problem",
+          "czego dotyczy",
+          "jaka usluga",
+          "jaki zabieg"
+        ]
+      }
+    },
+    {
+      "criterion_id": "turn-two-checks-availability",
+      "description": "After the caller confirms a first visit, the assistant should immediately check availability on the next turn.",
+      "severity": "critical",
+      "root_cause_hint": "assistant inserted another unnecessary turn after the first-visit gate",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 2,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "turn-two-uses-consultation-service",
+      "description": "The first-visit fast path should map to the default consultation service.",
+      "severity": "critical",
+      "root_cause_hint": "assistant lost the default consultation mapping after the first-visit confirmation",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 2,
+        "tool_name": "checkAvailability",
+        "path": "service.id",
+        "equals": "consultation"
+      }
+    },
+    {
+      "criterion_id": "turn-two-uses-first-available",
+      "description": "The nearest-term request should stay on first_available after the first-visit confirmation.",
+      "severity": "critical",
+      "root_cause_hint": "assistant widened or changed the nearest-term preference after the first-visit confirmation",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 2,
+        "tool_name": "checkAvailability",
+        "path": "timePreference",
+        "equals": "first_available"
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "This scenario only checks the lookup handoff and must not create a booking.",
+      "severity": "high",
+      "root_cause_hint": "assistant advanced into createEvent before the caller selected a concrete slot",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    }
+  ]
+}
