@@ -4,9 +4,20 @@
   "assistantId": "6db99c99-3f93-41e3-ae4e-fefe3974e2d6",
   "assistantName": "Ola",
   "assistantOverrides": {
+    "voice": {
+      "chunkPlan": {
+        "minCharacters": 32
+      }
+    },
     "startSpeakingPlan": {
+      "waitSeconds": 0.35,
       "smartEndpointingPlan": {
         "provider": "vapi"
+      },
+      "transcriptionEndpointingPlan": {
+        "onPunctuationSeconds": 0.35,
+        "onNoPunctuationSeconds": 1.8,
+        "onNumberSeconds": 0.9
       }
     }
   },

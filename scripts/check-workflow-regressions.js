@@ -3681,7 +3681,7 @@ test('assistant renderer keeps staging on explicit Vapi smart endpointing with c
   assert.deepEqual(rendered.assistant?.hooks, []);
 });
 
-test('assistant renderer keeps production on explicit Vapi smart endpointing', () => {
+test('assistant renderer keeps production on explicit Vapi smart endpointing with matched thresholds', () => {
   const shared = loadAssistantConfig();
   const rendered = renderAssistantConfig('production', {
     PRODUCTION_N8N_PUBLIC_BASE_URL: 'https://production.example.test',
@@ -3695,7 +3695,7 @@ test('assistant renderer keeps production on explicit Vapi smart endpointing', (
   assert.equal(rendered.assistant?.transcriber?.provider, '11labs');
   assert.equal(rendered.assistant?.transcriber?.model, 'scribe_v2');
   assert.equal(rendered.assistant?.transcriber?.language, 'pl');
-  assert.equal(rendered.assistant?.voice?.chunkPlan?.minCharacters, 48);
+  assert.equal(rendered.assistant?.voice?.chunkPlan?.minCharacters, 32);
   assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.35);
   assert.equal(rendered.assistant?.startSpeakingPlan?.smartEndpointingPlan?.provider, 'vapi');
   assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.35);
