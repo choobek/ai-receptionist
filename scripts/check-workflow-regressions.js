@@ -3705,16 +3705,28 @@ test('assistant renderer keeps production on explicit Vapi smart endpointing', (
 
 assistantInvariantTest('assistant model payload stays within the latency baseline and tool waits remain non-blocking', () => {
   const baseline = loadModelPayloadBaseline();
-  const systemPrompt = getAssistantSystemPrompt();
+  const assistantConfig = loadAssistantConfig();
+  const systemMessages = (assistantConfig.assistant?.model?.messages || [])
+    .filter((message) => message.role === 'system' && typeof message.content === 'string')
+    .map((message) => message.content);
+  const systemPrompt = systemMessages[0] || '';
+  const totalSystemMessageChars = systemMessages.reduce((sum, content) => sum + content.length, 0);
   const toolDefinitions = loadToolDefinitions();
   const currentToolStats = getToolDescriptionStats(toolDefinitions);
   const maxGrowthFactor = Number(baseline.maxGrowthFactor || 1.1);
   const allowedPromptLength = Math.ceil(baseline.systemPromptChars * maxGrowthFactor);
+  const allowedTotalSystemMessageChars = Math.ceil(
+    Number((baseline.totalSystemMessageChars ?? baseline.systemPromptChars) || 0) * maxGrowthFactor
+  );
   const allowedToolDescriptionTotal = Math.ceil(baseline.toolDescriptionTotalChars * maxGrowthFactor);
 
   assert.ok(
     systemPrompt.length <= allowedPromptLength,
     `system prompt grew to ${systemPrompt.length} chars, limit is ${allowedPromptLength}`
+  );
+  assert.ok(
+    totalSystemMessageChars <= allowedTotalSystemMessageChars,
+    `total system messages grew to ${totalSystemMessageChars} chars, limit is ${allowedTotalSystemMessageChars}`
   );
   assert.ok(
     currentToolStats.total <= allowedToolDescriptionTotal,

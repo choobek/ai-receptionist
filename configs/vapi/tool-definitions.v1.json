@@ -31,7 +31,7 @@
     "checkAvailability": {
       "schemaPath": "schemas/checkAvailability.vapi.request.json",
       "endpoint": "/webhook/ai-receptionist/check-availability",
-      "description": "Return availability. Use specific_time for exact hours and morning/afternoon/evening for broad windows. If the caller gave an exact hour or broad window but no day, omit requestedDate to search the next few business days from today. Use first_available with requestedDate plus searchDays 1 for one specific day, or without requestedDate for the next available dates overall. Pass patient.isExistingPatient when known.",
+      "description": "Return availability. Use specific_time for exact hours and morning/afternoon/evening for broad windows. If the caller gave time but no day, omit requestedDate to search the next business days. Use requestedDate plus searchDays 1 for one specific day, or without requestedDate for the next available dates overall. Pass patient.isExistingPatient when known.",
       "messages": [
         {
           "type": "request-start",
@@ -52,7 +52,7 @@
     "searchKnowledgeBase": {
       "schemaPath": "schemas/searchKnowledgeBase.request.json",
       "endpoint": "/webhook/ai-receptionist/search-knowledge-base",
-      "description": "Answer non-medical clinic questions from the local knowledge base, including organizational details, services, and confirmed pricing. If the result is missing or uncertain, say so and do not invent details.",
+      "description": "Answer non-medical clinic questions from the local knowledge base, including organization, services, and confirmed pricing. If the result is missing or uncertain, say so and do not invent details.",
       "messages": [
         {
           "type": "request-start",
@@ -73,7 +73,7 @@
     "createEvent": {
       "schemaPath": "schemas/createEvent.vapi.request.json",
       "endpoint": "/webhook/ai-receptionist/create-event",
-      "description": "Create booking only after the caller selected one slot, confirmed the phone, and confirmed the summary. Pass exact slotStart and slotEnd with service, timezone, language, full name, and a normalized or clear raw phone. Never confirm booking before success. Booking SMS stays non-blocking. Say result.message verbatim.",
+      "description": "Create booking only after the caller selected one slot, confirmed the phone, and confirmed the summary. Pass exact slotStart and slotEnd plus service, timezone, language, full name, and a normalized or clear raw phone. Never confirm booking before success. Say result.message verbatim.",
       "parameters": [
         {
           "key": "patientPhoneE164",
@@ -100,7 +100,7 @@
     "createReceptionTask": {
       "schemaPath": "schemas/createReceptionTask.request.json",
       "endpoint": "/webhook/ai-receptionist/create-reception-task",
-      "description": "Create a receptionist follow-up only after the caller name and phone are confirmed. Pass taskType, patient full name, and either a normalized phone or a clear raw phone number, plus only structured optional fields such as serviceBucket or preferredCallbackWindow. Do not add free-text notes.",
+      "description": "Create receptionist follow-up only after the caller name and phone are confirmed. Pass taskType, patient full name, a normalized or clear raw phone number, and only structured optional fields like serviceBucket or preferredCallbackWindow. Do not add free-text notes.",
       "parameters": [
         {
           "key": "patientPhoneE164",
@@ -127,7 +127,7 @@
     "sendSmsToReceptionists": {
       "schemaPath": "schemas/sendSmsToReceptionists.request.json",
       "endpoint": "/webhook/ai-receptionist/send-sms-to-receptionists",
-      "description": "Send the internal receptionist SMS only after createReceptionTask returned success and you have its taskId. This is internal-only. If it fails, the saved reception task still exists.",
+      "description": "Send the internal receptionist SMS only after createReceptionTask succeeded and you have taskId. This is internal-only; if it fails, the saved reception task still exists.",
       "messages": [
         {
           "type": "request-start",
@@ -144,7 +144,7 @@
     "sendSmsToPatient": {
       "schemaPath": "schemas/sendSmsToPatient.request.json",
       "endpoint": "/webhook/ai-receptionist/send-sms-to-patient",
-      "description": "Send a manual booking-confirmation SMS only after createEvent succeeded. Pass the calendarEventId, patient identity, appointment timing, booked service, and prefer the live caller number when available."
+      "description": "Send a manual booking-confirmation SMS only after createEvent succeeded. Pass calendarEventId, patient identity, appointment timing, booked service, and prefer the live caller number when available."
     }
   }
 }

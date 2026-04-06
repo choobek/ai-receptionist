@@ -1,14 +1,15 @@
 {
   "version": 1,
   "maxGrowthFactor": 1.1,
-  "systemPromptChars": 14710,
+  "systemPromptChars": 15866,
+  "totalSystemMessageChars": 16721,
   "toolDescriptionChars": {
-    "checkAvailability": 380,
-    "searchKnowledgeBase": 206,
-    "createEvent": 321,
-    "createReceptionTask": 269,
-    "sendSmsToReceptionists": 182,
-    "sendSmsToPatient": 224
+    "checkAvailability": 356,
+    "searchKnowledgeBase": 196,
+    "createEvent": 285,
+    "createReceptionTask": 266,
+    "sendSmsToReceptionists": 171,
+    "sendSmsToPatient": 198
   },
-  "toolDescriptionTotalChars": 1582
+  "toolDescriptionTotalChars": 1566
 }
