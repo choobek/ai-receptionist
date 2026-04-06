@@ -3377,7 +3377,7 @@ test('assistant config makes silence handling explicit and repo-owned', () => {
   assert.equal(config.assistant?.server?.timeoutSeconds, 20);
 });
 
-test('assistant spoken voice strings drop the dotted domain for TTS-safe branding', () => {
+test('assistant spoken voice strings keep spoken pl branding without the dotted domain', () => {
   const config = loadAssistantConfig();
   const systemPrompts = (config.assistant?.model?.messages || [])
     .filter((message) => message.role === 'system' && typeof message.content === 'string')
@@ -3386,11 +3386,12 @@ test('assistant spoken voice strings drop the dotted domain for TTS-safe brandin
 
   assert.equal(typeof config.assistant?.firstMessage, 'string');
   assert.equal(typeof config.assistant?.voicemailMessage, 'string');
-  assert.match(config.assistant.firstMessage, /centrum stomatologii Ipokrzyku/i);
-  assert.match(config.assistant.voicemailMessage, /centrum stomatologii Ipokrzyku/i);
+  assert.match(config.assistant.firstMessage, /centrum stomatologii Ipokrzyku pl/i);
+  assert.match(config.assistant.voicemailMessage, /centrum stomatologii Ipokrzyku pl/i);
   assert.doesNotMatch(config.assistant.firstMessage, /Ipokrzyku\.pl/);
   assert.doesNotMatch(config.assistant.voicemailMessage, /Ipokrzyku\.pl/);
   assert.doesNotMatch(systemPrompts, /Ipokrzyku\.pl/);
+  assert.match(systemPrompts, /centrum stomatologii Ipokrzyku pl/i);
 });
 
 test('assistant prompt keeps phone-collection logic as plain text without unresolved liquid control flow', () => {
