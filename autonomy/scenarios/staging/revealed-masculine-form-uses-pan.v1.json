@@ -1,0 +1,78 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "revealed-masculine-form-uses-pan",
+  "title": "Revealed masculine form uses respectful pan wording",
+  "description": "When the caller reveals masculine form with phrases like 'chcialbym', the next direct question should stop staying fully neutral and use a natural masculine respectful form such as 'panu', 'pana', or 'pan'.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "addressing",
+    "gender-form",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "real_call_regression",
+    "references": [
+      "configs/vapi/assistant.v2.json",
+      "autonomy/runs/generated/vapi-live-autoeval/staging-vapi-live-autoeval-20260406T185221Z/raw-calls/019d641c-e640-777a-8c84-6cbd3f2bd728.call.json"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 1
+  },
+  "turns": [
+    {
+      "turn_id": "masculine-caller-asks-for-a-first-visit",
+      "user": "Chcialbym umowic sie na pierwsza wizyte."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "turn-one-uses-masculine-respectful-form",
+      "description": "After a clear masculine reveal, the next direct question should include a natural masculine respectful form.",
+      "severity": "critical",
+      "root_cause_hint": "assistant stayed fully neutral after the caller already revealed masculine form",
+      "rule": {
+        "type": "turn_assistant_text_contains_any",
+        "turn": 1,
+        "contains_any": [
+          "na jaki dzien i o jakiej porze najbardziej panu pasuje termin",
+          "na jaki dzien i mniej wiecej na ktora godzine chcialby sie pan umowic",
+          "na jaki dzien i o jakiej porze chcialby sie pan umowic",
+          "czy to bedzie pana pierwsza wizyta",
+          "czy byl juz pan u nas",
+          "czy byl pan juz u nas"
+        ]
+      }
+    },
+    {
+      "criterion_id": "turn-one-does-not-use-dangling-panie",
+      "description": "The assistant should not use malformed masculine vocative like 'panie?'.",
+      "severity": "high",
+      "root_cause_hint": "assistant tried to restore gendered address with the wrong vocative",
+      "rule": {
+        "type": "turn_assistant_text_not_contains_any",
+        "turn": 1,
+        "contains_none": [
+          " panie?",
+          "panie.",
+          "klinice panie",
+          "wizyta panie"
+        ]
+      }
+    },
+    {
+      "criterion_id": "turn-one-stays-on-first-visit-gate",
+      "description": "This turn should stay on a direct clarification question and not jump into scheduling.",
+      "severity": "high",
+      "root_cause_hint": "assistant changed the addressing but lost the one-question gate behavior",
+      "rule": {
+        "type": "turn_tool_not_called",
+        "turn": 1,
+        "tool_name": "checkAvailability"
+      }
+    }
+  ]
+}

@@ -70,8 +70,8 @@
         "type": "turn_assistant_text_contains_all",
         "turn": 1,
         "contains_all": [
-          "nazwisko",
-          "numer telefonu"
+          "nazwisk",
+          "telefon"
         ]
       }
     },

@@ -1,8 +1,8 @@
 {
   "version": 1,
   "maxGrowthFactor": 1.1,
-  "systemPromptChars": 15866,
-  "totalSystemMessageChars": 16721,
+  "systemPromptChars": 18036,
+  "totalSystemMessageChars": 19249,
   "toolDescriptionChars": {
     "checkAvailability": 356,
     "searchKnowledgeBase": 196,

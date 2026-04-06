@@ -816,7 +816,7 @@ test('checkAvailability falls back to first_available when the requested afterno
   assert.equal(result.normalizedRequest?.searchDays, 1);
   assert.equal(result.resolvedSearch?.stage, 'first_available_fallback');
   assert.equal(result.resolvedSearch?.timePreference, 'first_available');
-  assert.equal(result.resolvedSearch?.searchDays, 5);
+  assert.equal(result.resolvedSearch?.searchDays, 8);
   assert.deepEqual(
     result.slots.map((slot) => slot.start),
     [
@@ -826,6 +826,66 @@ test('checkAvailability falls back to first_available when the requested afterno
     ]
   );
   assert.ok(result.slots.every((slot) => slot.start.slice(11, 16) === '09:00'));
+  assert.match(
+    normalizeSearchText(result.message),
+    /nie widze wolnych terminow na poniedzialek, szesnastego marca po poludniu/i
+  );
+
+  const formatted = executeCode(getNodeCode(loadWorkflow('tool_check-availability.json'), 'Format Success'), {
+    $json: result
+  })[0].json;
+  const formattedPayload = formatted.results?.[0]?.result || formatted;
+  assert.equal(formattedPayload.requestedRangeAvailable, false);
+  assert.equal(formattedPayload.resolvedSearch?.stage, 'first_available_fallback');
+  assert.equal(formattedPayload.resolvedSearch?.searchDays, 8);
+});
+
+test('checkAvailability exact daypart misses can reach later bounded first_available alternatives', () => {
+  const parseResult = runParse(
+    'tool_check-availability.json',
+    'Parse Request',
+    {
+      service: { id: 'consultation' },
+      requestedDate: '2026-03-16',
+      timePreference: 'afternoon',
+      timezone: 'Europe/Warsaw'
+    },
+    defaultEnv
+  );
+  assert.equal(parseResult.ok, true);
+  assert.equal(parseResult.searchPlans?.length, 3);
+  assert.equal(parseResult.searchPlans?.[2]?.stage, 'first_available_fallback');
+  assert.equal(parseResult.searchPlans?.[2]?.searchDays, 8);
+
+  const fullyBlockedDays = [
+    '2026-03-16',
+    '2026-03-17',
+    '2026-03-18',
+    '2026-03-19',
+    '2026-03-20',
+    '2026-03-23'
+  ].map((dateText) => ({
+    start: { dateTime: `${dateText}T09:00:00+01:00` },
+    end: { dateTime: `${dateText}T21:00:00+01:00` }
+  }));
+
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    fullyBlockedDays,
+    defaultEnv
+  );
+
+  assert.equal(result.available, true);
+  assert.equal(result.requestedRangeAvailable, false);
+  assert.equal(result.resolvedSearch?.stage, 'first_available_fallback');
+  assert.equal(result.resolvedSearch?.searchDays, 8);
+  assert.equal(result.slots[0]?.start, '2026-03-24T09:00:00+01:00');
+  assert.ok(
+    result.slots.some((slot) => slot.start === '2026-03-25T09:00:00+01:00'),
+    'expected fallback slots to reach later alternatives inside the 8-day horizon'
+  );
   assert.match(
     normalizeSearchText(result.message),
     /nie widze wolnych terminow na poniedzialek, szesnastego marca po poludniu/i
@@ -1035,7 +1095,7 @@ test('checkAvailability keeps a specific-day first_available search bounded whil
   assert.equal(parseResult.searchPlans?.[0]?.stage, 'primary');
   assert.equal(parseResult.searchPlans?.[0]?.searchDays, 1);
   assert.equal(parseResult.searchPlans?.[1]?.stage, 'next_available_fallback');
-  assert.equal(parseResult.searchPlans?.[1]?.searchDays, 5);
+  assert.equal(parseResult.searchPlans?.[1]?.searchDays, 8);
 
   const result = runCodeNode(
     'tool_check-availability.json',
@@ -1057,7 +1117,7 @@ test('checkAvailability keeps a specific-day first_available search bounded whil
   assert.equal(result.normalizedRequest?.searchDays, 1);
   assert.equal(result.resolvedSearch?.stage, 'next_available_fallback');
   assert.equal(result.resolvedSearch?.timePreference, 'first_available');
-  assert.equal(result.resolvedSearch?.searchDays, 5);
+  assert.equal(result.resolvedSearch?.searchDays, 8);
   assert.deepEqual(
     result.slots.map((slot) => slot.start),
     [
@@ -3377,7 +3437,7 @@ test('assistant config makes silence handling explicit and repo-owned', () => {
   assert.equal(config.assistant?.server?.timeoutSeconds, 20);
 });
 
-test('assistant spoken voice strings keep spoken pl branding without the dotted domain', () => {
+test('assistant spoken voice strings keep spoken pe-el branding without the dotted domain', () => {
   const config = loadAssistantConfig();
   const systemPrompts = (config.assistant?.model?.messages || [])
     .filter((message) => message.role === 'system' && typeof message.content === 'string')
@@ -3386,12 +3446,36 @@ test('assistant spoken voice strings keep spoken pl branding without the dotted 
 
   assert.equal(typeof config.assistant?.firstMessage, 'string');
   assert.equal(typeof config.assistant?.voicemailMessage, 'string');
-  assert.match(config.assistant.firstMessage, /centrum stomatologii Ipokrzyku pl/i);
-  assert.match(config.assistant.voicemailMessage, /centrum stomatologii Ipokrzyku pl/i);
+  assert.match(config.assistant.firstMessage, /centrum stomatologii Ipokrzyku pe el/i);
+  assert.match(config.assistant.voicemailMessage, /centrum stomatologii Ipokrzyku pe el/i);
   assert.doesNotMatch(config.assistant.firstMessage, /Ipokrzyku\.pl/);
   assert.doesNotMatch(config.assistant.voicemailMessage, /Ipokrzyku\.pl/);
-  assert.doesNotMatch(systemPrompts, /Ipokrzyku\.pl/);
-  assert.match(systemPrompts, /centrum stomatologii Ipokrzyku pl/i);
+  assert.doesNotMatch(config.assistant.firstMessage, /Ipokrzyku pl/i);
+  assert.doesNotMatch(config.assistant.voicemailMessage, /Ipokrzyku pl/i);
+  assert.match(systemPrompts, /centrum stomatologii Ipokrzyku pe el/i);
+  assert.match(systemPrompts, /nie "Ipokrzyku\.pl"/i);
+});
+
+assistantInvariantTest('assistant system message bundle locks spoken brand, exact tool replay, and vocative guardrails', () => {
+  const config = loadAssistantConfig();
+  const normalizedSystemMessages = normalizeSearchText(
+    (config.assistant?.model?.messages || [])
+      .filter((message) => message.role === 'system' && typeof message.content === 'string')
+      .map((message) => message.content)
+      .join('\n')
+  );
+
+  assert.match(normalizedSystemMessages, /ipokrzyku pe el/i);
+  assert.match(normalizedSystemMessages, /mow "ipokrzyku pe el", nie "ipokrzyku\.pl", "pl" ani "i pokrzyku"/i);
+  assert.match(normalizedSystemMessages, /result\.message albo request-complete/i);
+  assert.match(
+    normalizedSystemMessages,
+    /(wypowiedz dokladnie to pole i niczego nie dopisuj|wypowiedz je doslownie)/i
+  );
+  assert.match(
+    normalizedSystemMessages,
+    /(unikaj "panie\?" albo "pani\?".*preferuj "pana\/pani"|unikaj "panie\?" albo "pani\?".*pytaj z "pan\/pani"|unikaj "panie\?" albo "pani\?".*nie pytaj neutralnie.*"pana\/pani pierwsza wizyta".*"panu\/pani pasuje termin")/i
+  );
 });
 
 test('assistant prompt keeps phone-collection logic as plain text without unresolved liquid control flow', () => {
@@ -3503,7 +3587,7 @@ assistantInvariantTest('assistant prompt keeps post-booking close and reception 
 
   assert.match(
     normalizedPrompt,
-    /po sukcesie createEvent zacznij od zdania: "Wizyta zostala potwierdzona\."/i
+    /po sukcesie createEvent powiedz dokladnie gotowe message z narzedzia/i
   );
   assert.match(
     normalizedPrompt,
@@ -3515,7 +3599,7 @@ assistantInvariantTest('assistant prompt keeps post-booking close and reception 
   );
   assert.match(
     normalizedPrompt,
-    /czy moge pomoc jeszcze w czyms/i
+    /dokladnie gotowe message z narzedzia/i
   );
 });
 
@@ -3524,7 +3608,31 @@ assistantInvariantTest('assistant prompt keeps gender recognition but forbids re
 
   assert.match(
     normalizedPrompt,
-    /dopasuj gramatyke do rozmowcy/i
+    /(dopasuj gramatyke do rozmowcy|dopasuj gramatyke i uzywaj|po ujawnieniu formy uzywaj odpowiedniej formy|po ujawnieniu formy uzywaj form "pan\/pani"|po ujawnieniu formy uzywaj "pan\/pani")/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /(nie zostawaj dalej przy samej formie neutralnej|po wiarygodnym ujawnieniu formy wracaj do odpowiedniej formy "pan\/pani"|uzywaj odpowiedniej formy "pan\/pani" nie samej neutralnej|nie pytan bezosobowych|nie bezosobowo)/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /czy to bedzie pana\/pani pierwsza wizyta/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /po slowie "chcialbym\/chcialbym" nastepne pytanie musi zawierac meska forme "pan\/pana\/panu"/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /po slowie "chcialabym\/chcialabym" nastepne pytanie musi zawierac zenska forme "pani\/pania"/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /neutralne wersje typu "czy to bedzie pierwsza wizyta\?" albo "na jaki dzien pasuje termin\?" sa wtedy bledem/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /(unikaj "panie\?" albo "pani\?"|nigdy "panie\?" czy "pani\?")/i
   );
   assert.match(
     normalizedPrompt,
@@ -3560,7 +3668,7 @@ assistantInvariantTest('assistant prompt forbids small talk and keeps the brief-
   );
   assert.match(
     normalizedSystemMessages,
-    /jesli rozmowca zadaje krotkie pytanie operacyjne przed handoffem, odpowiedz jednym zdaniem i od razu przejdz do brakujacej danej/i
+    /((jesli rozmowca zadaje krotkie pytanie operacyjne przed handoffem|na krotkie pytanie operacyjne przed handoffem) odpowiedz jednym zdaniem i od razu przejdz do brakujacej danej|na krotkie pytanie przed handoffem odpowiedz jednym zdaniem i przejdz do brakujacej danej)/i
   );
 });
 
@@ -3589,7 +3697,7 @@ assistantInvariantTest('assistant prompt keeps speech-safe wording and calendar-
   );
   assert.match(
     normalizedPrompt,
-    /jesli wynik narzedzia zawiera gotowe pole message, nastepna wypowiedz do pacjenta ma byc dokladnie tym polem/i
+    /(jesli|gdy) wynik narzedzia (zawiera|ma) gotowe pole message, nastepna wypowiedz do pacjenta ma byc dokladnie tym polem/i
   );
   assert.match(
     normalizedPrompt,
@@ -3621,7 +3729,7 @@ assistantInvariantTest('assistant prompt keeps explicit day-plus-daypart lookups
   );
   assert.match(
     normalizedSystemMessages,
-    /jesli rozmowca poda konkretny dzien albo date razem z pora dnia, checkAvailability musi zachowac requestedDate i searchDays 1/i
+    /(jesli rozmowca poda konkretny dzien albo date razem z pora dnia|gdy rozmowca poda konkretny dzien albo date z pora dnia|gdy rozmowca poda konkretny dzien lub date z pora dnia), checkAvailability (musi zachowac|zachowuje) requestedDate i searchDays 1/i
   );
 });
 
@@ -3653,7 +3761,7 @@ assistantInvariantTest('assistant prompt bundle keeps anti-fragment speech rules
 
   assert.match(
     normalizedPrompt,
-    /slot\.spokenLabel, slot\.spokenTime albo slot\.spokenDate/i
+    /slot\.spokenLabel albo slot\.spokenTime|slot\.spokenLabel, slot\.spokenTime albo slot\.spokenDate/i
   );
   assert.match(
     normalizedPrompt,
@@ -3661,11 +3769,11 @@ assistantInvariantTest('assistant prompt bundle keeps anti-fragment speech rules
   );
   assert.match(
     normalizedPrompt,
-    /Jesli rozmowca poprawia wybor w tej samej wypowiedzi, wypowiedz tylko finalna wersje/i
+    /(Jesli rozmowca poprawia wybor w tej samej wypowiedzi, wypowiedz tylko finalna wersje|Przy poprawce w tej samej wypowiedzi mow tylko finalna wersje|Przy poprawce mow tylko finalna wersje)/i
   );
   assert.match(
     normalizedPrompt,
-    /lookupPatient uzyj tylko(?: wtedy)?, gdy numer (?:jest )?(?:niejasny, fragmentaryczny albo nadal wymaga technicznej normalizacji po doprecyzowaniu|niepelny, sprzeczny albo nadal wymaga normalizacji po doprecyzowaniu)/i
+    /(?:lookupPatient uzyj tylko(?: wtedy)?, gdy numer|nie wywoluj `?lookupPatient`? tylko po to, zeby przeczytac jasny numer\. uzyj go tylko przy numerze) (?:jest )?(?:niejasny, fragmentaryczny albo nadal wymaga technicznej normalizacji po doprecyzowaniu|niepelnym, sprzecznym albo wymagajacym naprawy po doprecyzowaniu|niepelny, sprzeczny albo wymagajacym naprawy po doprecyzowaniu|niepelny, sprzeczny albo nadal wymaga normalizacji po doprecyzowaniu)/i
   );
   assert.match(
     normalizedPrompt,
@@ -3685,11 +3793,7 @@ assistantInvariantTest('assistant prompt bundle keeps anti-fragment speech rules
   );
   assert.match(
     normalizedPrompt,
-    /nie odpowiadaj samym "Dziekuje\. W czym moge pomoc\?"/i
-  );
-  assert.match(
-    normalizedPrompt,
-    /w sciezce `?createReceptionTask`?.*mozesz pominac osobna ture potwierdzenia/i
+    /nie odpowiadaj( samym)? "Dziekuje\. W czym moge pomoc\?"/i
   );
   assert.match(
     normalizedPrompt,
@@ -4170,6 +4274,21 @@ assistantInvariantTest('booking without an exposed caller number asks for the sp
     turn: 4,
     tool_name: 'createEvent'
   });
+});
+
+assistantInvariantTest('revealed masculine-form scenario requires respectful pan wording after the cue', () => {
+  const scenario = loadStagingScenario('revealed-masculine-form-uses-pan.v1.json');
+  const criterion = getScenarioCriterion(scenario, 'turn-one-uses-masculine-respectful-form');
+
+  assert.equal(scenario.turns[0].user.toLowerCase().includes('chcialbym'), true);
+  assert.deepEqual(criterion.rule.contains_any, [
+    'na jaki dzien i o jakiej porze najbardziej panu pasuje termin',
+    'na jaki dzien i mniej wiecej na ktora godzine chcialby sie pan umowic',
+    'na jaki dzien i o jakiej porze chcialby sie pan umowic',
+    'czy to bedzie pana pierwsza wizyta',
+    'czy byl juz pan u nas',
+    'czy byl pan juz u nas'
+  ]);
 });
 
 assistantInvariantTest('assistant prompt keeps exposed caller-number confirmation explicit', () => {

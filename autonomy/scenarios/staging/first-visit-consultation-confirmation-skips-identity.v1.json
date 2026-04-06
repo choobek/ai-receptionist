@@ -1,0 +1,155 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "first-visit-consultation-confirmation-skips-identity",
+  "title": "First-visit consultation confirmation goes straight to availability",
+  "description": "The caller asks for the nearest available slot without first-visit status, then confirms that this is the first visit and adds that it is for a consultation. The assistant should treat consultation as the default first-visit path, call checkAvailability immediately, and avoid collecting identity before any slot is chosen.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "availability",
+    "first-visit",
+    "latency",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "real_call_regression",
+    "references": [
+      "configs/vapi/assistant.v2.json",
+      "autonomy/runs/generated/vapi-live-autoeval/staging-call-review-20260406T1635Z/raw-calls/019d639a-8025-7bbb-af98-7d1e2faf6ed5.call.json"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 2
+  },
+  "turns": [
+    {
+      "turn_id": "ask-for-nearest-slot-without-first-visit-status",
+      "user": "Chcialbym umowic sie na najblizszy wolny termin."
+    },
+    {
+      "turn_id": "confirm-first-visit-and-consultation",
+      "user": "Tak, to bedzie pierwsza wizyta, na konsultacje."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "turn-one-does-not-schedule-yet",
+      "description": "Without first-visit status, the assistant should not call checkAvailability on the first turn.",
+      "severity": "critical",
+      "root_cause_hint": "assistant guessed the booking branch before resolving the first-visit gate",
+      "rule": {
+        "type": "turn_tool_not_called",
+        "turn": 1,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "turn-one-asks-the-first-visit-gate",
+      "description": "The first turn should ask whether this is the first visit or whether the caller has already been to the clinic.",
+      "severity": "critical",
+      "root_cause_hint": "assistant spent the gating turn on something other than the first-visit split",
+      "rule": {
+        "type": "turn_assistant_text_contains_any",
+        "turn": 1,
+        "contains_any": [
+          "czy to pierwsza wizyta",
+          "czy to bedzie pierwsza wizyta",
+          "czy to pani pierwsza wizyta",
+          "czy to bedzie pani pierwsza wizyta",
+          "czy to pana pierwsza wizyta",
+          "czy to bedzie pana pierwsza wizyta",
+          "czy byla juz pani u nas",
+          "czy byl juz pan u nas",
+          "czy byla pani juz u nas",
+          "czy byl pan juz u nas"
+        ]
+      }
+    },
+    {
+      "criterion_id": "turn-one-avoids-dangling-masculine-vocative",
+      "description": "For a masculine caller, the first-visit gate should stay neutral or use grammar like \"pana\", not a dangling \"panie?\".",
+      "severity": "high",
+      "root_cause_hint": "assistant inserted a malformed masculine vocative into the first-visit gate",
+      "rule": {
+        "type": "turn_assistant_text_not_contains_any",
+        "turn": 1,
+        "contains_none": [
+          " panie?",
+          "klinice panie",
+          "wizyta panie",
+          "panie."
+        ]
+      }
+    },
+    {
+      "criterion_id": "turn-two-checks-availability",
+      "description": "After the caller confirms a first visit, the assistant should immediately call checkAvailability.",
+      "severity": "critical",
+      "root_cause_hint": "assistant inserted another clarification turn after the first-visit confirmation",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 2,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "turn-two-uses-consultation-service",
+      "description": "The first-visit fast path should stay on the default consultation service.",
+      "severity": "critical",
+      "root_cause_hint": "assistant lost the default consultation mapping after the confirmation",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 2,
+        "tool_name": "checkAvailability",
+        "path": "service.id",
+        "equals": "consultation"
+      }
+    },
+    {
+      "criterion_id": "turn-two-uses-first-available",
+      "description": "The nearest-term request should stay on first_available after the first-visit confirmation.",
+      "severity": "critical",
+      "root_cause_hint": "assistant changed the nearest-term preference after the first-visit confirmation",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 2,
+        "tool_name": "checkAvailability",
+        "path": "timePreference",
+        "equals": "first_available"
+      }
+    },
+    {
+      "criterion_id": "turn-two-does-not-collect-identity",
+      "description": "Before any slot is chosen, the assistant should not start collecting name or phone data on the new-booking path.",
+      "severity": "critical",
+      "root_cause_hint": "assistant drifted into identity collection before the availability lookup completed",
+      "rule": {
+        "type": "turn_assistant_text_not_contains_any",
+        "turn": 2,
+        "contains_none": [
+          "poprosze o imie",
+          "poprosze o nazwisko",
+          "poprosze o imie, nazwisko",
+          "imie i nazwisko",
+          "numer telefonu",
+          "podaj prosze numer",
+          "podaj prosze imie",
+          "jak sie pani nazywa",
+          "jak sie pan nazywa"
+        ]
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "This scenario only checks the availability fast path and must not create a booking.",
+      "severity": "high",
+      "root_cause_hint": "assistant advanced into createEvent before the caller selected a concrete slot",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    }
+  ]
+}

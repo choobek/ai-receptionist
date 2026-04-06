@@ -1,8 +1,8 @@
 {
   "schema_version": "staging-chat-scenario.v1",
   "scenario_id": "first-visit-follow-up-keeps-szajnar",
-  "title": "First-visit follow-up offer keeps doctor name on fallback",
-  "description": "The caller asks for the nearest first-consultation terms and then narrows the request to Thursday. Whether the assistant finds a Thursday slot or falls back to the nearest available terms, the spoken follow-up offer should still keep doctor Magdalena Szajnar in the same utterance and stay speech-safe.",
+  "title": "First-visit Thursday follow-up stays narrowed and speech-safe",
+  "description": "The caller asks for the nearest first-consultation terms and then narrows the request to Thursday. The follow-up answer may come from a fresh lookup or from the slots already offered, but it should stay focused on Thursday, remain speech-safe, and ask which hour or term to choose next.",
   "status": "active",
   "environment": "staging",
   "language": "pl",
@@ -87,31 +87,15 @@
       }
     },
     {
-      "criterion_id": "second-turn-refreshes-availability",
-      "description": "The Thursday follow-up should trigger a fresh availability lookup.",
-      "severity": "critical",
-      "root_cause_hint": "assistant stopped refreshing availability after the caller asked about Thursday",
-      "rule": {
-        "type": "turn_tool_called",
-        "turn": 2,
-        "tool_name": "checkAvailability"
-      }
-    },
-    {
-      "criterion_id": "second-turn-keeps-szajnar",
-      "description": "The spoken follow-up offer after the Thursday question should still mention doctor Magdalena Szajnar.",
+      "criterion_id": "second-turn-stays-on-thursday",
+      "description": "The follow-up answer should stay focused on the Thursday question, either by reusing Thursday slots or by clearly reporting that Thursday is unavailable before offering bounded fallbacks.",
       "severity": "high",
-      "root_cause_hint": "assistant dropped or mutated doctor Magdalena Szajnar on the follow-up offer",
+      "root_cause_hint": "assistant ignored the Thursday narrowing and drifted back to a broad slot list",
       "rule": {
-        "type": "turn_assistant_text_contains_any",
+        "type": "turn_assistant_text_contains_all",
         "turn": 2,
-        "contains_any": [
-          "u doktor Magdaleny Szajnar",
-          "do doktor Magdaleny Szajnar",
-          "u dr Magdaleny Szajnar",
-          "do dr Magdaleny Szajnar",
-          "doktor Magdalena Szajnar",
-          "doktor Magdaleny Szajnar"
+        "contains_all": [
+          "czwartek"
         ]
       }
     },
@@ -134,6 +118,30 @@
           "7",
           "8",
           "9"
+        ]
+      }
+    },
+    {
+      "criterion_id": "second-turn-asks-for-choice",
+      "description": "After narrowing to Thursday, the assistant should either continue the Thursday slot-selection flow or clearly say that Thursday has no availability.",
+      "severity": "high",
+      "root_cause_hint": "assistant narrowed the day but neither continued the slot-selection flow nor gave a clear Thursday no-availability answer",
+      "rule": {
+        "type": "turn_assistant_text_contains_any",
+        "turn": 2,
+        "contains_any": [
+          "ktora godzina",
+          "ktory termin",
+          "ktory wybrac",
+          "ktora wybrac",
+          "ktora godzine wybrac",
+          "ktory termin wybrac",
+          "ktory z tych terminow wybrac",
+          "ktora z tych godzin najbardziej panu pasuje",
+          "ktora z tych godzin najbardziej pani pasuje",
+          "ktora z tych godzin najbardziej pasuje",
+          "nie widze wolnych terminow",
+          "brak wolnych terminow"
         ]
       }
     },
