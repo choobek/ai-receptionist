@@ -3,7 +3,7 @@
   "key": "earlyGenderAddressingFeminine",
   "rank": 20,
   "name": "Early Gender Addressing (Feminine)",
-  "description": "When the caller reveals feminine first-person forms early, the assistant should switch from neutral phrasing to feminine-directed polite forms from the next turn.",
+  "description": "When the caller reveals feminine first-person forms early, the assistant should switch from neutral phrasing to natural feminine-aligned polite wording from the next turn without falling back to misgendering or a rigid formula.",
   "type": "chat.mockConversation",
   "messages": [
     {
@@ -20,7 +20,7 @@
           "messages": [
             {
               "role": "system",
-              "content": "PASS if the assistant (1) treats the caller's feminine form as already revealed on this first turn, (2) uses at least one feminine-directed polite form that addresses the caller in Polish, such as 'pani', 'pania', or 'dla pani', in its very next reply, (3) does not count the assistant's own feminine self-reference like 'moglabym' or 'pomoge' as sufficient on its own, and (4) does not misgender the caller as male. A neutral fallback without caller-directed feminine wording is a fail. Output exactly: pass or fail."
+              "content": "PASS if the assistant (1) treats the caller's feminine form as already revealed on this first turn, (2) makes its very next reply clearly feminine-aligned toward the caller with at least one natural polite cue in Polish such as 'pani', 'dla pani', or an equivalent phrase like 'czy potwierdza pani', (3) does not count the assistant's own feminine self-reference like 'moglabym' or 'pomoge' as sufficient on its own, and (4) does not misgender the caller as male. A single natural cue is sufficient; do not require repeated or formulaic 'prosze pani'. A neutral fallback without any caller-directed feminine wording is a fail. Output exactly: pass or fail."
             }
           ]
         }

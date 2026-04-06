@@ -38,9 +38,11 @@ const {
   buildSshContext,
   buildN8nExecutionSummaries,
   buildToolTraceRefs,
+  matchToolTracesToVapiSpeechEntries,
   matchToolTracesToVapiWebhookEntries,
   matchToolTracesToCaddyEntries,
   matchToolTracesToExecutions,
+  parseVapiArtifactAssistantSpeechEntries,
   parseVapiArtifactWebhookEntries,
   parseCaddyAccessLogBundle,
   renderSuiteReport
@@ -2040,10 +2042,10 @@ test('Vapi tool sync scripts keep searchKnowledgeBase and delayed tool messages 
   assert.doesNotMatch(checkAvailability?.description || '', /fixed .* business-day horizon/i);
   assert.match(checkAvailability?.description || '', /patient\.isExistingPatient/);
   assert.match(createEvent?.description || '', /confirmed the phone/);
-  assert.equal(checkAvailability?.messages?.[1]?.timingMilliseconds, 1800);
+  assert.equal(checkAvailability?.messages?.[1]?.timingMilliseconds, 3000);
   assert.equal(checkAvailability?.messages?.[0]?.content, 'Już sprawdzam dostępne terminy.');
   assert.equal(createEvent?.messages?.[1]?.content, 'Jeszcze moment, finalizuję rezerwację wizyty.');
-  assert.equal(createEvent?.messages?.[1]?.timingMilliseconds, 1800);
+  assert.equal(createEvent?.messages?.[1]?.timingMilliseconds, 3000);
 });
 
 test('Vapi tool sync scripts keep receptionist handoff wait messages repo-owned', () => {
@@ -3421,6 +3423,23 @@ assistantInvariantTest('assistant prompt keeps post-booking close and reception 
   );
 });
 
+assistantInvariantTest('assistant prompt keeps gender recognition but forbids repetitive prosze pana pani phrasing', () => {
+  const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt());
+
+  assert.match(
+    normalizedPrompt,
+    /dopasuj gramatyke do rozmowcy/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /nie zaczynaj( kazdej wypowiedzi)? od "prosze pana\/pani"/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /nie wracaj do przeciwnej formy/i
+  );
+});
+
 assistantInvariantTest('assistant prompt keeps speech-safe wording and calendar-failure handoff explicit', () => {
   const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt());
 
@@ -3885,8 +3904,10 @@ assistantInvariantTest('booking without an exposed caller number asks for the sp
     turn: 4,
     contains_any: [
       'prosze podac numer telefonu',
+      'podanie numeru telefonu',
       'prosze o podanie numeru telefonu',
       'prosze o numer telefonu',
+      'numeru telefonu do kontaktu',
       'prosze o podanie numeru telefonu do kontaktu',
       'poprosze o numer telefonu',
       'prosze jeszcze o numer telefonu kontaktowego',
@@ -5410,6 +5431,66 @@ test('live autoeval matches Vapi artifact webhook transport to tool traces', () 
   });
 });
 
+test('live autoeval matches first non-wait Vapi assistant speech to tool traces', () => {
+  const suiteRuns = [{
+    fullCall: {
+      id: 'call_123'
+    },
+    run: {
+      call: {
+        call_id: 'call_123'
+      },
+      tool_trace: [{
+        tool_name: 'checkAvailability',
+        tool_call_id: 'call_123',
+        requested_at_ms: 1000,
+        completed_at_ms: 7000,
+        vapiWebhookTransport: {
+          requestCompletedAtMs: 1459
+        }
+      }]
+    }
+  }];
+  const speechEntries = parseVapiArtifactAssistantSpeechEntries([
+    {
+      time: 1200,
+      body: 'Voice input',
+      attributes: {
+        category: 'voice',
+        callId: 'call_123',
+        text: 'Już sprawdzam dostępne terminy.'
+      }
+    },
+    {
+      time: 2000,
+      body: 'Voice input',
+      attributes: {
+        category: 'voice',
+        callId: 'call_123',
+        text: 'Najbliższe wolne terminy to wtorek, siódmego kwietnia o dziesiątej piętnaście.'
+      }
+    }
+  ]);
+
+  const matchSummary = matchToolTracesToVapiSpeechEntries(buildToolTraceRefs(suiteRuns), speechEntries);
+  const trace = suiteRuns[0].run.tool_trace[0];
+
+  assert.deepEqual(matchSummary, {
+    matchedTraceCount: 1,
+    totalTraceCount: 1,
+    speechEntryCount: 2
+  });
+  assert.deepEqual(trace.vapiSpeechLatency, {
+    source: 'vapi_artifact_log_voice',
+    spokenResultStartedAtMs: 2000,
+    speechText: 'Najbliższe wolne terminy to wtorek, siódmego kwietnia o dziesiątej piętnaście.',
+    toolToSpeechMs: 1000,
+    webhookToSpeechGapMs: 541,
+    speechToToolResultBackfillMs: 5000,
+    matchedUsing: 'first_non_wait_voice_input_after_webhook_completion'
+  });
+});
+
 test('latency diagnostics surface Vapi webhook transport failures before edge matching exists', () => {
   const latency = deriveLatencyDiagnostics(
     {
@@ -5448,6 +5529,55 @@ test('latency diagnostics surface Vapi webhook transport failures before edge ma
   });
 });
 
+test('latency diagnostics prefer caller-heard Vapi speech gaps over delayed tool-result bookkeeping', () => {
+  const latency = deriveLatencyDiagnostics(
+    {
+      artifact: {
+        performanceMetrics: {
+          turnLatencies: []
+        }
+      }
+    },
+    [{
+      tool_name: 'checkAvailability',
+      tool_call_id: 'call_123',
+      requested_at_ms: 1000,
+      completed_at_ms: 7000,
+      vapiWebhookTransport: {
+        requestCompletedAtMs: 1459,
+        requestLatencyMs: 441,
+        success: true,
+        hasRetries: false
+      },
+      vapiSpeechLatency: {
+        spokenResultStartedAtMs: 2000,
+        toolToSpeechMs: 1000,
+        webhookToSpeechGapMs: 541,
+        speechToToolResultBackfillMs: 5000
+      }
+    }]
+  );
+
+  assert.equal(latency.maxToolVapiWebhookLatencyMs, 441);
+  assert.equal(latency.maxToolVapiSpeechLatencyMs, 1000);
+  assert.equal(latency.maxToolVapiWebhookToSpeechGapMs, 541);
+  assert.equal(latency.maxToolVapiSpeechToToolResultBackfillMs, 5000);
+  assert.equal(latency.maxToolVapiWebhookToToolResultGapMs, 5541);
+  assert.equal(latency.dominantLatencyStage, 'tool_vapi_webhook_to_speech_gap');
+  assert.deepEqual(latency.slowestToolTrace, {
+    toolName: 'checkAvailability',
+    toolCallId: 'call_123',
+    roundTripMs: 6000,
+    vapiWebhookLatencyMs: 441,
+    vapiSpeechLatencyMs: 1000,
+    vapiWebhookToSpeechGapMs: 541,
+    vapiSpeechToToolResultBackfillMs: 5000,
+    vapiWebhookToToolResultGapMs: 5541,
+    vapiWebhookSuccess: true,
+    vapiWebhookHasRetries: false
+  });
+});
+
 test('live autoeval report renders decomposed tool latency attribution and enrichment coverage', () => {
   const report = renderSuiteReport({
     suite_run_id: 'staging-vapi-live-autoeval-20260405T120000Z',
@@ -5468,6 +5598,9 @@ test('live autoeval report renders decomposed tool latency attribution and enric
       average_max_endpointing_latency_ms: 1001,
       average_max_tool_round_trip_latency_ms: 21159,
       average_max_tool_vapi_webhook_latency_ms: 441,
+      average_max_tool_vapi_speech_latency_ms: 2283,
+      average_max_tool_vapi_webhook_to_speech_gap_ms: 1542,
+      average_max_tool_vapi_speech_to_tool_result_backfill_ms: 3999,
       average_max_tool_vapi_webhook_to_result_gap_ms: 5541,
       average_max_tool_dispatch_gap_ms: 1041,
       average_max_tool_to_edge_start_gap_ms: 284,
@@ -5503,6 +5636,9 @@ test('live autoeval report renders decomposed tool latency attribution and enric
       total_trace_count: 1,
       unmatched_trace_count: 0,
       transport_entry_count: 1,
+      matched_speech_trace_count: 1,
+      total_speech_trace_count: 1,
+      speech_entry_count: 2,
       warning: null
     },
     edge_latency_enrichment: {
@@ -5531,6 +5667,9 @@ test('live autoeval report renders decomposed tool latency attribution and enric
           maxEndpointingLatencyMs: 1001,
           maxToolRoundTripLatencyMs: 21159,
           maxToolVapiWebhookLatencyMs: 441,
+          maxToolVapiSpeechLatencyMs: 2283,
+          maxToolVapiWebhookToSpeechGapMs: 1542,
+          maxToolVapiSpeechToToolResultBackfillMs: 3999,
           maxToolVapiWebhookToToolResultGapMs: 5541,
           maxToolDispatchGapMs: 1041,
           maxToolToEdgeStartGapMs: 284,
@@ -5546,12 +5685,15 @@ test('live autoeval report renders decomposed tool latency attribution and enric
           maxToolReturnGapMs: 19466,
           maxToolEdgeToToolResultGapMs: 12549,
           maxToolPlatformGapMs: 20507,
-          dominantLatencyStage: 'tool_edge_to_result_gap',
+          dominantLatencyStage: 'tool_vapi_webhook_to_speech_gap',
           slowTurnCount: 0,
           slowestToolTrace: {
             toolName: 'checkAvailability',
             roundTripMs: 21159,
             vapiWebhookLatencyMs: 441,
+            vapiSpeechLatencyMs: 2283,
+            vapiWebhookToSpeechGapMs: 1542,
+            vapiSpeechToToolResultBackfillMs: 3999,
             vapiWebhookToToolResultGapMs: 5541,
             vapiWebhookSuccess: false,
             vapiWebhookHasRetries: false,
@@ -5581,6 +5723,9 @@ test('live autoeval report renders decomposed tool latency attribution and enric
 
   assert.match(report, /Average max tool dispatch gap: 1041ms/);
   assert.match(report, /Average max Vapi webhook request latency: 441ms/);
+  assert.match(report, /Average max tool-to-speech latency: 2283ms/);
+  assert.match(report, /Average max Vapi webhook-to-speech gap: 1542ms/);
+  assert.match(report, /Average max Vapi speech-to-tool-result backfill gap: 3999ms/);
   assert.match(report, /Average max Vapi webhook-to-result gap: 5541ms/);
   assert.match(report, /Average max tool-to-edge start gap: 284ms/);
   assert.match(report, /Average max tool backend workflow latency: 652ms/);
@@ -5592,11 +5737,12 @@ test('live autoeval report renders decomposed tool latency attribution and enric
   assert.match(report, /Average max tool return gap: 19466ms/);
   assert.match(report, /Average max tool platform gap: 20507ms/);
   assert.match(report, /Vapi transport enrichment: matched 1 of 1 tool traces across 1 artifact webhook entries\./);
+  assert.match(report, /Vapi speech enrichment: matched 1 of 1 tool traces across 2 assistant voice events\./);
   assert.match(report, /Edge latency enrichment: matched 1 of 1 tool traces across 1 Caddy access entries\./);
   assert.match(report, /N8N latency enrichment: matched 1 of 1 tool traces across 1 executions\./);
   assert.match(
     report,
-    /Slowest tool trace: checkAvailability round_trip=21159ms, vapi_webhook=441ms, vapi_webhook_to_result=5541ms, dispatch=1041ms, to_edge=284ms, backend=652ms \(external=410ms, internal=242ms\), edge=8326ms \(upstream=649ms, header=187ms\), edge_ingress=757ms, edge_observed=7674ms, edge_egress=6917ms, return=19466ms, edge_to_result=12549ms, platform=20507ms, edge_status=200, vapi_webhook_success=false, vapi_webhook_retries=false, execution=2583/
+    /Slowest tool trace: checkAvailability round_trip=21159ms, vapi_webhook=441ms, tool_speech=2283ms, vapi_webhook_to_speech=1542ms, speech_to_result_backfill=3999ms, vapi_webhook_to_result=5541ms, dispatch=1041ms, to_edge=284ms, backend=652ms \(external=410ms, internal=242ms\), edge=8326ms \(upstream=649ms, header=187ms\), edge_ingress=757ms, edge_observed=7674ms, edge_egress=6917ms, return=19466ms, edge_to_result=12549ms, platform=20507ms, edge_status=200, vapi_webhook_success=false, vapi_webhook_retries=false, execution=2583/
   );
 });
 

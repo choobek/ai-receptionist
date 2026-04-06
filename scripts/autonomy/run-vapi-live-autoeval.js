@@ -19,6 +19,18 @@ const TOOL_DEFINITIONS_PATH = path.join(ROOT_DIR, 'configs', 'vapi', 'tool-defin
 const MODEL_DOMINANT_REVIEW_THRESHOLD_MS = 4000;
 const MODEL_DOMINANT_HIGH_THRESHOLD_MS = 7000;
 const SPEECH_RENDERING_TOOL_NAMES = new Set(['checkAvailability', 'lookupPatient', 'createEvent']);
+const VAPI_TOOL_WAIT_SPEECH_PREFIXES = [
+  'Już sprawdzam dostępne terminy.',
+  'Jeszcze chwila, sprawdzam kalendarz.',
+  'Już sprawdzam informacje.',
+  'Jeszcze chwila, wyszukuję potrzebne informacje.',
+  'Już zapisuję wizytę w kalendarzu.',
+  'Jeszcze moment, finalizuję rezerwację wizyty.',
+  'Już zapisuję prośbę dla recepcji.',
+  'Jeszcze chwila, kończę zapisywać prośbę dla recepcji.',
+  'Jeszcze chwila, kończę przekazywanie sprawy.',
+  'Jeszcze moment, dopinam przekazanie sprawy.'
+];
 const N8N_EVENT_LOG_FILENAMES = ['n8nEventLog.log', 'n8nEventLog-1.log', 'n8nEventLog-2.log', 'n8nEventLog-3.log'];
 const N8N_EXTERNAL_NODE_TYPES = new Set(['n8n-nodes-base.googleCalendar', 'n8n-nodes-base.httpRequest']);
 const TOOL_WORKFLOW_IDS = {
@@ -227,6 +239,30 @@ function normalizeRequestPath(uri) {
   }
 }
 
+function normalizeSpeechCompareText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/ł/g, 'l')
+    .replace(/Ł/g, 'L')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+const NORMALIZED_VAPI_TOOL_WAIT_SPEECH_PREFIXES = VAPI_TOOL_WAIT_SPEECH_PREFIXES.map(normalizeSpeechCompareText);
+
+function isVapiToolWaitSpeech(text) {
+  const normalized = normalizeSpeechCompareText(text);
+  if (!normalized) {
+    return false;
+  }
+  return NORMALIZED_VAPI_TOOL_WAIT_SPEECH_PREFIXES.some(
+    (prefix) => normalized === prefix || normalized.startsWith(`${prefix} `)
+  );
+}
+
 function parseJsonLines(text) {
   const entries = [];
   for (const rawLine of String(text || '').split(/\r?\n/)) {
@@ -261,6 +297,34 @@ async function fetchArtifactLogEntries(logUrl) {
     text = payload.toString('utf8');
   }
   return parseJsonLines(text);
+}
+
+function parseVapiArtifactAssistantSpeechEntries(entries) {
+  return safeArray(entries)
+    .map((entry, index) => {
+      const source = safeObject(entry);
+      if (!source || source.body !== 'Voice input') {
+        return null;
+      }
+      const attributes = safeObject(source.attributes) || {};
+      if (attributes.category !== 'voice') {
+        return null;
+      }
+      const spokenAtMs = toFiniteNumber(source.time);
+      const text = typeof attributes.text === 'string' ? attributes.text.trim() : '';
+      if (spokenAtMs === null || !text) {
+        return null;
+      }
+      return {
+        entryId: `vapi-artifact-voice-${index}`,
+        callId: typeof attributes.callId === 'string' ? attributes.callId : null,
+        spokenAtMs,
+        text,
+        isToolWaitSpeech: isVapiToolWaitSpeech(text)
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.spokenAtMs - right.spokenAtMs);
 }
 
 function extractInitiatedToolCalls(attributes) {
@@ -915,6 +979,30 @@ function buildTraceVapiWebhookMatch(traceRef, entry) {
   };
 }
 
+function buildTraceVapiSpeechMatch(traceRef, entry) {
+  const requestCompletedAtMs = toNumber(traceRef.trace?.vapiWebhookTransport?.requestCompletedAtMs);
+  const spokenAtMs = toNumber(entry?.spokenAtMs);
+  const toolToSpeechMs = spokenAtMs === null
+    ? null
+    : Math.max(spokenAtMs - traceRef.requestedAtMs, 0);
+  const webhookToSpeechGapMs = requestCompletedAtMs === null || spokenAtMs === null
+    ? null
+    : Math.max(spokenAtMs - requestCompletedAtMs, 0);
+  const speechToToolResultBackfillMs = spokenAtMs === null
+    ? null
+    : Math.max(traceRef.completedAtMs - spokenAtMs, 0);
+
+  return {
+    source: 'vapi_artifact_log_voice',
+    spokenResultStartedAtMs: spokenAtMs,
+    speechText: typeof entry?.text === 'string' ? entry.text : null,
+    toolToSpeechMs,
+    webhookToSpeechGapMs,
+    speechToToolResultBackfillMs,
+    matchedUsing: 'first_non_wait_voice_input_after_webhook_completion'
+  };
+}
+
 function matchToolTracesToExecutions(traceRefs, executions) {
   const executionsByWorkflowId = new Map();
   for (const execution of safeArray(executions)) {
@@ -1104,6 +1192,59 @@ function matchToolTracesToVapiWebhookEntries(traceRefs, transportEntries) {
   };
 }
 
+function matchToolTracesToVapiSpeechEntries(traceRefs, speechEntries) {
+  const entriesByCallId = new Map();
+  const normalizedEntries = safeArray(speechEntries)
+    .map((entry) => safeObject(entry))
+    .filter(Boolean);
+
+  for (const entry of normalizedEntries) {
+    if (!entry.callId) {
+      continue;
+    }
+    const current = entriesByCallId.get(entry.callId) || [];
+    current.push(entry);
+    entriesByCallId.set(entry.callId, current);
+  }
+
+  for (const entryList of entriesByCallId.values()) {
+    entryList.sort((left, right) => (left.spokenAtMs || 0) - (right.spokenAtMs || 0));
+  }
+
+  const usedEntryIds = new Set();
+  let matchedTraceCount = 0;
+  let totalTraceCount = 0;
+
+  for (const traceRef of safeArray(traceRefs)) {
+    const requestCompletedAtMs = toNumber(traceRef.trace?.vapiWebhookTransport?.requestCompletedAtMs);
+    const callId = traceRef.suiteRun?.run?.call?.call_id || traceRef.suiteRun?.fullCall?.id || null;
+    if (requestCompletedAtMs === null || !callId) {
+      continue;
+    }
+    totalTraceCount += 1;
+    const candidates = (entriesByCallId.get(callId) || [])
+      .filter((entry) => !usedEntryIds.has(entry.entryId))
+      .filter((entry) => entry.isToolWaitSpeech !== true)
+      .filter((entry) => entry.spokenAtMs >= requestCompletedAtMs && entry.spokenAtMs <= traceRef.completedAtMs)
+      .sort((left, right) => left.spokenAtMs - right.spokenAtMs);
+
+    const matchedEntry = candidates[0] || null;
+    if (!matchedEntry) {
+      continue;
+    }
+
+    traceRef.trace.vapiSpeechLatency = buildTraceVapiSpeechMatch(traceRef, matchedEntry);
+    usedEntryIds.add(matchedEntry.entryId);
+    matchedTraceCount += 1;
+  }
+
+  return {
+    matchedTraceCount,
+    totalTraceCount,
+    speechEntryCount: normalizedEntries.length
+  };
+}
+
 function refreshSuiteRunLatencyDiagnostics(suiteRuns) {
   for (const suiteRun of safeArray(suiteRuns)) {
     suiteRun.run.call.latency_diagnostics = deriveLatencyDiagnostics(suiteRun.fullCall, suiteRun.run.tool_trace);
@@ -1123,6 +1264,7 @@ async function enrichSuiteRunsWithVapiWebhookTransport(suiteRuns) {
   }
 
   const transportEntries = [];
+  const speechEntries = [];
   const warnings = [];
 
   for (const suiteRun of safeArray(suiteRuns)) {
@@ -1133,6 +1275,7 @@ async function enrichSuiteRunsWithVapiWebhookTransport(suiteRuns) {
     try {
       const rawEntries = await fetchArtifactLogEntries(logUrl);
       transportEntries.push(...parseVapiArtifactWebhookEntries(rawEntries));
+      speechEntries.push(...parseVapiArtifactAssistantSpeechEntries(rawEntries));
     } catch (error) {
       warnings.push(
         `${suiteRun?.run?.call?.call_id || 'unknown'}: ${error instanceof Error ? error.message : String(error)}`
@@ -1141,12 +1284,16 @@ async function enrichSuiteRunsWithVapiWebhookTransport(suiteRuns) {
   }
 
   const matchSummary = matchToolTracesToVapiWebhookEntries(traceRefs, transportEntries);
+  const speechMatchSummary = matchToolTracesToVapiSpeechEntries(traceRefs, speechEntries);
   return {
     enabled: true,
     source: 'vapi_artifact_log',
     matchedTraceCount: matchSummary.matchedTraceCount,
     totalTraceCount: matchSummary.totalTraceCount,
     transportEntryCount: matchSummary.transportEntryCount,
+    matchedSpeechTraceCount: speechMatchSummary.matchedTraceCount,
+    totalSpeechTraceCount: speechMatchSummary.totalTraceCount,
+    speechEntryCount: speechMatchSummary.speechEntryCount,
     ...(warnings.length > 0 ? { warning: warnings.join(' | ') } : {})
   };
 }
@@ -1758,6 +1905,9 @@ function summarizeSuite({
   const maxEndpointingLatencies = [];
   const maxToolRoundTripLatencies = [];
   const maxToolVapiWebhookLatencies = [];
+  const maxToolVapiSpeechLatencies = [];
+  const maxToolVapiWebhookToSpeechGaps = [];
+  const maxToolVapiSpeechToToolResultBackfillGaps = [];
   const maxToolVapiWebhookToResultGaps = [];
   const maxToolBackendWorkflowLatencies = [];
   const maxToolBackendExternalLatencies = [];
@@ -1827,6 +1977,15 @@ function summarizeSuite({
     if (typeof latency?.maxToolVapiWebhookLatencyMs === 'number') {
       maxToolVapiWebhookLatencies.push(latency.maxToolVapiWebhookLatencyMs);
     }
+    if (typeof latency?.maxToolVapiSpeechLatencyMs === 'number') {
+      maxToolVapiSpeechLatencies.push(latency.maxToolVapiSpeechLatencyMs);
+    }
+    if (typeof latency?.maxToolVapiWebhookToSpeechGapMs === 'number') {
+      maxToolVapiWebhookToSpeechGaps.push(latency.maxToolVapiWebhookToSpeechGapMs);
+    }
+    if (typeof latency?.maxToolVapiSpeechToToolResultBackfillMs === 'number') {
+      maxToolVapiSpeechToToolResultBackfillGaps.push(latency.maxToolVapiSpeechToToolResultBackfillMs);
+    }
     if (typeof latency?.maxToolVapiWebhookToToolResultGapMs === 'number') {
       maxToolVapiWebhookToResultGaps.push(latency.maxToolVapiWebhookToToolResultGapMs);
     }
@@ -1892,6 +2051,9 @@ function summarizeSuite({
       average_max_endpointing_latency_ms: roundMaybe(average(maxEndpointingLatencies)),
       average_max_tool_round_trip_latency_ms: roundMaybe(average(maxToolRoundTripLatencies)),
       average_max_tool_vapi_webhook_latency_ms: roundMaybe(average(maxToolVapiWebhookLatencies)),
+      average_max_tool_vapi_speech_latency_ms: roundMaybe(average(maxToolVapiSpeechLatencies)),
+      average_max_tool_vapi_webhook_to_speech_gap_ms: roundMaybe(average(maxToolVapiWebhookToSpeechGaps)),
+      average_max_tool_vapi_speech_to_tool_result_backfill_ms: roundMaybe(average(maxToolVapiSpeechToToolResultBackfillGaps)),
       average_max_tool_vapi_webhook_to_result_gap_ms: roundMaybe(average(maxToolVapiWebhookToResultGaps)),
       average_max_tool_backend_workflow_latency_ms: roundMaybe(average(maxToolBackendWorkflowLatencies)),
       average_max_tool_backend_external_latency_ms: roundMaybe(average(maxToolBackendExternalLatencies)),
@@ -1951,6 +2113,15 @@ function summarizeSuite({
       ),
       transport_entry_count: typeof vapiTransportEnrichment?.transportEntryCount === 'number'
         ? vapiTransportEnrichment.transportEntryCount
+        : 0,
+      matched_speech_trace_count: typeof vapiTransportEnrichment?.matchedSpeechTraceCount === 'number'
+        ? vapiTransportEnrichment.matchedSpeechTraceCount
+        : 0,
+      total_speech_trace_count: typeof vapiTransportEnrichment?.totalSpeechTraceCount === 'number'
+        ? vapiTransportEnrichment.totalSpeechTraceCount
+        : 0,
+      speech_entry_count: typeof vapiTransportEnrichment?.speechEntryCount === 'number'
+        ? vapiTransportEnrichment.speechEntryCount
         : 0,
       warning: typeof vapiTransportEnrichment?.warning === 'string' ? vapiTransportEnrichment.warning : null
     },
@@ -2042,6 +2213,9 @@ function renderSuiteReport(summary) {
     || typeof latencySummary.average_max_endpointing_latency_ms === 'number'
     || typeof latencySummary.average_max_tool_round_trip_latency_ms === 'number'
     || typeof latencySummary.average_max_tool_vapi_webhook_latency_ms === 'number'
+    || typeof latencySummary.average_max_tool_vapi_speech_latency_ms === 'number'
+    || typeof latencySummary.average_max_tool_vapi_webhook_to_speech_gap_ms === 'number'
+    || typeof latencySummary.average_max_tool_vapi_speech_to_tool_result_backfill_ms === 'number'
     || typeof latencySummary.average_max_tool_vapi_webhook_to_result_gap_ms === 'number'
     || typeof latencySummary.average_max_tool_backend_workflow_latency_ms === 'number'
     || typeof latencySummary.average_max_tool_backend_external_latency_ms === 'number'
@@ -2084,8 +2258,19 @@ function renderSuiteReport(summary) {
     if (typeof latencySummary.average_max_tool_vapi_webhook_latency_ms === 'number') {
       lines.push(`- Average max Vapi webhook request latency: ${latencySummary.average_max_tool_vapi_webhook_latency_ms}ms`);
     }
+    if (typeof latencySummary.average_max_tool_vapi_speech_latency_ms === 'number') {
+      lines.push(`- Average max tool-to-speech latency: ${latencySummary.average_max_tool_vapi_speech_latency_ms}ms`);
+    }
+    if (typeof latencySummary.average_max_tool_vapi_webhook_to_speech_gap_ms === 'number') {
+      lines.push(`- Average max Vapi webhook-to-speech gap: ${latencySummary.average_max_tool_vapi_webhook_to_speech_gap_ms}ms`);
+      lines.push('- Webhook-to-speech gap tracks the first non-wait assistant speech after the webhook returned, which is closer to caller-perceived latency than delayed tool-result bookkeeping.');
+    }
+    if (typeof latencySummary.average_max_tool_vapi_speech_to_tool_result_backfill_ms === 'number') {
+      lines.push(`- Average max Vapi speech-to-tool-result backfill gap: ${latencySummary.average_max_tool_vapi_speech_to_tool_result_backfill_ms}ms`);
+    }
     if (typeof latencySummary.average_max_tool_vapi_webhook_to_result_gap_ms === 'number') {
       lines.push(`- Average max Vapi webhook-to-result gap: ${latencySummary.average_max_tool_vapi_webhook_to_result_gap_ms}ms`);
+      lines.push('- Webhook-to-result gap can stay high even after the caller already heard the answer because Vapi often backfills tool-result bookkeeping later.');
     }
     if (typeof latencySummary.average_max_tool_dispatch_gap_ms === 'number') {
       lines.push(`- Average max tool dispatch gap: ${latencySummary.average_max_tool_dispatch_gap_ms}ms`);
@@ -2148,6 +2333,11 @@ function renderSuiteReport(summary) {
         lines.push(
           `- Vapi transport enrichment: matched ${vapiTransportEnrichment.matched_trace_count || 0} of ${vapiTransportEnrichment.total_trace_count} tool traces across ${vapiTransportEnrichment.transport_entry_count || 0} artifact webhook entries.`
         );
+        if (vapiTransportEnrichment.total_speech_trace_count > 0) {
+          lines.push(
+            `- Vapi speech enrichment: matched ${vapiTransportEnrichment.matched_speech_trace_count || 0} of ${vapiTransportEnrichment.total_speech_trace_count} tool traces across ${vapiTransportEnrichment.speech_entry_count || 0} assistant voice events.`
+          );
+        }
       } else {
         lines.push('- Vapi transport enrichment: no completed tool traces required matching.');
       }
@@ -2229,6 +2419,15 @@ function renderSuiteReport(summary) {
         if (typeof latency.maxToolVapiWebhookLatencyMs === 'number') {
           latencyParts.push(`vapi_webhook=${latency.maxToolVapiWebhookLatencyMs}ms`);
         }
+        if (typeof latency.maxToolVapiSpeechLatencyMs === 'number') {
+          latencyParts.push(`tool_speech=${latency.maxToolVapiSpeechLatencyMs}ms`);
+        }
+        if (typeof latency.maxToolVapiWebhookToSpeechGapMs === 'number') {
+          latencyParts.push(`vapi_webhook_to_speech=${latency.maxToolVapiWebhookToSpeechGapMs}ms`);
+        }
+        if (typeof latency.maxToolVapiSpeechToToolResultBackfillMs === 'number') {
+          latencyParts.push(`speech_to_result_backfill=${latency.maxToolVapiSpeechToToolResultBackfillMs}ms`);
+        }
         if (typeof latency.maxToolVapiWebhookToToolResultGapMs === 'number') {
           latencyParts.push(`vapi_webhook_to_result=${latency.maxToolVapiWebhookToToolResultGapMs}ms`);
         }
@@ -2288,6 +2487,15 @@ function renderSuiteReport(summary) {
           }
           if (typeof slowestToolTrace.vapiWebhookLatencyMs === 'number') {
             detailParts.push(`vapi_webhook=${slowestToolTrace.vapiWebhookLatencyMs}ms`);
+          }
+          if (typeof slowestToolTrace.vapiSpeechLatencyMs === 'number') {
+            detailParts.push(`tool_speech=${slowestToolTrace.vapiSpeechLatencyMs}ms`);
+          }
+          if (typeof slowestToolTrace.vapiWebhookToSpeechGapMs === 'number') {
+            detailParts.push(`vapi_webhook_to_speech=${slowestToolTrace.vapiWebhookToSpeechGapMs}ms`);
+          }
+          if (typeof slowestToolTrace.vapiSpeechToToolResultBackfillMs === 'number') {
+            detailParts.push(`speech_to_result_backfill=${slowestToolTrace.vapiSpeechToToolResultBackfillMs}ms`);
           }
           if (typeof slowestToolTrace.vapiWebhookToToolResultGapMs === 'number') {
             detailParts.push(`vapi_webhook_to_result=${slowestToolTrace.vapiWebhookToToolResultGapMs}ms`);
@@ -2528,9 +2736,11 @@ module.exports = {
   enrichSuiteRunsWithVapiWebhookTransport,
   enrichSuiteRunsWithCaddyEdgeLatency,
   enrichSuiteRunsWithN8nLatency,
+  matchToolTracesToVapiSpeechEntries,
   matchToolTracesToVapiWebhookEntries,
   matchToolTracesToCaddyEntries,
   matchToolTracesToExecutions,
+  parseVapiArtifactAssistantSpeechEntries,
   parseVapiArtifactWebhookEntries,
   parseCaddyAccessLogBundle,
   parseN8nEventLogBundle,

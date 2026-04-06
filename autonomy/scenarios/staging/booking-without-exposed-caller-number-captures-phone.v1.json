@@ -64,8 +64,10 @@
         "turn": 4,
         "contains_any": [
           "prosze podac numer telefonu",
+          "podanie numeru telefonu",
           "prosze o podanie numeru telefonu",
           "prosze o numer telefonu",
+          "numeru telefonu do kontaktu",
           "prosze o podanie numeru telefonu do kontaktu",
           "poprosze o numer telefonu",
           "prosze jeszcze o numer telefonu kontaktowego",

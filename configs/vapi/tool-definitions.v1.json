@@ -41,7 +41,7 @@
         {
           "type": "request-response-delayed",
           "content": "Jeszcze chwila, sprawdzam kalendarz.",
-          "timingMilliseconds": 1800
+          "timingMilliseconds": 3000
         },
         {
           "type": "request-failed",
@@ -89,7 +89,7 @@
         {
           "type": "request-response-delayed",
           "content": "Jeszcze moment, finalizuję rezerwację wizyty.",
-          "timingMilliseconds": 1800
+          "timingMilliseconds": 3000
         },
         {
           "type": "request-failed",

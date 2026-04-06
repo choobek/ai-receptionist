@@ -3,7 +3,7 @@
   "key": "earlyGenderAddressingMasculine",
   "rank": 21,
   "name": "Early Gender Addressing (Masculine)",
-  "description": "When the caller reveals masculine first-person forms early, the assistant should switch from neutral phrasing to masculine-directed polite forms from the next turn.",
+  "description": "When the caller reveals masculine first-person forms early, the assistant should switch from neutral phrasing to natural masculine-aligned polite wording from the next turn without falling back to misgendering or a rigid formula.",
   "type": "chat.mockConversation",
   "messages": [
     {
@@ -20,7 +20,7 @@
           "messages": [
             {
               "role": "system",
-              "content": "PASS if the assistant (1) treats the caller's masculine form as already revealed on this first turn, (2) uses at least one masculine-directed polite form in Polish such as 'pan', 'panu', 'pana', 'dla pana', or an equivalent masculine address in its very next reply, and (3) does not misgender the caller as female. A neutral fallback without any masculine-directed wording is a fail. Output exactly: pass or fail."
+              "content": "PASS if the assistant (1) treats the caller's masculine form as already revealed on this first turn, (2) makes its very next reply clearly masculine-aligned toward the caller with at least one natural polite cue in Polish such as 'pan', 'panu', 'pana', 'dla pana', or an equivalent phrase like 'czy potwierdza pan', and (3) does not address the caller with female-directed wording. A single natural cue is sufficient; do not require repeated or formulaic 'prosze pana'. Do not treat the assistant's own feminine self-reference as caller misgendering when the reply already contains an explicit masculine cue toward the caller. A neutral fallback without any caller-directed masculine cue is a fail. Output exactly: pass or fail."
             }
           ]
         }

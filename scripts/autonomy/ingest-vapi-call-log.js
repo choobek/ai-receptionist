@@ -1191,12 +1191,16 @@ function deriveLatencyDiagnostics(record, toolTrace) {
       const n8nLatency = safeObject(trace?.n8nLatency);
       const edgeLatency = safeObject(trace?.edgeLatency);
       const vapiWebhookTransport = safeObject(trace?.vapiWebhookTransport);
+      const vapiSpeechLatency = safeObject(trace?.vapiSpeechLatency);
       const vapiWebhookCompletedAtMs = toNumber(vapiWebhookTransport?.requestCompletedAtMs);
       return {
         toolName: typeof trace?.tool_name === 'string' ? trace.tool_name : null,
         toolCallId: typeof trace?.tool_call_id === 'string' ? trace.tool_call_id : null,
         roundTripMs,
         vapiWebhookLatencyMs: toNumber(vapiWebhookTransport?.requestLatencyMs),
+        vapiSpeechLatencyMs: toNumber(vapiSpeechLatency?.toolToSpeechMs),
+        vapiWebhookToSpeechGapMs: toNumber(vapiSpeechLatency?.webhookToSpeechGapMs),
+        vapiSpeechToToolResultBackfillMs: toNumber(vapiSpeechLatency?.speechToToolResultBackfillMs),
         vapiWebhookToToolResultGapMs: vapiWebhookCompletedAtMs === null || completedAt === null
           ? null
           : Math.max(completedAt - vapiWebhookCompletedAtMs, 0),
@@ -1232,6 +1236,9 @@ function deriveLatencyDiagnostics(record, toolTrace) {
     .filter((detail) => detail.roundTripMs !== null);
   const maxToolRoundTripLatencyMs = maxLatencyValue(toolLatencyDetails, 'roundTripMs');
   const maxToolVapiWebhookLatencyMs = maxLatencyValue(toolLatencyDetails, 'vapiWebhookLatencyMs');
+  const maxToolVapiSpeechLatencyMs = maxLatencyValue(toolLatencyDetails, 'vapiSpeechLatencyMs');
+  const maxToolVapiWebhookToSpeechGapMs = maxLatencyValue(toolLatencyDetails, 'vapiWebhookToSpeechGapMs');
+  const maxToolVapiSpeechToToolResultBackfillMs = maxLatencyValue(toolLatencyDetails, 'vapiSpeechToToolResultBackfillMs');
   const maxToolVapiWebhookToToolResultGapMs = maxLatencyValue(toolLatencyDetails, 'vapiWebhookToToolResultGapMs');
   const maxToolBackendWorkflowLatencyMs = maxLatencyValue(toolLatencyDetails, 'backendWorkflowLatencyMs');
   const maxToolBackendExternalLatencyMs = maxLatencyValue(toolLatencyDetails, 'backendExternalLatencyMs');
@@ -1250,14 +1257,18 @@ function deriveLatencyDiagnostics(record, toolTrace) {
   const slowestToolTrace = toolLatencyDetails
     .slice()
     .sort((left, right) => {
-      const byRoundTrip = (right.roundTripMs || 0) - (left.roundTripMs || 0);
-      if (byRoundTrip !== 0) {
-        return byRoundTrip;
+      const leftUserFacing = left.vapiSpeechLatencyMs ?? left.roundTripMs ?? 0;
+      const rightUserFacing = right.vapiSpeechLatencyMs ?? right.roundTripMs ?? 0;
+      const byUserFacing = rightUserFacing - leftUserFacing;
+      if (byUserFacing !== 0) {
+        return byUserFacing;
       }
       return String(left.toolName || '').localeCompare(String(right.toolName || ''));
     })[0] || null;
   const hasDecomposedToolLatency =
     maxToolVapiWebhookLatencyMs !== null
+    || maxToolVapiSpeechLatencyMs !== null
+    || maxToolVapiWebhookToSpeechGapMs !== null
     || maxToolVapiWebhookToToolResultGapMs !== null
     || maxToolBackendWorkflowLatencyMs !== null
     || maxToolDispatchGapMs !== null
@@ -1270,14 +1281,22 @@ function deriveLatencyDiagnostics(record, toolTrace) {
     maxToolToEdgeStartGapMs !== null
     || maxToolEdgeToToolResultGapMs !== null
     || maxToolEdgeObservedGapMs !== null;
+  const hasUserPerceivedSpeechLatency =
+    maxToolVapiSpeechLatencyMs !== null
+    || maxToolVapiWebhookToSpeechGapMs !== null;
   const dominantCandidates = [
     { stage: 'model', value: maxModelLatencyMs, priority: 4 },
-    { stage: 'tool_vapi_webhook_to_result_gap', value: maxToolVapiWebhookToToolResultGapMs, priority: 7 },
+    { stage: 'tool_vapi_webhook_to_speech_gap', value: maxToolVapiWebhookToSpeechGapMs, priority: 8 },
     { stage: 'tool_vapi_webhook_request', value: maxToolVapiWebhookLatencyMs, priority: 6 },
-    { stage: 'tool_edge_to_result_gap', value: maxToolEdgeToToolResultGapMs, priority: 6 },
+    ...(hasUserPerceivedSpeechLatency
+      ? []
+      : [{ stage: 'tool_vapi_webhook_to_result_gap', value: maxToolVapiWebhookToToolResultGapMs, priority: 7 }]),
+    ...(hasUserPerceivedSpeechLatency
+      ? []
+      : [{ stage: 'tool_edge_to_result_gap', value: maxToolEdgeToToolResultGapMs, priority: 6 }]),
     { stage: 'tool_to_edge_start_gap', value: maxToolToEdgeStartGapMs, priority: 5 },
     { stage: 'tool_edge_observed_gap', value: maxToolEdgeObservedGapMs, priority: 4 },
-    ...(hasEdgeDecomposedToolLatency
+    ...(hasEdgeDecomposedToolLatency || hasUserPerceivedSpeechLatency
       ? []
       : [{ stage: 'tool_platform_gap', value: maxToolPlatformGapMs, priority: 3 }]),
     { stage: 'tool_backend_workflow', value: maxToolBackendWorkflowLatencyMs, priority: 2 },
@@ -1301,6 +1320,9 @@ function deriveLatencyDiagnostics(record, toolTrace) {
     maxEndpointingLatencyMs,
     maxToolRoundTripLatencyMs,
     ...(maxToolVapiWebhookLatencyMs !== null ? { maxToolVapiWebhookLatencyMs } : {}),
+    ...(maxToolVapiSpeechLatencyMs !== null ? { maxToolVapiSpeechLatencyMs } : {}),
+    ...(maxToolVapiWebhookToSpeechGapMs !== null ? { maxToolVapiWebhookToSpeechGapMs } : {}),
+    ...(maxToolVapiSpeechToToolResultBackfillMs !== null ? { maxToolVapiSpeechToToolResultBackfillMs } : {}),
     ...(maxToolVapiWebhookToToolResultGapMs !== null ? { maxToolVapiWebhookToToolResultGapMs } : {}),
     ...(maxToolBackendWorkflowLatencyMs !== null ? { maxToolBackendWorkflowLatencyMs } : {}),
     ...(maxToolBackendExternalLatencyMs !== null ? { maxToolBackendExternalLatencyMs } : {}),
@@ -1327,6 +1349,15 @@ function deriveLatencyDiagnostics(record, toolTrace) {
             roundTripMs: slowestToolTrace.roundTripMs,
             ...(slowestToolTrace.vapiWebhookLatencyMs !== null
               ? { vapiWebhookLatencyMs: slowestToolTrace.vapiWebhookLatencyMs }
+              : {}),
+            ...(slowestToolTrace.vapiSpeechLatencyMs !== null
+              ? { vapiSpeechLatencyMs: slowestToolTrace.vapiSpeechLatencyMs }
+              : {}),
+            ...(slowestToolTrace.vapiWebhookToSpeechGapMs !== null
+              ? { vapiWebhookToSpeechGapMs: slowestToolTrace.vapiWebhookToSpeechGapMs }
+              : {}),
+            ...(slowestToolTrace.vapiSpeechToToolResultBackfillMs !== null
+              ? { vapiSpeechToToolResultBackfillMs: slowestToolTrace.vapiSpeechToToolResultBackfillMs }
               : {}),
             ...(slowestToolTrace.vapiWebhookToToolResultGapMs !== null
               ? { vapiWebhookToToolResultGapMs: slowestToolTrace.vapiWebhookToToolResultGapMs }
