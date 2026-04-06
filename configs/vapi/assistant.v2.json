@@ -29,6 +29,10 @@
         },
         {
           "role": "system",
+          "content": "METADANE POLACZENIA: customer.number={{customer.number}}. Jesli po znaku '=' widzisz numer E.164, to jest biezacy numer dzwoniacego. Jesli pole jest puste, numer dzwoniacego nie jest jawnie dostepny."
+        },
+        {
+          "role": "system",
           "content": "KRYTYCZNE: Gdy pacjent wybierze konkretny termin z wynikow checkAvailability, w createEvent przekaz identyczne slotStart i slotEnd z wybranego slotu. Nie obliczaj slotEnd samodzielnie i nie podstawiaj domyslnej dlugosci uslugi. KRYTYCZNE: Jesli checkAvailability zwraca slot.spokenLabel, slot.spokenTime albo slot.spokenDate, mow dokladnie te pola. Nie czytaj cyfr ze start/end ani z label. Przed wypowiedzia z data, godzina lub numerem upewnij sie, ze nie ma cyfr 0-9 ani urwanego startu typu \"Wtorek, sroda\" albo \"Siedem\". Jesli rozmowca prosi o najblizszy albo pierwszy wolny termin i brakuje tylko informacji, czy to pierwsza wizyta, zadaj wylacznie to pytanie. Po odpowiedzi \"tak\" od razu checkAvailability z consultation i first_available. Nie pytaj wtedy o dzien, godzine ani problem. Jesli rozmowca poprawia wybor w tej samej wypowiedzi, wypowiedz tylko finalna wersje. lookupPatient uzyj tylko, gdy numer jest niepelny, sprzeczny albo nadal wymaga normalizacji po doprecyzowaniu. Nie odpowiadaj samym \"Dziekuje. W czym moge pomoc?\". W sciezce createReceptionTask z danymi mozesz pominac osobna ture potwierdzenia."
         }
       ]

@@ -2755,6 +2755,7 @@ test('searchKnowledgeBase matches standalone bonding overview questions', () => 
   assert.equal(searchResult.found, true);
   assert.equal(searchResult.matches[0].id, 'kb_bonding_overview');
   assert.match(searchResult.answer, /Bonding|kompozyt/i);
+  assert.match(searchResult.answer, /W klinice|estetyczna odbudowa|estetyke usmiechu/i);
   assert.match(searchResult.answer, /licowki|trwal/i);
 });
 
@@ -3385,6 +3386,7 @@ test('assistant prompt keeps phone-collection logic as plain text without unreso
   const normalizedPrompt = normalizeSearchText(systemPrompts);
 
   assert.equal(/\{%/.test(systemPrompts), false);
+  assert.match(systemPrompts, /customer\.number=\{\{\s*customer\.number\s*\}\}/);
   assert.match(normalizedPrompt, /jawnie widzisz konkretny numer dzwoniacego w formacie E\.164/i);
   assert.match(normalizedPrompt, /odczytaj biezacy numer polaczenia w formie glosowej/i);
   assert.match(normalizedPrompt, /czy mam uzyc go jako numeru kontaktowego/i);
@@ -4030,6 +4032,10 @@ assistantInvariantTest('booking without an exposed caller number asks for the sp
 
 assistantInvariantTest('assistant prompt keeps exposed caller-number confirmation explicit', () => {
   const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt());
+  const systemMessages = (loadAssistantConfig().assistant?.model?.messages || [])
+    .filter((message) => message.role === 'system' && typeof message.content === 'string')
+    .map((message) => message.content)
+    .join('\n');
 
   assert.match(
     normalizedPrompt,
@@ -4047,6 +4053,38 @@ assistantInvariantTest('assistant prompt keeps exposed caller-number confirmatio
     normalizedPrompt,
     /nie zastepuj tego pytania samym "Czy wszystko sie zgadza\?"/i
   );
+  assert.match(systemMessages, /customer\.number=\{\{\s*customer\.number\s*\}\}/);
+});
+
+assistantInvariantTest('rendered staging and production assistant configs preserve the caller-number runtime hint', () => {
+  for (const [environment, envOverrides] of [
+    [
+      'staging',
+      {
+        STAGING_N8N_PUBLIC_BASE_URL: 'https://staging.example.test',
+        STAGING_AI_RECEPTIONIST_WEBHOOK_SECRET: 'staging-secret'
+      }
+    ],
+    [
+      'production',
+      {
+        PRODUCTION_N8N_PUBLIC_BASE_URL: 'https://production.example.test',
+        PRODUCTION_AI_RECEPTIONIST_WEBHOOK_SECRET: 'prod-secret'
+      }
+    ]
+  ]) {
+    const rendered = renderAssistantConfig(environment, envOverrides);
+    const renderedMessages = (rendered.assistant?.model?.messages || [])
+      .filter((message) => message.role === 'system' && typeof message.content === 'string')
+      .map((message) => message.content)
+      .join('\n');
+
+    assert.match(
+      renderedMessages,
+      /customer\.number=\{\{\s*customer\.number\s*\}\}/,
+      `${environment} rendered config is missing the caller-number runtime hint`
+    );
+  }
 });
 
 assistantInvariantTest('bonding overview staging scenario stays in the knowledge-base branch', () => {
@@ -4065,9 +4103,9 @@ assistantInvariantTest('bonding overview staging scenario stays in the knowledge
     equals: true
   });
   assert.deepEqual(getScenarioCriterion(scenario, 'assistant-answer-mentioned-bonding').rule, {
-    type: 'turn_assistant_text_contains_any',
+    type: 'turn_assistant_text_contains_all',
     turn: 1,
-    contains_any: ['bonding', 'kompozyt', 'estety']
+    contains_all: ['bonding', 'w klinice']
   });
   assert.deepEqual(getScenarioCriterion(scenario, 'no-availability-check').rule, {
     type: 'tool_not_called',

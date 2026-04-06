@@ -56,17 +56,16 @@
     },
     {
       "criterion_id": "assistant-answer-mentioned-bonding",
-      "description": "The assistant reply should mention bonding or composite-based aesthetic restoration clearly.",
+      "description": "The assistant reply should frame bonding as part of the clinic offer, not only as a generic definition.",
       "required": false,
       "severity": "medium",
-      "root_cause_hint": "assistant failed to surface the bonding result clearly",
+      "root_cause_hint": "bonding knowledge content drifted back to a generic explanation instead of clinic-offer framing",
       "rule": {
-        "type": "turn_assistant_text_contains_any",
+        "type": "turn_assistant_text_contains_all",
         "turn": 1,
-        "contains_any": [
+        "contains_all": [
           "bonding",
-          "kompozyt",
-          "estety"
+          "w klinice"
         ]
       }
     },
