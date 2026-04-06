@@ -1072,6 +1072,57 @@ test('checkAvailability keeps a specific-day first_available search bounded whil
   );
 });
 
+test('checkAvailability speaks the resolved open-day date when an explicit first_available request lands on a closed day', () => {
+  const parseResult = runParse(
+    'tool_check-availability.json',
+    'Parse Request',
+    {
+      service: { id: 'consultation' },
+      patient: { isExistingPatient: false },
+      requestedDate: '2026-03-21',
+      timePreference: 'first_available',
+      timezone: 'Europe/Warsaw'
+    },
+    defaultEnv
+  );
+  assert.equal(parseResult.ok, true);
+  assert.equal(parseResult.requestedDate, '2026-03-21');
+  assert.equal(parseResult.requestedDateWasExplicit, true);
+  assert.equal(parseResult.searchPlans?.length, 1);
+  assert.equal(parseResult.searchPlans?.[0]?.stage, 'primary');
+  assert.equal(parseResult.searchPlans?.[0]?.requestedDate, '2026-03-21');
+  assert.equal(parseResult.searchPlans?.[0]?.windowStart.slice(0, 10), '2026-03-23');
+
+  const result = runCodeNode(
+    'tool_check-availability.json',
+    'Build Slots',
+    { 'Parse Request': parseResult },
+    [],
+    defaultEnv
+  );
+
+  assert.equal(result.available, true);
+  assert.equal(result.requestedRangeAvailable, true);
+  assert.equal(result.normalizedRequest?.requestedDate, '2026-03-21');
+  assert.equal(result.resolvedSearch, undefined);
+  assert.deepEqual(
+    result.slots.map((slot) => slot.start),
+    [
+      '2026-03-23T09:00:00+01:00',
+      '2026-03-23T09:15:00+01:00',
+      '2026-03-23T09:30:00+01:00'
+    ]
+  );
+  assert.match(
+    normalizeSearchText(result.message),
+    /na poniedzialek, dwudziestego trzeciego marca/i
+  );
+  assert.doesNotMatch(
+    normalizeSearchText(result.message),
+    /na sobote, dwudziestego pierwszego marca/i
+  );
+});
+
 test('checkAvailability preserves calendar provider failures as structured unavailable results', () => {
   const parseResult = {
     requestId: 'req_calendar_provider_error',
