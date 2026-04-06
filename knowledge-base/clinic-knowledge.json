@@ -463,6 +463,48 @@
     "answerEn": "Prosthetic dentistry includes crowns, bridges, dentures, veneers, and implant-supported restorations. The right option depends on the number of missing teeth, the condition of the teeth, the aesthetic goals, and the overall treatment plan."
   },
   {
+    "id": "kb_bonding_overview",
+    "title": "Bonding zebow",
+    "category": "prosthetics_and_aesthetics",
+    "sourceDocument": "protetyka/",
+    "tags": [
+      "bonding",
+      "bondingu",
+      "bondingiem",
+      "bonding zebow",
+      "estetyczna odbudowa",
+      "kompozyt",
+      "na czym polega bonding",
+      "co to jest bonding",
+      "czy robicie bonding"
+    ],
+    "queryExamples": [
+      "Na czym polega bonding?",
+      "Co to jest bonding zebow?",
+      "Jak wyglada bonding?",
+      "Czy robicie bonding?",
+      "Czy mozna poprawic estetyke zebow bondingiem?",
+      "Bonding zebow - jak to dziala?"
+    ],
+    "answerPl": "Bonding polega na modelowaniu zeba kompozytem bezposrednio na zebie, zeby poprawic jego ksztalt albo estetyke. To mniej inwazyjna i szybsza metoda niz licowki, ale zwykle jest mniej trwala i bardziej podatna na przebarwienia oraz scieranie.",
+    "titleEn": "Dental bonding",
+    "tagsEn": [
+      "bonding",
+      "dental bonding",
+      "composite",
+      "aesthetic restoration",
+      "how bonding works",
+      "do you offer bonding"
+    ],
+    "queryExamplesEn": [
+      "How does dental bonding work?",
+      "What is bonding?",
+      "Do you offer dental bonding?",
+      "How is bonding done?"
+    ],
+    "answerEn": "Bonding means shaping the tooth directly with composite material to improve its shape or aesthetics. It is less invasive and faster than veneers, but it is usually less durable and more prone to discoloration and wear."
+  },
+  {
     "id": "kb_veneers_vs_bonding",
     "title": "Licowki a bonding",
     "category": "prosthetics_and_aesthetics",

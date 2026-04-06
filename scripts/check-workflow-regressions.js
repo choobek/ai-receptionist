@@ -2736,6 +2736,28 @@ test('searchKnowledgeBase matches long veneers-versus-bonding questions with dur
   assert.match(searchResult.answer, /trwaly|przebarwienia|kompozyt/i);
 });
 
+test('searchKnowledgeBase matches standalone bonding overview questions', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Na czym polega bonding zebow?',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.equal(searchResult.matches[0].id, 'kb_bonding_overview');
+  assert.match(searchResult.answer, /Bonding|kompozyt/i);
+  assert.match(searchResult.answer, /licowki|trwal/i);
+});
+
 test('searchKnowledgeBase matches the assistant paraphrase for veneers versus bonding', () => {
   const workflow = loadWorkflow('tool_search-knowledge-base.json');
   const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
@@ -3364,12 +3386,16 @@ test('assistant prompt keeps phone-collection logic as plain text without unreso
 
   assert.equal(/\{%/.test(systemPrompts), false);
   assert.match(normalizedPrompt, /jawnie widzisz konkretny numer dzwoniacego w formacie E\.164/i);
+  assert.match(normalizedPrompt, /odczytaj biezacy numer polaczenia w formie glosowej/i);
+  assert.match(normalizedPrompt, /czy mam uzyc go jako numeru kontaktowego/i);
+  assert.match(normalizedPrompt, /nie pros wtedy o podanie numeru od nowa/i);
   assert.match(normalizedPrompt, /Popros po prostu o numer telefonu/i);
   assert.match(
     normalizedPrompt,
     /po numerze powtorz go i pytaj tylko: "Czy wszystko sie zgadza\?" \/? "Is that correct\?"/i
   );
   assert.match(normalizedPrompt, /przy samych danych najpierw potwierdz numer.*"W czym moge pomoc\?"/i);
+  assert.doesNotMatch(normalizedPrompt, /nie czytaj go na glos/i);
 });
 
 assistantInvariantTest('assistant prompt keeps the urgent first-available override explicit', () => {
@@ -3999,6 +4025,61 @@ assistantInvariantTest('booking without an exposed caller number asks for the sp
     type: 'turn_tool_not_called',
     turn: 4,
     tool_name: 'createEvent'
+  });
+});
+
+assistantInvariantTest('assistant prompt keeps exposed caller-number confirmation explicit', () => {
+  const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt());
+
+  assert.match(
+    normalizedPrompt,
+    /odczytaj biezacy numer polaczenia w formie glosowej/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /czy mam uzyc go jako numeru kontaktowego/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /nie pros wtedy o podanie numeru od nowa/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /nie zastepuj tego pytania samym "Czy wszystko sie zgadza\?"/i
+  );
+});
+
+assistantInvariantTest('bonding overview staging scenario stays in the knowledge-base branch', () => {
+  const scenario = loadStagingScenario('bonding-overview-kb-question.v1.json');
+
+  assert.deepEqual(getScenarioCriterion(scenario, 'kb-tool-called').rule, {
+    type: 'turn_tool_called',
+    turn: 1,
+    tool_name: 'searchKnowledgeBase'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'kb-found-supported-answer').rule, {
+    type: 'turn_tool_result_path_equals',
+    turn: 1,
+    tool_name: 'searchKnowledgeBase',
+    path: 'found',
+    equals: true
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'assistant-answer-mentioned-bonding').rule, {
+    type: 'turn_assistant_text_contains_any',
+    turn: 1,
+    contains_any: ['bonding', 'kompozyt', 'estety']
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-availability-check').rule, {
+    type: 'tool_not_called',
+    tool_name: 'checkAvailability'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-booking-write').rule, {
+    type: 'tool_not_called',
+    tool_name: 'createEvent'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-reception-task-write').rule, {
+    type: 'tool_not_called',
+    tool_name: 'createReceptionTask'
   });
 });
 
