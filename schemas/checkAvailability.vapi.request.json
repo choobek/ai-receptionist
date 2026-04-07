@@ -69,7 +69,7 @@
     },
     "searchDays": {
       "type": "integer",
-      "description": "How many clinic days to search from requestedDate or from the backend's clinic-local start date when requestedDate is omitted. Use searchDays 1 to check one specific day; omit it for general nearest-available searches."
+      "description": "How many clinic days to search from requestedDate or from the backend's clinic-local start date when requestedDate is omitted. Use searchDays 1 to check one specific day; use larger values for bounded ranges such as next week or next month; omit it only for general unbounded nearest-available searches."
     },
     "patient": {
       "type": "object",

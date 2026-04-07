@@ -26,7 +26,7 @@
   "turns": [
     {
       "turn_id": "give-tuesday-preference",
-      "user": "Chcialbym umowic pierwsza konsultacje, najlepiej w najblizszy wtorek po lunchu."
+      "user": "Chcialbym umowic pierwsza konsultacje, to moja pierwsza wizyta, najlepiej w najblizszy wtorek po lunchu."
     },
     {
       "turn_id": "correct-to-wednesday",

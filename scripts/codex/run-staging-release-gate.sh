@@ -208,14 +208,18 @@ PY
 )
 SAVED_EVAL_ARTIFACTS='[]'
 
-if ! run_lane "01-repo-health" true "$REPO_HEALTH_ARTIFACTS" ./scripts/check-repo-health.sh; then
+if run_lane "01-repo-health" true "$REPO_HEALTH_ARTIFACTS" ./scripts/check-repo-health.sh; then
+  :
+else
   FINAL_RC=$?
   OVERALL_STATUS="failed"
   STOP_REASON="repo health failed"
 fi
 
 if [ "$FINAL_RC" -eq 0 ]; then
-  if ! run_lane "02-backend-regressions" true "$BACKEND_ARTIFACTS" node scripts/check-workflow-regressions.js; then
+  if run_lane "02-backend-regressions" true "$BACKEND_ARTIFACTS" node scripts/check-workflow-regressions.js; then
+    :
+  else
     FINAL_RC=$?
     OVERALL_STATUS="failed"
     STOP_REASON="backend regressions failed"
@@ -223,13 +227,15 @@ if [ "$FINAL_RC" -eq 0 ]; then
 fi
 
 if [ "$FINAL_RC" -eq 0 ]; then
-  if ! run_lane \
+  if run_lane \
     "03-staging-chat-gate" \
     true \
     "$STAGING_CHAT_ARTIFACTS" \
     ./scripts/run-staging-regression-suite.sh \
     --output-dir "$STAGING_CHAT_DIR" \
     --report "$STAGING_CHAT_REPORT"; then
+    :
+  else
     FINAL_RC=$?
     OVERALL_STATUS="failed"
     STOP_REASON="staging chat gate failed"
@@ -237,7 +243,9 @@ if [ "$FINAL_RC" -eq 0 ]; then
 fi
 
 if [ "$INCLUDE_SAVED_EVAL" = true ]; then
-  if ! run_lane "04-saved-vapi-eval-advisory" false "$SAVED_EVAL_ARTIFACTS" ./scripts/run-vapi-eval-suite.sh staging; then
+  if run_lane "04-saved-vapi-eval-advisory" false "$SAVED_EVAL_ARTIFACTS" ./scripts/run-vapi-eval-suite.sh staging; then
+    :
+  else
     if [ "$OVERALL_STATUS" = "passed" ]; then
       OVERALL_STATUS="passed_with_advisories"
     fi
@@ -245,7 +253,7 @@ if [ "$INCLUDE_SAVED_EVAL" = true ]; then
 fi
 
 if [ "$SKIP_LIVE_AUTOEVAL" = false ] && [ "$FINAL_RC" -eq 0 ]; then
-  if ! run_lane \
+  if run_lane \
     "05-live-autoeval" \
     true \
     "$LIVE_AUTOEVAL_ARTIFACTS" \
@@ -256,6 +264,8 @@ if [ "$SKIP_LIVE_AUTOEVAL" = false ] && [ "$FINAL_RC" -eq 0 ]; then
     --output-dir "$LIVE_AUTOEVAL_DIR" \
     --report "$LIVE_AUTOEVAL_REPORT" \
     --summary-json "$LIVE_AUTOEVAL_SUMMARY"; then
+    :
+  else
     FINAL_RC=$?
     OVERALL_STATUS="failed"
     STOP_REASON="live autoeval failed"

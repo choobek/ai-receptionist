@@ -234,6 +234,18 @@ function dateTimesEqual(left, right) {
   return Number.isFinite(leftTimestamp) && Number.isFinite(rightTimestamp) && leftTimestamp === rightTimestamp;
 }
 
+function extractIsoDate(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  const datePrefix = trimmed.match(/^(\d{4}-\d{2}-\d{2})[T\s]/);
+  return datePrefix ? datePrefix[1] : null;
+}
+
 function formatValue(value) {
   if (typeof value === 'string') {
     return value;
@@ -781,6 +793,51 @@ function evaluateCriterion(context, criterion) {
       return candidate && valuesEqual(getByPath(candidate.arguments, rule.path), sourceValue)
         ? pass()
         : fail(`Expected ${occurrence} ${rule.tool_name} call to reuse ${rule.source_tool_name} result ${rule.source_path} at ${rule.path}`);
+    }
+
+    case 'tool_arg_date_matches_tool_result_path': {
+      const sourceMatches = findToolCalls(context, rule.source_tool_name);
+      const sourceTrace = pickOccurrence(sourceMatches, sourceOccurrence);
+      const sourceValue = getByPath(sourceTrace?.result, rule.source_path);
+      const sourceDate = extractIsoDate(sourceValue);
+      if (sourceTrace) {
+        evidence.push(`${sourceTrace.tool_name} result ${rule.source_path}=${formatValue(sourceValue)}`);
+        evidence.push(`source date=${formatValue(sourceDate)}`);
+      } else {
+        evidence.push(`0 ${rule.source_tool_name} call(s)`);
+      }
+
+      const matches = findToolCalls(context, rule.tool_name);
+      const targetMatchesSourceDate = (trace) => valuesEqual(extractIsoDate(getByPath(trace.arguments, rule.path)), sourceDate);
+      const candidate = occurrence === 'any'
+        ? matches.find(targetMatchesSourceDate)
+        : pickOccurrence(matches, occurrence);
+      const targetValue = getByPath(candidate?.arguments, rule.path);
+      const targetDate = extractIsoDate(targetValue);
+
+      if (candidate) {
+        evidence.push(`${candidate.tool_name}.${rule.path}=${formatValue(targetValue)}`);
+        evidence.push(`target date=${formatValue(targetDate)}`);
+      } else {
+        evidence.push(`0 ${rule.tool_name} call(s)`);
+      }
+
+      if (!sourceTrace) {
+        return fail(`Expected ${rule.source_tool_name} to provide result ${rule.source_path}`);
+      }
+      if (!sourceDate) {
+        return fail(`Expected ${rule.source_tool_name} result ${rule.source_path} to contain an ISO date`);
+      }
+
+      if (occurrence === 'any') {
+        return candidate
+          ? pass()
+          : fail(`Expected any ${rule.tool_name} call to set ${rule.path} to date ${sourceDate}`);
+      }
+
+      return candidate && valuesEqual(targetDate, sourceDate)
+        ? pass()
+        : fail(`Expected ${occurrence} ${rule.tool_name} call to set ${rule.path} to date ${sourceDate}`);
     }
 
     case 'tool_call_count_at_least': {

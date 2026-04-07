@@ -1,8 +1,8 @@
 {
   "schema_version": "staging-chat-scenario.v1",
   "scenario_id": "booking-without-exposed-caller-number-captures-phone",
-  "title": "Booking flow without exposed caller number asks for a spoken phone number",
-  "description": "When staging chat does not expose a live caller number, a simple first-visit booking flow must ask the caller to provide a phone number instead of assuming the current call number.",
+  "title": "Booking flow captures or confirms a contact phone number",
+  "description": "A simple first-visit booking flow must ask the caller to provide a phone number when no caller number is exposed, or explicitly ask whether to use the exposed caller number as the contact number.",
   "status": "active",
   "environment": "staging",
   "language": "pl",
@@ -55,10 +55,10 @@
   ],
   "rubric": [
     {
-      "criterion_id": "asks-for-phone-number-after-name-only",
-      "description": "Without an exposed live caller number, the assistant should ask the caller to provide a phone number.",
+      "criterion_id": "asks-for-contact-phone-after-name-only",
+      "description": "The assistant should either ask for a phone number or explicitly ask whether to use the exposed caller number as the contact number.",
       "severity": "critical",
-      "root_cause_hint": "assistant stopped explicitly asking for a spoken phone number when no caller number was available",
+      "root_cause_hint": "assistant neither requested a spoken phone number nor made the exposed-number confirmation contact-number-specific",
       "rule": {
         "type": "turn_assistant_text_contains_any",
         "turn": 4,
@@ -79,23 +79,25 @@
           "numer telefonu do potwierdzenia wizyty",
           "numer telefonu do potwierdzenia rezerwacji",
           "jaki numer telefonu",
-          "numer telefonu do rezerwacji"
+          "numer telefonu do rezerwacji",
+          "czy mam uzyc go jako numeru kontaktowego",
+          "uzyc go jako numeru kontaktowego",
+          "jako numeru kontaktowego",
+          "numeru kontaktowego",
+          "numer kontaktowy"
         ]
       }
     },
     {
-      "criterion_id": "does-not-assume-current-call-number",
-      "description": "Without an exposed live caller number, the assistant should not ask whether the current call number should be used.",
+      "criterion_id": "does-not-use-generic-correctness-question-for-contact-number",
+      "description": "After name-only input, the assistant should not replace the missing/contact-number question with the generic phone readback phrase.",
       "severity": "critical",
-      "root_cause_hint": "assistant assumed a current call number existed and asked for confirmation instead of collecting the number",
+      "root_cause_hint": "assistant read a caller number but asked only whether it was correct instead of asking whether it should be used as the contact number",
       "rule": {
         "type": "turn_assistant_text_not_contains_any",
         "turn": 4,
         "contains_none": [
-          "numer, z ktorego jest to polaczenie",
-          "numer, z ktorego teraz jest wykonywane polaczenie",
-          "numer z ktorego jest to polaczenie",
-          "numer z ktorego teraz jest wykonywane polaczenie"
+          "czy wszystko sie zgadza"
         ]
       }
     }

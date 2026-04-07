@@ -27,11 +27,11 @@
   "turns": [
     {
       "turn_id": "ask-for-nearest-first-visit-terms",
-      "user": "Chcialbym umowic pierwsza konsultacje. To moja pierwsza wizyta. Jakie sa najblizsze wolne terminy?"
+      "user": "Chcialbym umowic pierwsza konsultacje. To moja pierwsza wizyta. Jakie sa najblizsze wolne terminy w ciagu najblizszego miesiaca?"
     },
     {
       "turn_id": "ask-about-thursday",
-      "user": "A czy jest cos w czwartek?"
+      "user": "A czy jest cos w czwartek z tej listy?"
     }
   ],
   "rubric": [
@@ -140,6 +140,9 @@
           "ktora z tych godzin najbardziej panu pasuje",
           "ktora z tych godzin najbardziej pani pasuje",
           "ktora z tych godzin najbardziej pasuje",
+          "nie ma czwartku",
+          "nie bylo czwartku",
+          "nie widze czwartku",
           "nie widze wolnych terminow",
           "brak wolnych terminow"
         ]

@@ -1,0 +1,140 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "offered-day-specific-time-keeps-date",
+  "title": "Offered-day follow-up with a specific time keeps the offered date",
+  "description": "The caller first asks for nearest first-consultation terms, then refers back to the offered day and asks for a different specific hour. The follow-up lookup must keep the date from the active slot offer instead of degrading to a time-only lookup over the default horizon.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "availability",
+    "first-visit",
+    "follow-up",
+    "real-call-regression",
+    "staging-safe"
+  ],
+  "source": {
+    "origin": "real_call_regression",
+    "references": [
+      "configs/vapi/assistant.v2.json",
+      "n8n/workflows/tool_check-availability.json",
+      "autonomy/runs/generated/vapi-live-autoeval/staging-vapi-live-autoeval-20260407T160438Z/normalized-runs/staging-019d68ab-ce01-7dd0-8401-da579650a2a5.run.v1.json",
+      "autonomy/runs/generated/vapi-live-autoeval/staging-vapi-live-autoeval-20260407T160438Z/raw-calls/019d68ab-ce01-7dd0-8401-da579650a2a5.call.json"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 2
+  },
+  "turns": [
+    {
+      "turn_id": "ask-for-nearest-first-visit-terms",
+      "user": "Chcialbym umowic pierwsza konsultacje. To moja pierwsza wizyta. Jakie sa najblizsze wolne terminy w ciagu najblizszego miesiaca?"
+    },
+    {
+      "turn_id": "ask-for-same-offered-day-at-specific-time",
+      "user": "A czy pierwszy z tych terminow, tego samego dnia, o dwudziestej tez jest wolne?"
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "first-turn-checks-availability",
+      "description": "The assistant should look up first-visit consultation slots on the initial nearest-term request.",
+      "severity": "critical",
+      "root_cause_hint": "assistant stopped calling checkAvailability for the initial first-visit lookup",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 1,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "first-turn-returns-at-least-one-slot",
+      "description": "The scenario needs an active offered slot so the follow-up can reference its date.",
+      "severity": "critical",
+      "root_cause_hint": "staging availability fixture no longer has a first-consultation slot for the nearest-term lookup",
+      "rule": {
+        "type": "turn_tool_result_array_min_length",
+        "turn": 1,
+        "tool_name": "checkAvailability",
+        "path": "slots",
+        "min": 1
+      }
+    },
+    {
+      "criterion_id": "second-turn-checks-availability",
+      "description": "The assistant should refresh availability when the caller changes the offered day to a specific hour.",
+      "severity": "critical",
+      "root_cause_hint": "assistant reused the previous offer or answered without checking the new requested hour",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 2,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "second-turn-uses-specific-time",
+      "description": "The follow-up should normalize the requested hour to specific_time.",
+      "severity": "critical",
+      "root_cause_hint": "assistant dropped the caller's explicit nineteen hundred preference",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 2,
+        "tool_name": "checkAvailability",
+        "path": "timePreference",
+        "equals": "specific_time"
+      }
+    },
+    {
+      "criterion_id": "second-turn-keeps-requested-hour",
+      "description": "The follow-up should pass twenty hundred as requestedTime.",
+      "severity": "critical",
+      "root_cause_hint": "assistant did not pass the caller's specific requested hour to checkAvailability",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 2,
+        "tool_name": "checkAvailability",
+        "path": "requestedTime",
+        "equals": "20:00"
+      }
+    },
+    {
+      "criterion_id": "second-turn-targets-first-offered-slot-date",
+      "description": "The follow-up should keep the date from the first offered slot instead of becoming a time-only lookup.",
+      "severity": "critical",
+      "root_cause_hint": "assistant omitted requestedDate when the caller referenced the active offered day",
+      "rule": {
+        "type": "tool_arg_date_matches_tool_result_path",
+        "source_tool_name": "checkAvailability",
+        "source_occurrence": "first",
+        "source_path": "slots.0.start",
+        "tool_name": "checkAvailability",
+        "occurrence": "last",
+        "path": "requestedDate"
+      }
+    },
+    {
+      "criterion_id": "second-turn-bounds-search-days-to-one",
+      "description": "A specific hour on an offered day should stay bounded to that one date.",
+      "severity": "critical",
+      "root_cause_hint": "assistant widened the active offered-day follow-up into a multi-day time search",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 2,
+        "tool_name": "checkAvailability",
+        "path": "searchDays",
+        "equals": 1
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "This lookup-only scenario must not create a booking.",
+      "severity": "high",
+      "root_cause_hint": "assistant advanced into booking before the caller selected a concrete slot",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    }
+  ]
+}

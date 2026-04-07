@@ -31,7 +31,7 @@
     },
     {
       "turn_id": "ask-to-book-implant-consultation",
-      "user": "To prosze umowic mnie na konsultacje implantologiczna, najlepiej na najblizszy wolny termin."
+      "user": "To prosze umowic mnie na konsultacje implantologiczna, najlepiej na najblizszy wolny termin w ciagu najblizszego miesiaca."
     },
     {
       "turn_id": "select-first-slot",

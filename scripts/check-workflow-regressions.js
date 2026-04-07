@@ -2149,7 +2149,8 @@ test('Vapi tool sync scripts keep searchKnowledgeBase and delayed tool messages 
   assert.equal(searchKnowledgeBase?.endpoint, '/webhook/ai-receptionist/search-knowledge-base');
   assert.equal(searchKnowledgeBase?.messages?.[1]?.type, 'request-response-delayed');
   assert.match(checkAvailability?.description || '', /requestedDate plus searchDays 1 for one specific day/i);
-  assert.match(checkAvailability?.description || '', /without requestedDate for the next available dates/i);
+  assert.match(checkAvailability?.description || '', /searchDays for bounded ranges like next week\/month/i);
+  assert.match(checkAvailability?.description || '', /omit requestedDate\/searchDays only for unbounded next available dates/i);
   assert.doesNotMatch(checkAvailability?.description || '', /fixed .* business-day horizon/i);
   assert.match(checkAvailability?.description || '', /patient\.isExistingPatient/);
   assert.match(createEvent?.description || '', /confirmed the phone/);
@@ -2167,6 +2168,15 @@ test('Vapi tool sync scripts keep receptionist handoff wait messages repo-owned'
   assert.equal(receptionSms?.messages?.[0]?.blocking, false);
   assert.equal(receptionSms?.messages?.[1]?.content, 'Jeszcze moment, dopinam przekazanie sprawy.');
   assert.equal(receptionSms?.messages?.[1]?.timingMilliseconds, 1800);
+});
+
+test('Codex staging release gate preserves failing lane exit codes', () => {
+  const script = loadText(path.join(rootDir, 'scripts', 'codex', 'run-staging-release-gate.sh'));
+
+  assert.doesNotMatch(script, /if ! run_lane/);
+  assert.match(script, /if run_lane "01-repo-health"/);
+  assert.match(script, /STOP_REASON="staging chat gate failed"/);
+  assert.match(script, /exit "\$FINAL_RC"/);
 });
 
 test('sendSmsToReceptionists requires createReceptionTask taskId', () => {
@@ -2865,6 +2875,26 @@ test('searchKnowledgeBase matches the runtime veneers-versus-bonding query with 
   const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
     $json: {
       query: 'Czym różnią się licówki od bondingu? Różnice, trwałość, zakres zabiegu, cena orientacyjna jeśli dostępna.',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.equal(searchResult.matches[0].id, 'kb_veneers_vs_bonding');
+});
+
+test('searchKnowledgeBase matches the staging veneers-versus-bonding query with treatment-description extras', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Czym różnią się licówki od bondingu? różnice, opis zabiegów',
       language: 'pl',
       limit: 1
     },
@@ -3604,7 +3634,14 @@ assistantInvariantTest('assistant prompt keeps post-booking close and reception 
 });
 
 assistantInvariantTest('assistant prompt keeps gender recognition but forbids repetitive prosze pana pani phrasing', () => {
-  const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt());
+  const config = loadAssistantConfig();
+  const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt(config));
+  const normalizedSystemMessages = normalizeSearchText(
+    (config.assistant?.model?.messages || [])
+      .filter((message) => message.role === 'system' && typeof message.content === 'string')
+      .map((message) => message.content)
+      .join('\n')
+  );
 
   assert.match(
     normalizedPrompt,
@@ -3629,6 +3666,14 @@ assistantInvariantTest('assistant prompt keeps gender recognition but forbids re
   assert.match(
     normalizedPrompt,
     /neutralne wersje typu "czy to bedzie pierwsza wizyta\?" albo "na jaki dzien pasuje termin\?" sa wtedy bledem/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /prosze o pani imie i nazwisko oraz numer telefonu do kontaktu/i
+  );
+  assert.match(
+    normalizedSystemMessages,
+    /po "chcialabym przelozyc" pytaj "prosze o pani imie/i
   );
   assert.match(
     normalizedPrompt,
@@ -3725,11 +3770,19 @@ assistantInvariantTest('assistant prompt keeps explicit day-plus-daypart lookups
   );
   assert.match(
     normalizedPrompt,
+    /zakres typu "w przyszlym tygodniu" albo "w ciagu najblizszego miesiaca".*first_available bez requestedDate.*searchDays na ten zakres.*dla miesiaca searchDays 30/i
+  );
+  assert.match(
+    normalizedPrompt,
     /po pytaniu o pierwsza wizyte rozmowca poda konkretny dzien albo date razem z pora dnia.*uzyj checkAvailability z requestedDate na ten dzien/i
   );
   assert.match(
     normalizedSystemMessages,
     /(jesli rozmowca poda konkretny dzien albo date razem z pora dnia|gdy rozmowca poda konkretny dzien albo date z pora dnia|gdy rozmowca poda konkretny dzien lub date z pora dnia), checkAvailability (musi zachowac|zachowuje) requestedDate i searchDays 1/i
+  );
+  assert.match(
+    normalizedSystemMessages,
+    /dla zakresu typu najblizszy miesiac dodaj searchDays 30/i
   );
 });
 
@@ -4233,10 +4286,10 @@ assistantInvariantTest('after-hours first-visit scenario keeps evening preferenc
   });
 });
 
-assistantInvariantTest('booking without an exposed caller number asks for the spoken phone number', () => {
+assistantInvariantTest('booking flow asks for or confirms a contact phone number before booking', () => {
   const scenario = loadStagingScenario('booking-without-exposed-caller-number-captures-phone.v1.json');
 
-  assert.deepEqual(getScenarioCriterion(scenario, 'asks-for-phone-number-after-name-only').rule, {
+  assert.deepEqual(getScenarioCriterion(scenario, 'asks-for-contact-phone-after-name-only').rule, {
     type: 'turn_assistant_text_contains_any',
     turn: 4,
     contains_any: [
@@ -4256,17 +4309,19 @@ assistantInvariantTest('booking without an exposed caller number asks for the sp
       'numer telefonu do potwierdzenia wizyty',
       'numer telefonu do potwierdzenia rezerwacji',
       'jaki numer telefonu',
-      'numer telefonu do rezerwacji'
+      'numer telefonu do rezerwacji',
+      'czy mam uzyc go jako numeru kontaktowego',
+      'uzyc go jako numeru kontaktowego',
+      'jako numeru kontaktowego',
+      'numeru kontaktowego',
+      'numer kontaktowy'
     ]
   });
-  assert.deepEqual(getScenarioCriterion(scenario, 'does-not-assume-current-call-number').rule, {
+  assert.deepEqual(getScenarioCriterion(scenario, 'does-not-use-generic-correctness-question-for-contact-number').rule, {
     type: 'turn_assistant_text_not_contains_any',
     turn: 4,
     contains_none: [
-      'numer, z ktorego jest to polaczenie',
-      'numer, z ktorego teraz jest wykonywane polaczenie',
-      'numer z ktorego jest to polaczenie',
-      'numer z ktorego teraz jest wykonywane polaczenie'
+      'czy wszystko sie zgadza'
     ]
   });
   assert.deepEqual(getScenarioCriterion(scenario, 'no-booking-before-phone-capture').rule, {

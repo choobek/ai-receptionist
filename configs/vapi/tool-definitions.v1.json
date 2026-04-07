@@ -31,7 +31,7 @@
     "checkAvailability": {
       "schemaPath": "schemas/checkAvailability.vapi.request.json",
       "endpoint": "/webhook/ai-receptionist/check-availability",
-      "description": "Return availability. Use specific_time for exact hours and morning/afternoon/evening for broad windows. If the caller gave time but no day, omit requestedDate to search the next business days. Use requestedDate plus searchDays 1 for one specific day, or without requestedDate for the next available dates overall. Pass patient.isExistingPatient when known.",
+      "description": "Return availability. Use specific_time for exact hours and morning/afternoon/evening for broad windows. If caller gave time but no day, omit requestedDate. Use requestedDate plus searchDays 1 for one specific day. Use searchDays for bounded ranges like next week/month. Omit requestedDate/searchDays only for unbounded next available dates. Pass patient.isExistingPatient when known.",
       "messages": [
         {
           "type": "request-start",
