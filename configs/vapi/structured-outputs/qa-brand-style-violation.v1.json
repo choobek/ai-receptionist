@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "key": "brandStyleViolation",
+  "rank": 88,
+  "name": "QA: Brand/Style Violation",
+  "description": "Boolean QA metric: true only if the assistant violated explicit clinic-name or no-small-talk style rules.",
+  "type": "ai",
+  "schema": {
+    "type": "boolean",
+    "description": "True only if an assistant reply mispronounced or rewrote the clinic name/domain contrary to the prompt, for example Ipokrzyku.pl, PL, or i Pokrzyku instead of Ipokrzyku pe el, or used banned casual small talk such as Cześć, jak się masz?. Ignore caller wording and tool payloads."
+  }
+}

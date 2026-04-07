@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "key": "speechRenderingUnsafe",
+  "rank": 75,
+  "name": "QA: Speech Rendering Unsafe",
+  "description": "Boolean QA metric: true only if assistant speech included raw digits or non-speech-safe rendering.",
+  "type": "ai",
+  "schema": {
+    "type": "boolean",
+    "description": "True only if an assistant reply meant for the caller left raw digit characters in spoken dates, times, phone numbers, prices, or treatment names, or used non-speech-safe forms such as 9:00, 29 kwietnia, All-on-4, a literal URL/domain, or similar. Ignore technical tool arguments, tool results, system messages, and caller speech."
+  }
+}

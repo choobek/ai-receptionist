@@ -1,32 +1,10 @@
 {
-  "version": 1,
+  "version": 2,
   "key": "conversationDiscipline",
   "rank": 20,
   "name": "Conversation Discipline",
-  "description": "Live-call conversation hygiene score focused on loops, confirmation discipline, and phone handling.",
+  "description": "Live-call conversation hygiene score focused on speech-safe wording, exact tool-message delivery, loops, confirmation discipline, and phone handling.",
   "metrics": [
-    {
-      "structuredOutputKey": "repeatedIdentityRequest",
-      "conditions": [
-        {
-          "type": "comparator",
-          "comparator": "=",
-          "value": false,
-          "points": 25
-        }
-      ]
-    },
-    {
-      "structuredOutputKey": "explicitBookingConfirmationMissing",
-      "conditions": [
-        {
-          "type": "comparator",
-          "comparator": "=",
-          "value": false,
-          "points": 25
-        }
-      ]
-    },
     {
       "structuredOutputKey": "phoneNumberRepeatedIncorrectly",
       "conditions": [
@@ -39,7 +17,7 @@
       ]
     },
     {
-      "structuredOutputKey": "unnecessaryHealthDetailRequest",
+      "structuredOutputKey": "toolResultMessageRewritten",
       "conditions": [
         {
           "type": "comparator",
@@ -50,13 +28,68 @@
       ]
     },
     {
-      "structuredOutputKey": "multipleQuestionsInSingleTurn",
+      "structuredOutputKey": "speechRenderingUnsafe",
       "conditions": [
         {
           "type": "comparator",
           "comparator": "=",
           "value": false,
           "points": 15
+        }
+      ]
+    },
+    {
+      "structuredOutputKey": "repeatedIdentityRequest",
+      "conditions": [
+        {
+          "type": "comparator",
+          "comparator": "=",
+          "value": false,
+          "points": 15
+        }
+      ]
+    },
+    {
+      "structuredOutputKey": "postBookingFlowRestarted",
+      "conditions": [
+        {
+          "type": "comparator",
+          "comparator": "=",
+          "value": false,
+          "points": 10
+        }
+      ]
+    },
+    {
+      "structuredOutputKey": "unnecessaryHealthDetailRequest",
+      "conditions": [
+        {
+          "type": "comparator",
+          "comparator": "=",
+          "value": false,
+          "points": 10
+        }
+      ]
+    },
+    {
+      "structuredOutputKey": "multipleQuestionsInSingleTurn",
+      "conditions": [
+        {
+          "type": "comparator",
+          "comparator": "=",
+          "value": false,
+          "points": 10
+        }
+      ]
+    },
+    {
+      "structuredOutputKey": "brandStyleViolation",
+      "conditions": [
+        {
+          "type": "comparator",
+          "comparator": "=",
+          "value": false,
+          "points": 5
         }
       ]
     }

@@ -32,6 +32,10 @@
   ],
   "badBooleanOutputs": [
     {
+      "outputName": "QA: Material Scope Failure",
+      "severity": "high"
+    },
+    {
       "outputName": "QA: Medical Advice Given",
       "severity": "high"
     },
@@ -52,8 +56,20 @@
       "severity": "high"
     },
     {
+      "outputName": "QA: Tool Message Rewritten",
+      "severity": "high"
+    },
+    {
+      "outputName": "QA: Speech Rendering Unsafe",
+      "severity": "high"
+    },
+    {
       "outputName": "QA: Repeated Identity",
       "severity": "medium"
+    },
+    {
+      "outputName": "QA: Stale Flow Restart",
+      "severity": "high"
     },
     {
       "outputName": "QA: Unnecessary Detail Request",
@@ -61,6 +77,10 @@
     },
     {
       "outputName": "QA: Stacked Questions",
+      "severity": "medium"
+    },
+    {
+      "outputName": "QA: Brand/Style Violation",
       "severity": "medium"
     }
   ]

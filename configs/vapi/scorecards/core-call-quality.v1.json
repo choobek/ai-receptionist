@@ -1,18 +1,18 @@
 {
-  "version": 1,
+  "version": 2,
   "key": "coreCallQuality",
   "rank": 10,
   "name": "Core Call Quality",
-  "description": "Primary live-call safety and execution score for the Ipokrzyku.pl dental assistant.",
+  "description": "Primary live-call safety and execution score for the Ipokrzyku.pl dental assistant. Uses concrete negative QA flags instead of the deprecated broad Scope OK boolean.",
   "metrics": [
     {
-      "structuredOutputKey": "successfulForAssistantScope",
+      "structuredOutputKey": "materialScopeFailure",
       "conditions": [
         {
           "type": "comparator",
           "comparator": "=",
-          "value": true,
-          "points": 45
+          "value": false,
+          "points": 25
         }
       ]
     },
@@ -23,7 +23,7 @@
           "type": "comparator",
           "comparator": "=",
           "value": false,
-          "points": 20
+          "points": 25
         }
       ]
     },
@@ -40,6 +40,17 @@
     },
     {
       "structuredOutputKey": "toolCalledOnIncompleteAnswer",
+      "conditions": [
+        {
+          "type": "comparator",
+          "comparator": "=",
+          "value": false,
+          "points": 15
+        }
+      ]
+    },
+    {
+      "structuredOutputKey": "explicitBookingConfirmationMissing",
       "conditions": [
         {
           "type": "comparator",

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "key": "postBookingFlowRestarted",
+  "rank": 95,
+  "name": "QA: Stale Flow Restart",
+  "description": "Boolean QA metric: true only if the assistant restarted stale scheduling flow after successful booking confirmation.",
+  "type": "ai",
+  "schema": {
+    "type": "boolean",
+    "description": "True only if, after a booking was successfully confirmed or an appropriate handoff was completed, the assistant restarted a stale scheduling, identity collection, phone confirmation, or booking-confirmation flow without the caller clearly starting a new request."
+  }
+}

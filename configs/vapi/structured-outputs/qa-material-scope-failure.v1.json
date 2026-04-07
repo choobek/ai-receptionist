@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "key": "materialScopeFailure",
+  "rank": 20,
+  "name": "QA: Material Scope Failure",
+  "description": "Boolean QA metric: true only if the assistant materially failed an in-scope call task.",
+  "type": "ai",
+  "schema": {
+    "type": "boolean",
+    "description": "True only if the assistant materially failed the in-scope call task, such as failing to book after all required data and final confirmation were present, failing to create a required reception handoff after complete handoff data was present, failing to answer a supported knowledge-base question, making an unsupported commitment, or ending in an unsafe or unresolved state caused by the assistant. Return false for successful bookings, successful reception handoffs, supported general-question answers, correct safe refusals, and caller abandonment after the assistant already completed the appropriate next step."
+  }
+}

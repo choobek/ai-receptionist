@@ -25,15 +25,19 @@
   "webhookSecretEnv": "PRODUCTION_AI_RECEPTIONIST_WEBHOOK_SECRET",
   "structuredOutputIds": [
     "dff8d16d-1f39-4d46-9f3d-370c8ecaeb40",
-    "be03d05b-f98c-43c6-b535-ace5b581311b",
+    "78b24e02-40e0-4782-b099-cd7dd5f77013",
     "83000a8c-3837-4a1f-be1e-177afc9b89e2",
     "eb0b6cf7-bb45-41b0-8d1b-24c3b49e29c1",
     "11ea2a05-51b8-4f65-81d0-48001c944e67",
     "7f20f498-0170-4a27-9191-a77626d2af07",
+    "ff156d49-4533-4544-b636-0365e7603970",
     "6146cad3-e8ac-4d89-9a98-a80aeb457073",
+    "7f12d9dd-c753-4769-994d-480c5e1da768",
     "c8f82e0f-1f36-4ee3-ad3c-6efdc98852c2",
     "e30cacc8-74e9-4ec0-8d30-9e8627e661ae",
-    "de297d8b-145e-4cb5-87f7-e091e38fe8c8"
+    "7432e388-4347-46f7-8a48-4251f78bb81f",
+    "de297d8b-145e-4cb5-87f7-e091e38fe8c8",
+    "bf756cc3-e9de-43b1-b803-1adf67ec701d"
   ],
   "phoneNumberSmsEnabled": false,
   "scorecardIds": [
