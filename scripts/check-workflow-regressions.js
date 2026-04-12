@@ -3594,7 +3594,7 @@ assistantInvariantTest('assistant system message bundle locks spoken brand, exac
   assert.match(normalizedSystemMessages, /result\.message albo request-complete/i);
   assert.match(
     normalizedSystemMessages,
-    /(wypowiedz dokladnie to pole i niczego nie dopisuj|wypowiedz je doslownie)/i
+    /(wypowiedz dokladnie to pole i niczego nie dopisuj|wypowiedz je doslownie bez zmian)/i
   );
   assert.match(
     normalizedSystemMessages,
@@ -3626,7 +3626,14 @@ test('assistant prompt keeps phone-collection logic as plain text without unreso
 });
 
 assistantInvariantTest('assistant prompt keeps the urgent first-available override explicit', () => {
-  const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt());
+  const config = loadAssistantConfig();
+  const normalizedPrompt = normalizeSearchText(getAssistantSystemPrompt(config));
+  const normalizedSystemMessages = normalizeSearchText(
+    (config.assistant?.model?.messages || [])
+      .filter((message) => message.role === 'system' && typeof message.content === 'string')
+      .map((message) => message.content)
+      .join('\n')
+  );
 
   assert.match(
     normalizedPrompt,
@@ -3656,6 +3663,14 @@ assistantInvariantTest('assistant prompt keeps the urgent first-available overri
   assert.match(
     normalizedPrompt,
     /createEvent, dopoki pacjent nie wybierze jednego terminu/i
+  );
+  assert.match(
+    normalizedSystemMessages,
+    /bolu zeba albo opuchliznie z intencja wizyty.*konsultacja.*zeby lekarz to zobaczyl.*nie pytaj o pierwsza wizyte/i
+  );
+  assert.match(
+    normalizedSystemMessages,
+    /od razu uzyj checkAvailability z service\.id urgent_consultation i timePreference first_available/i
   );
 });
 
