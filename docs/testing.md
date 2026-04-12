@@ -1,6 +1,37 @@
-# Manual Test Plan
+# Manual Verification Plan
 
-Automation lane boundaries live in [Testing Strategy](./testing-strategy.md). This file is the direct-tool and end-to-end smoke checklist.
+Automation lane boundaries live in [Testing Strategy](./testing-strategy.md). This file covers direct-tool checks, core end-to-end smoke, and a broader manual edge-case sweep for behaviors that still need human review.
+
+## How to use this plan
+
+Run the automated gate first:
+
+- `node scripts/check-workflow-regressions.js`
+- `./scripts/run-staging-regression-suite.sh`
+
+Then use this file in layers:
+
+- sections `1` through `10` verify the hosted endpoints and direct tool contracts
+- section `11` is the baseline live-call smoke pass
+- sections `10a`, `11a`, and `11b` are the broader manual edge-case sweep for release candidates, prompt/config changes, voice-quality checks, and post-incident validation
+
+## Evidence and cleanup
+
+For any scenario that writes data or exercises live telephony, capture:
+
+- environment name, date, and the assistant binding you tested
+- Vapi transcript or call export with tool calls and structured output
+- n8n execution IDs for `createEvent`, `createReceptionTask`, and SMS tools
+- Google Calendar event IDs for booking tests
+- the final `vapi-call-ended` route when the structured-output router is involved
+
+Use clearly synthetic names such as `TEST Manual <scenario>` and only use a real test recipient phone when you intentionally want SMS delivery to leave the system.
+
+After each write-path test:
+
+- delete created calendar events
+- record any created reception task IDs so they remain recognizable as test artifacts
+- restore the prior SMS provider mode if you changed it for a probe
 
 ## Setup
 
@@ -397,6 +428,16 @@ Expected:
 - HTTP 200
 - `route: "needs_reception_follow_up"`
 
+## 10a. Negative direct-tool probes
+
+Run at least these before production rollouts or after auth, schema, or calendar changes:
+
+- auth rejection: repeat one direct webhook request without the secret header when `WEBHOOK_SECRET` is configured. Expect the request to be rejected cleanly, not accepted silently and not redirected to editor HTML
+- knowledge-base no-match: ask a clearly unsupported or diagnostic-only question. Expect a no-match or safe fallback response, not invented pricing, diagnosis, or treatment advice
+- stale-slot booking: try to create the same slot twice, or occupy the slot manually in Google Calendar before the second `create-event` call. Expect the second attempt to fail cleanly and only one real event to exist
+- handoff validation: send `create-reception-task` without `patient.fullName` or without a phone. Expect a structured validation failure and no accepted task
+- phone normalization repair: send `lookup-patient` with a partial or messy number, then with the corrected value. Expect the corrected request to normalize cleanly and the readback text to stay speech-safe
+
 ## 11. End-to-end Vapi call test
 
 After direct webhook tests pass, test the assistant in Vapi with a real call.
@@ -463,6 +504,224 @@ Verify:
 - the assistant calls `searchKnowledgeBase`
 - the answer stays within the curated source material
 - the assistant does not invent unsupported pricing or medical advice
+
+## 11a. Extended end-to-end edge-case scenarios
+
+Run these on staging for release candidates, prompt/config changes, or after any live-call regression. Keep the call export and tool traces for each scenario.
+
+### E1. First-visit gate only once
+
+Say:
+
+- "Chcialabym umowic sie na najblizszy wolny termin."
+- after the assistant asks whether this is the first visit: "Tak, to moja pierwsza wizyta."
+
+Verify:
+
+- the first assistant turn only resolves the first-visit split
+- it does not also ask for the day, hour, problem, or service
+- the next turn immediately calls `checkAvailability`
+- the lookup uses `service.id: consultation` and `timePreference: first_available`
+- the assistant does not ask for name or phone before any slot is chosen
+
+### E2. First visit plus explicit date and evening stays bounded
+
+Say:
+
+- "Chcialabym umowic sie na najblizszy wolny termin."
+- after the first-visit gate: "Tak, to moja pierwsza wizyta. Prosze sprawdzic 9 kwietnia 2027 wieczorem."
+
+Verify:
+
+- the second turn goes straight to `checkAvailability`
+- the lookup keeps the explicit `requestedDate`
+- the lookup uses `timePreference: evening`
+- the lookup stays bounded with `searchDays: 1`
+- the assistant does not widen the request back to a broad nearest-slot search
+
+### E3. Alternative-day ambiguity waits for clarification
+
+Say:
+
+- "Chcialbym umowic pierwsza konsultacje, to moja pierwsza wizyta, najlepiej we wtorek albo srode po lunchu."
+- "To srode po poludniu."
+
+Verify:
+
+- the assistant clarifies the day instead of spending an avoidable first lookup on the ambiguous request
+- once the caller picks Wednesday, it performs one fresh `checkAvailability`
+- the clarified lookup keeps the afternoon window
+- no `createEvent` happens in this clarification-only path
+
+### E4. Corrected day triggers a refreshed second availability lookup
+
+Say:
+
+- "Chcialbym umowic pierwsza konsultacje, to moja pierwsza wizyta, najlepiej w najblizszy wtorek po lunchu."
+- after the assistant replies with Tuesday availability or begins acting on Tuesday: "Jednak nie, prosze sprawdzic najblizsza srode po poludniu."
+
+Verify:
+
+- the assistant performs a second `checkAvailability`
+- the second lookup changes `requestedDate` instead of reusing the Tuesday result
+- the corrected lookup keeps the afternoon window
+- no booking is created before the caller chooses a concrete slot
+
+### E5. Follow-up on an offered day keeps that date
+
+Say:
+
+- "Chcialbym umowic pierwsza konsultacje. To moja pierwsza wizyta. Jakie sa najblizsze wolne terminy w ciagu najblizszego miesiaca?"
+- after the assistant offers slots: "A czy pierwszy z tych terminow, tego samego dnia, o dwudziestej tez jest wolne?"
+
+Verify:
+
+- the second turn performs a fresh `checkAvailability`
+- the follow-up lookup uses `timePreference: specific_time`
+- the lookup passes `requestedTime: 20:00`
+- the lookup keeps the `requestedDate` from the first offered slot and sets `searchDays: 1`
+- the assistant does not turn this into a time-only search across multiple days
+
+### E6. Working-hours boundaries
+
+Say:
+
+- "Chcialabym umowic pierwsza konsultacje. To moja pierwsza wizyta. Obojetnie jaki dzien, byle po godzinie osiemnastej."
+- repeat with: "Czy macie cos w sobote?" or "Czy macie cos po dwudziestej pierwszej?"
+
+Verify:
+
+- the after-hours request triggers `checkAvailability` with `timePreference: evening`
+- the spoken answer contains no raw digits
+- weekend or out-of-hours requests do not produce invented slots
+- the assistant states the clinic works Monday through Friday from `09:00` to `21:00` Europe/Warsaw and offers valid alternatives
+
+### E7. Existing-patient booking handoff does not enter scheduling
+
+Say:
+
+- "Dzien dobry, chce umowic kolejna wizyte na higienizacje. To nie jest moja pierwsza wizyta, bylem juz u was. Mam na imie TEST Manual Existing Patient, moj numer to siedem zero dwa, zero zero trzy, zero zero dziewiec."
+
+Verify:
+
+- the assistant does not call `checkAvailability` or `createEvent`
+- it can create `createReceptionTask` immediately once the identity data is complete
+- `taskType` stays `existing_patient_booking`
+- the payload contains no free-text `summary` or `notes`
+- if `sendSmsToReceptionists` is bound in that environment, it is called only after `createReceptionTask` succeeds and reuses the returned `taskId`
+
+### E8. Post-handoff meta question does not reopen the flow
+
+Say:
+
+- start with the existing-patient or reschedule handoff path and provide complete identity details
+- after the task is accepted: "Dobrze. A skad pan ma moj numer? Prosze juz tylko przekazac sprawe do recepcji."
+
+Verify:
+
+- the assistant answers the caller-number question briefly and directly
+- it does not create a second `createReceptionTask`
+- it does not send a second internal receptionist SMS
+- it does not drift back into scheduling or new intake questions
+
+### E9. First visit for another specialist becomes a reception handoff
+
+Say:
+
+- "Chcialbym umowic pierwsza wizyte do ortodonty. Mam na imie TEST Manual Specialist, moj numer to siedem zero dwa, zero zero trzy, zero zero osiem."
+
+Verify:
+
+- the assistant does not call `checkAvailability` or `createEvent`
+- it routes through `createReceptionTask`
+- `taskType` stays `general_follow_up`
+- the payload contains no free-text `summary` or `notes`
+- the patient-facing response only promises a reception follow-up after the handoff succeeds
+
+### E10. Urgent symptoms trigger urgent first-available lookup without diagnosis
+
+Say:
+
+- "Bardzo boli mnie zab i mam opuchlizne. Jaki jest najszybszy mozliwy termin? Musze tylko sprawdzic opcje."
+
+Verify:
+
+- the assistant immediately calls `checkAvailability`
+- the lookup uses `service.id: urgent_consultation`
+- the lookup uses `timePreference: first_available`
+- the assistant avoids diagnosis or treatment advice
+- if the caller only asked to inspect options, the flow stops short of `createEvent`
+
+### E11. Contact-number capture behaves correctly
+
+Run both variants:
+
+- real caller-number exposed: use a real handset and reach a booking or handoff branch that needs a callback number
+- caller-number hidden or overridden: use a web call or explicitly say "Prosze uzyc innego numeru do kontaktu"
+
+Verify:
+
+- when a live caller number is exposed, the assistant asks whether to use that number as the contact number instead of forcing full digit capture
+- when the contact number is still unresolved, the assistant does not replace that question with a generic "Czy wszystko sie zgadza?"
+- when the caller gives a different number or corrects a wrong one, later tools reuse the corrected number
+- the assistant does not ask for the contact number again once it has been explicitly confirmed
+
+### E12. Language, respectful form, and speech hygiene
+
+Run these variants:
+
+- masculine reveal: "Chcialbym umowic sie na pierwsza wizyte."
+- feminine reveal: "Chcialabym umowic sie na pierwsza wizyte."
+- English start: "Hello, I'd like to book a first consultation."
+
+Verify:
+
+- after `chcialbym`, the next direct question uses natural masculine respectful wording such as `pan`, `pana`, or `panu`
+- after `chcialabym`, the next direct question uses `pani`
+- English stays in English, Polish stays in Polish, unless the caller explicitly switches
+- the assistant avoids fillers, raw digits, clipped fragments, and wording such as `salon`
+
+### E13. Knowledge-base answer versus advice boundary
+
+Run both variants:
+
+- supported question: "Ile kosztuje higienizacja?" or "Czym rozni sie bonding od licowek?"
+- unsupported medical or diagnostic question: "Czy ten bol oznacza, ze potrzebuje leczenia kanalowego?"
+
+Verify:
+
+- supported questions call `searchKnowledgeBase`
+- the answer stays inside the curated repo-backed content
+- unsupported medical questions do not produce diagnosis or treatment recommendations
+- when the KB does not support the answer, the assistant says so clearly and offers the next safe step such as booking or reception follow-up
+
+### E14. Booking artifact audit after success
+
+Run one successful booking with a clearly synthetic patient name and, if possible, a real exposed caller number.
+
+Verify:
+
+- `createEvent` is called exactly once and only after the final booking confirmation
+- the created Google Calendar event contains the patient full name
+- the event description includes both the declared callback number and the live caller number when both are available
+- the event description does not contain free-text notes, email, or booking-SMS targeting metadata
+- the booking path produces structured output with the expected booking outcome
+- the `vapi-call-ended` router returns the expected route for the final structured output
+
+## 11b. Cross-scenario transcript and artifact checks
+
+Apply these checks to every live-call scenario above:
+
+- no repeated question in the same form when the caller already answered
+- partial answers are handled by confirming what was understood and asking only for the missing piece
+- if the caller says "juz to podalem" or corrects a number, the assistant reuses the collected data instead of restarting the flow
+- when a tool result includes a ready-made `message`, the next assistant utterance uses that `message`
+- no raw digits appear in speech-facing text for dates, times, or phone readback
+- no promise of booking, callback, or reception takeover is made before the relevant tool succeeds
+- when the caller changes the day, date, or hour, the next lookup refreshes availability instead of reusing stale slots
+- if the caller chooses the first, second, or third offered slot, `createEvent` reuses the exact `slotStart` and `slotEnd` from the chosen option
+- the transcript does not drift into unsupported medical advice, invented pricing, or invented staff names
+- structured output matches the real outcome, including booking versus follow-up routing, `successfulForAssistantScope`, and any urgent or callback-related flags
 
 ## 12. What to inspect if something fails
 

@@ -7,7 +7,7 @@ Use these as the current working source of truth:
 - [`operations-runbook.md`](./operations-runbook.md) for human operating procedure
 - [`environment-separation.md`](./environment-separation.md) for staging versus production flow
 - [`testing-strategy.md`](./testing-strategy.md) for automated gate boundaries
-- [`testing.md`](./testing.md) for manual smoke checks
+- [`testing.md`](./testing.md) for manual verification and edge-case checks
 - [`staging-regression-suite.md`](./staging-regression-suite.md) for the active automated lane
 
 Design and control-plane background:
