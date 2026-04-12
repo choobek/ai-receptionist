@@ -2,21 +2,26 @@
   "version": 1,
   "environment": "production",
   "assistantId": "6db99c99-3f93-41e3-ae4e-fefe3974e2d6",
-  "assistantName": "Ola",
+  "assistantName": "Lena",
   "assistantOverrides": {
+    "transcriber": {
+      "provider": "openai",
+      "model": "gpt-4o-transcribe",
+      "language": "pl"
+    },
     "voice": {
       "chunkPlan": {
         "minCharacters": 32
       }
     },
     "startSpeakingPlan": {
-      "waitSeconds": 0.35,
+      "waitSeconds": 0.2,
       "smartEndpointingPlan": {
         "provider": "vapi"
       },
       "transcriptionEndpointingPlan": {
-        "onPunctuationSeconds": 0.35,
-        "onNoPunctuationSeconds": 1.8,
+        "onPunctuationSeconds": 0.25,
+        "onNoPunctuationSeconds": 1.2,
         "onNumberSeconds": 0.9
       }
     }

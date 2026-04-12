@@ -3942,11 +3942,11 @@ test('assistant renderer keeps staging on explicit fast-turn endpointing experim
     STAGING_AI_RECEPTIONIST_WEBHOOK_SECRET: 'stage-secret'
   });
 
-  assert.equal(shared.assistant?.name, 'Ola');
+  assert.equal(shared.assistant?.name, 'Lena');
   assert.equal(shared.assistant?.transcriber?.provider, '11labs');
   assert.equal(shared.assistant?.transcriber?.model, 'scribe_v2');
   assert.equal(shared.assistant?.model?.model, 'gpt-5.2-chat-latest');
-  assert.equal(rendered.assistant?.name, 'Ola [staging]');
+  assert.equal(rendered.assistant?.name, 'Lena [staging]');
   assert.equal(rendered.assistant?.model?.model, 'gpt-5.2-chat-latest');
   assert.equal(rendered.assistant?.transcriber?.provider, '11labs');
   assert.equal(rendered.assistant?.transcriber?.model, 'scribe_v2');
@@ -3964,26 +3964,28 @@ test('assistant renderer keeps staging on explicit fast-turn endpointing experim
   assert.deepEqual(rendered.assistant?.hooks, []);
 });
 
-test('assistant renderer keeps production on explicit Vapi smart endpointing with matched thresholds', () => {
+test('assistant renderer keeps production on explicit Vapi smart endpointing with OpenAI transcription', () => {
   const shared = loadAssistantConfig();
   const rendered = renderAssistantConfig('production', {
     PRODUCTION_N8N_PUBLIC_BASE_URL: 'https://production.example.test',
     PRODUCTION_AI_RECEPTIONIST_WEBHOOK_SECRET: 'prod-secret'
   });
 
-  assert.equal(shared.assistant?.name, 'Ola');
+  assert.equal(shared.assistant?.name, 'Lena');
   assert.equal(shared.assistant?.transcriber?.provider, '11labs');
   assert.equal(shared.assistant?.transcriber?.model, 'scribe_v2');
-  assert.equal(rendered.assistant?.name, 'Ola');
-  assert.equal(rendered.assistant?.transcriber?.provider, '11labs');
-  assert.equal(rendered.assistant?.transcriber?.model, 'scribe_v2');
+  assert.equal(rendered.assistant?.name, 'Lena');
+  assert.equal(rendered.assistant?.transcriber?.provider, 'openai');
+  assert.equal(rendered.assistant?.transcriber?.model, 'gpt-4o-transcribe');
   assert.equal(rendered.assistant?.transcriber?.language, 'pl');
   assert.equal(rendered.assistant?.voice?.chunkPlan?.minCharacters, 32);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.35);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.2);
   assert.equal(rendered.assistant?.startSpeakingPlan?.smartEndpointingPlan?.provider, 'vapi');
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.35);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 1.8);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.25);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 1.2);
   assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 0.9);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.customEndpointingRules, undefined);
+  assert.deepEqual(rendered.assistant?.stopSpeakingPlan, shared.assistant?.stopSpeakingPlan);
 });
 
 assistantInvariantTest('assistant model payload stays within the latency baseline and tool waits remain non-blocking', () => {

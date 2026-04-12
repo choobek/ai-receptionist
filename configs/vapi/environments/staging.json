@@ -2,7 +2,7 @@
   "version": 1,
   "environment": "staging",
   "assistantId": "8f0b2287-26b0-42ad-8859-34a4f386ce64",
-  "assistantName": "Ola [staging]",
+  "assistantName": "Lena [staging]",
   "assistantOverrides": {
     "model": {
       "temperature": 0
