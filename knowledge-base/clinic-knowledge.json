@@ -1177,5 +1177,108 @@
       "What happens if I want an appointment with another doctor?"
     ],
     "answerEn": "At the moment, the assistant books only first visits with doctor Magdalena Szajnar. If a patient wants another specialist, the information is passed to reception, which contacts the patient as soon as possible."
+  },
+  {
+    "id": "kb_services_directory",
+    "title": "Zakres uslug kliniki",
+    "category": "organization",
+    "sourceDocument": "uslugi-stomatologiczne/",
+    "tags": [
+      "uslugi",
+      "oferta",
+      "zakres uslug",
+      "jakie uslugi",
+      "jakie zabiegi",
+      "co oferujecie",
+      "co wykonujecie",
+      "lista uslug"
+    ],
+    "queryExamples": [
+      "Jakie uslugi oferuje klinika?",
+      "Jakie zabiegi wykonujecie?",
+      "Co macie w ofercie?"
+    ],
+    "answerPl": "Klinika oferuje m.in. implanty stomatologiczne, implanty zygomatyczne, All on four, implanty podokostnowe, protetyke, ortodoncje, Invisalign, chirurgie ortognatyczna, chirurgie stomatologiczna, wybielanie i stomatologie estetyczna, leczenie chorob dziasel, leczenie bruksizmu, leczenie zachowawcze, leczenie kanalowe, profilaktyke stomatologiczna, diagnostyke stomatologiczna, fizjoterapie stomatologiczna oraz indywidualny plan leczenia.",
+    "titleEn": "Clinic service directory",
+    "tagsEn": [
+      "services",
+      "offer",
+      "service list",
+      "what services",
+      "what treatments",
+      "do you offer"
+    ],
+    "queryExamplesEn": [
+      "What services does the clinic offer?",
+      "What treatments do you provide?",
+      "What is included in your offer?"
+    ],
+    "answerEn": "The clinic offers, among other things, dental implants, zygomatic implants, All-on-4, subperiosteal implants, prosthetics, orthodontics, Invisalign, orthognathic surgery, oral surgery, whitening and aesthetic dentistry, gum disease treatment, bruxism treatment, conservative dentistry, root canal treatment, dental prevention, dental diagnostics, dental physiotherapy, and an individual treatment plan."
+  },
+  {
+    "id": "kb_diagnostics_overview",
+    "title": "Diagnostyka stomatologiczna",
+    "category": "organization",
+    "sourceDocument": "uslugi-stomatologiczne/",
+    "tags": [
+      "diagnostyka stomatologiczna",
+      "diagnostyka",
+      "badania",
+      "tomografia",
+      "rtg",
+      "cbct"
+    ],
+    "queryExamples": [
+      "Czy macie diagnostyke stomatologiczna?",
+      "Czy wykonujecie badania diagnostyczne?",
+      "Jak wyglada diagnostyka w klinice?"
+    ],
+    "answerPl": "Klinika oferuje diagnostyke stomatologiczna. Wedlug strony uslug trafnie postawiona diagnoza jest kluczem do sukcesu, dlatego w klinice wykorzystywane sa nowoczesne metody i sprawdzone procedury diagnostyczne.",
+    "titleEn": "Dental diagnostics",
+    "tagsEn": [
+      "dental diagnostics",
+      "diagnostics",
+      "tests",
+      "cbct",
+      "x-ray"
+    ],
+    "queryExamplesEn": [
+      "Do you offer dental diagnostics?",
+      "Do you perform diagnostic tests?",
+      "How does diagnostics work at the clinic?"
+    ],
+    "answerEn": "The clinic offers dental diagnostics. According to the services page, an accurate diagnosis is treated as the key to successful treatment, which is why the clinic uses modern diagnostic methods and proven procedures."
+  },
+  {
+    "id": "kb_treatment_plan_overview",
+    "title": "Plan leczenia",
+    "category": "organization",
+    "sourceDocument": "uslugi-stomatologiczne/",
+    "tags": [
+      "plan leczenia",
+      "kosztorys",
+      "indywidualny plan",
+      "rozpiska leczenia",
+      "plan terapii"
+    ],
+    "queryExamples": [
+      "Czy oferujecie plan leczenia?",
+      "Czy przygotowujecie indywidualny plan z kosztorysem?",
+      "Jak wyglada plan leczenia?"
+    ],
+    "answerPl": "Klinika przygotowuje indywidualny plan leczenia wraz z kosztorysem. Taki plan powstaje na podstawie mozliwosci leczenia oraz oczekiwan pacjenta.",
+    "titleEn": "Treatment plan",
+    "tagsEn": [
+      "treatment plan",
+      "cost estimate",
+      "individual plan",
+      "treatment roadmap"
+    ],
+    "queryExamplesEn": [
+      "Do you offer a treatment plan?",
+      "Do you prepare an individual plan with a cost estimate?",
+      "How does the treatment plan work?"
+    ],
+    "answerEn": "The clinic prepares an individual treatment plan together with a cost estimate. It is created on the basis of the available treatment options and the patient's expectations."
   }
 ]

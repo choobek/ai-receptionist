@@ -485,6 +485,7 @@ Verify:
 Say something like:
 
 - "Mam silny bol i opuchlizne, potrzebuje szybkiego terminu."
+- Repeat with the production-regression shape: "Chcialbym sie umowic na konsultacje, bo zab mnie boli, chcialem zeby lekarz to zobaczyl."
 
 Verify:
 
@@ -643,6 +644,7 @@ Verify:
 Say:
 
 - "Bardzo boli mnie zab i mam opuchlizne. Jaki jest najszybszy mozliwy termin? Musze tylko sprawdzic opcje."
+- Repeat with: "Chcialbym sie umowic na konsultacje, bo zab mnie boli, chcialem zeby lekarz to zobaczyl."
 
 Verify:
 

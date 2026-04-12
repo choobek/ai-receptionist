@@ -7,6 +7,7 @@ This proof-of-concept knowledge base is derived from the following source materi
   - `implanty.odt`
   - `all-on-4.odt`
   - `protetyka.odt`
+- the public service list on `https://ipokrzyku.pl/uslugi-stomatologiczne/`
 - [`knowledge-base/sources/reception-feedback-2026-03-21.md`](../knowledge-base/sources/reception-feedback-2026-03-21.md)
 
 ## What is stored in the repo
@@ -24,6 +25,7 @@ The current KB covers:
 - consultation flow and diagnostics
 - implant types and treatment paths
 - All on four overview, qualification, and pricing
+- the website-level service directory and service-presence questions
 - selected service pricing
 - booking policy for first visits vs other specialists
 - veneers versus bonding

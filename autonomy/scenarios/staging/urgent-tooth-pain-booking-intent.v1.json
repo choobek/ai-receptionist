@@ -1,0 +1,98 @@
+{
+  "schema_version": "staging-chat-scenario.v1",
+  "scenario_id": "urgent-tooth-pain-booking-intent",
+  "title": "Tooth pain plus booking intent routes to urgent consultation",
+  "description": "The caller asks to book a consultation because a tooth hurts and the doctor should see it. This should bypass the first-visit gate and use an urgent first-available lookup.",
+  "status": "active",
+  "environment": "staging",
+  "language": "pl",
+  "tags": [
+    "urgent",
+    "safety-critical",
+    "availability",
+    "staging-safe",
+    "production-regression"
+  ],
+  "source": {
+    "origin": "production_call_regression",
+    "references": [
+      "autonomy/runs/generated/vapi-live-autoeval/production-vapi-live-autoeval-20260412T181459Z/raw-calls/019d82e2-2d57-7000-83ec-b09b6ec2b8c2.call.json",
+      "configs/vapi/assistant.v2.json",
+      "docs/testing.md"
+    ]
+  },
+  "runner": {
+    "provider": "vapi_chat",
+    "max_turns": 1
+  },
+  "turns": [
+    {
+      "turn_id": "tooth-pain-booking-request",
+      "user": "Chciałbym się umówić na konsultację, bo ząb mnie boli, chciałem żeby lekarz to zobaczył."
+    }
+  ],
+  "rubric": [
+    {
+      "criterion_id": "urgent-availability-lookup-used",
+      "description": "Tooth pain with booking intent should trigger an immediate availability lookup.",
+      "severity": "critical",
+      "root_cause_hint": "urgent tooth-pain booking intent fell through to the first-visit gate",
+      "rule": {
+        "type": "turn_tool_called",
+        "turn": 1,
+        "tool_name": "checkAvailability"
+      }
+    },
+    {
+      "criterion_id": "urgent-service-id-used",
+      "description": "The lookup must use urgent_consultation instead of the standard consultation bucket.",
+      "severity": "critical",
+      "root_cause_hint": "tooth pain was routed as a normal first-visit consultation",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 1,
+        "tool_name": "checkAvailability",
+        "path": "service.id",
+        "equals": "urgent_consultation"
+      }
+    },
+    {
+      "criterion_id": "first-available-time-preference-used",
+      "description": "When the urgent caller gives no date or hour, the assistant should check first_available.",
+      "severity": "critical",
+      "root_cause_hint": "assistant asked for first-visit details or time preference before checking urgent availability",
+      "rule": {
+        "type": "turn_tool_arg_equals",
+        "turn": 1,
+        "tool_name": "checkAvailability",
+        "path": "timePreference",
+        "equals": "first_available"
+      }
+    },
+    {
+      "criterion_id": "no-first-visit-gate",
+      "description": "The urgent tooth-pain request should not be blocked by asking whether this is the first visit.",
+      "severity": "critical",
+      "root_cause_hint": "first-visit gate still outranks urgent tooth-pain routing",
+      "rule": {
+        "type": "turn_assistant_text_not_contains_any",
+        "turn": 1,
+        "contains_none": [
+          "pierwsza wizyta",
+          "pierwsza wizyte",
+          "pierwszej wizyty"
+        ]
+      }
+    },
+    {
+      "criterion_id": "no-booking-created",
+      "description": "The assistant must not create a booking before slot selection and confirmation.",
+      "severity": "high",
+      "root_cause_hint": "assistant advanced into booking without explicit slot selection and confirmation",
+      "rule": {
+        "type": "tool_not_called",
+        "tool_name": "createEvent"
+      }
+    }
+  ]
+}

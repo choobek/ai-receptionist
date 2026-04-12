@@ -3124,6 +3124,73 @@ test('searchKnowledgeBase returns the clinic address for location questions', ()
   assert.match(searchResult.answer, /31-357 Krakow/i);
 });
 
+test('searchKnowledgeBase returns the website service directory for generic offer questions', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Jakie uslugi oferuje klinika?',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.equal(searchResult.matches[0].id, 'kb_services_directory');
+  assert.match(searchResult.answer, /implanty stomatologiczne/i);
+  assert.match(searchResult.answer, /diagnostyke stomatologiczna/i);
+  assert.match(searchResult.answer, /plan leczenia/i);
+});
+
+test('searchKnowledgeBase confirms diagnostics as a supported service', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Czy macie diagnostyke stomatologiczna?',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.equal(searchResult.matches[0].id, 'kb_diagnostics_overview');
+  assert.match(searchResult.answer, /diagnostyke stomatologiczna/i);
+  assert.match(searchResult.answer, /nowoczesne metody|sprawdzone procedury/i);
+});
+
+test('searchKnowledgeBase confirms the clinic prepares treatment plans', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Czy oferujecie plan leczenia?',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.equal(searchResult.matches[0].id, 'kb_treatment_plan_overview');
+  assert.match(searchResult.answer, /plan leczenia/i);
+  assert.match(searchResult.answer, /kosztorysem|kosztorys/i);
+});
+
 test('searchKnowledgeBase refuses partial-overlap medical questions', () => {
   const workflow = loadWorkflow('tool_search-knowledge-base.json');
   const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
@@ -3569,6 +3636,18 @@ assistantInvariantTest('assistant prompt keeps the urgent first-available overri
     normalizedPrompt,
     /checkAvailability z service\.id urgent_consultation, timePreference first_available i timezone Europe\/Warsaw/i
   );
+  assert.match(
+    normalizedPrompt,
+    /boli mnie zab.*zab mnie boli/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /nie wymagaj slowa "silny" ani "pilny"/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /zeby lekarz to zobaczyl/i
+  );
   assert.doesNotMatch(normalizedPrompt, /searchDays 5/i);
   assert.match(
     normalizedPrompt,
@@ -3578,6 +3657,47 @@ assistantInvariantTest('assistant prompt keeps the urgent first-available overri
     normalizedPrompt,
     /createEvent, dopoki pacjent nie wybierze jednego terminu/i
   );
+});
+
+assistantInvariantTest('urgent tooth-pain booking scenario catches first-visit gate regressions', () => {
+  const scenario = loadStagingScenario('urgent-tooth-pain-booking-intent.v1.json');
+
+  assert.equal(
+    scenario.turns[0].user,
+    'Chciałbym się umówić na konsultację, bo ząb mnie boli, chciałem żeby lekarz to zobaczył.'
+  );
+  assert.deepEqual(getScenarioCriterion(scenario, 'urgent-availability-lookup-used').rule, {
+    type: 'turn_tool_called',
+    turn: 1,
+    tool_name: 'checkAvailability'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'urgent-service-id-used').rule, {
+    type: 'turn_tool_arg_equals',
+    turn: 1,
+    tool_name: 'checkAvailability',
+    path: 'service.id',
+    equals: 'urgent_consultation'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'first-available-time-preference-used').rule, {
+    type: 'turn_tool_arg_equals',
+    turn: 1,
+    tool_name: 'checkAvailability',
+    path: 'timePreference',
+    equals: 'first_available'
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-first-visit-gate').rule, {
+    type: 'turn_assistant_text_not_contains_any',
+    turn: 1,
+    contains_none: [
+      'pierwsza wizyta',
+      'pierwsza wizyte',
+      'pierwszej wizyty'
+    ]
+  });
+  assert.deepEqual(getScenarioCriterion(scenario, 'no-booking-created').rule, {
+    type: 'tool_not_called',
+    tool_name: 'createEvent'
+  });
 });
 
 assistantInvariantTest('assistant prompt keeps implant consultation lookup explicit after booking intent', () => {
@@ -4185,6 +4305,30 @@ assistantInvariantTest('first-visit date-evening scenario keeps requestedDate bo
     turn: 2,
     contains_none: ['czesc', 'jak sie masz', 'salon']
   });
+});
+
+assistantInvariantTest('alternative-day refresh scenario uses a stable explicit Wednesday fixture', () => {
+  const scenario = loadStagingScenario('alternative-day-refresh-availability.v1.json');
+
+  assert.match(scenario.turns[0].user, /srode czternastego kwietnia/i);
+  assert.equal(scenario.turns[1].user, 'To srode czternastego kwietnia po poludniu.');
+  assert.deepEqual(getScenarioCriterion(scenario, 'clarified-lookup-targets-wednesday').rule, {
+    type: 'turn_tool_arg_equals',
+    turn: 2,
+    tool_name: 'checkAvailability',
+    path: 'requestedDate',
+    equals: '2027-04-14'
+  });
+});
+
+assistantInvariantTest('first-visit Thursday follow-up scenario accepts explicit no-visit wording', () => {
+  const scenario = loadStagingScenario('first-visit-follow-up-keeps-szajnar.v1.json');
+  const acceptedPhrases = getScenarioCriterion(scenario, 'second-turn-asks-for-choice')
+    .rule
+    .contains_any;
+
+  assert.ok(acceptedPhrases.includes('nie ma wizyty w czwartek'));
+  assert.ok(acceptedPhrases.includes('nie ma terminu w czwartek'));
 });
 
 assistantInvariantTest('existing-patient doctor-question scenario answers briefly before handoff and still avoids scheduling', () => {
