@@ -34,6 +34,14 @@ fi
 
 If the target does not require a webhook secret, leave `WEBHOOK_SECRET` empty.
 
+If you also want to verify the Google connection page for the same target, prepare the calendar connect URL separately:
+
+```bash
+./scripts/print-calendar-connect-url.sh staging clinic-default
+# or:
+./scripts/print-calendar-connect-url.sh production clinic-default
+```
+
 ## 1. Verify the configured public URL
 
 ```bash
@@ -65,6 +73,16 @@ Confirm them in:
 - optional Vapi custom tool `sendSmsToReceptionists`
 - optional direct/manual webhook `sendSmsToPatient` for SMS-provider probes
 - any Vapi webhook or server URL that sends `call.ended` events to n8n
+
+## 2a. Verify the public Google connection page
+
+Open the `/calendar/connect` URL generated above in a browser.
+
+Expected:
+
+- the page renders on the same host as the webhooks
+- it is not blocked by the n8n editor login
+- it clearly shows whether the calendar is connected, disconnected, or needs reconnection
 
 ## 3. Direct tool test: `lookupPatient`
 
@@ -452,10 +470,11 @@ If tool calls fail:
 
 - Vapi tool request logs
 - n8n workflow executions
+- calendar-gateway logs and `/calendar/status` page output
 - VPS-side n8n and reverse proxy logs
-- Google Calendar credential status in n8n
+- Google Calendar connection status in the calendar gateway
 
-See [`operations-runbook.md`](./operations-runbook.md) section `Google Calendar Credential Recovery` for the standard repair path.
+See [`operations-runbook.md`](./operations-runbook.md) section `Google Calendar Connected-Account Recovery` for the standard repair path.
 
 If the assistant speaks but no booking happens:
 

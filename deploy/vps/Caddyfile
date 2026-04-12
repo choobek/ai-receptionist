@@ -6,11 +6,11 @@
 	encode zstd gzip
 
 	@public_endpoints {
-		path /webhook/* /webhook-test/* /healthz /healthz/*
+		path /webhook/* /webhook-test/* /healthz /healthz/* /calendar /calendar/*
 	}
 
 	@protected {
-		not path /webhook/* /webhook-test/* /healthz /healthz/*
+		not path /webhook/* /webhook-test/* /healthz /healthz/* /calendar /calendar/*
 	}
 
 	basic_auth @protected {
@@ -28,6 +28,7 @@
 		format filter {
 			request>uri query {
 				replace secret REDACTED
+				replace token REDACTED
 			}
 			request>headers>X-Ai-Receptionist-Secret delete
 			request>remote_ip ip_mask 16 32
@@ -35,10 +36,19 @@
 		}
 	}
 
-	reverse_proxy n8n:5678
-	log_append upstream_host {rp.upstream.host}
-	log_append upstream_duration_ms {rp.upstream.duration_ms}
-	log_append upstream_latency_ms {rp.upstream.latency_ms}
+	handle /calendar* {
+		reverse_proxy calendar-gateway:3000
+		log_append upstream_host {rp.upstream.host}
+		log_append upstream_duration_ms {rp.upstream.duration_ms}
+		log_append upstream_latency_ms {rp.upstream.latency_ms}
+	}
+
+	handle {
+		reverse_proxy n8n:5678
+		log_append upstream_host {rp.upstream.host}
+		log_append upstream_duration_ms {rp.upstream.duration_ms}
+		log_append upstream_latency_ms {rp.upstream.latency_ms}
+	}
 }
 
 import caddy.d/*.caddy

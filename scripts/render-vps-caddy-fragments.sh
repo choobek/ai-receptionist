@@ -40,6 +40,7 @@ def load_env(path: Path):
 env = load_env(env_path)
 staging_domain = env.get("STAGING_N8N_DOMAIN", "").strip()
 staging_upstream = env.get("STAGING_N8N_UPSTREAM", "").strip()
+staging_calendar_upstream = env.get("STAGING_CALENDAR_GATEWAY_UPSTREAM", "").strip() or "staging-calendar-gateway:3000"
 admin_user = env.get("CADDY_ADMIN_USER", "").strip()
 admin_password_hash = env.get("CADDY_ADMIN_PASSWORD_HASH", "").strip()
 
@@ -51,11 +52,11 @@ if staging_domain and staging_upstream and admin_user and admin_password_hash:
 \tencode zstd gzip
 
 \t@public_endpoints {{
-\t\tpath /webhook/* /webhook-test/* /healthz /healthz/*
+\t\tpath /webhook/* /webhook-test/* /healthz /healthz/* /calendar /calendar/*
 \t}}
 
 \t@protected {{
-\t\tnot path /webhook/* /webhook-test/* /healthz /healthz/*
+\t\tnot path /webhook/* /webhook-test/* /healthz /healthz/* /calendar /calendar/*
 \t}}
 
 \tbasic_auth @protected {{
@@ -68,7 +69,26 @@ if staging_domain and staging_upstream and admin_user and admin_password_hash:
 \t\tX-Frame-Options \"DENY\"
 \t}}
 
-\treverse_proxy {staging_upstream}
+\tlog {{
+\t\toutput stdout
+\t\tformat filter {{
+\t\t\trequest>uri query {{
+\t\t\t\treplace secret REDACTED
+\t\t\t\treplace token REDACTED
+\t\t\t}}
+\t\t\trequest>headers>X-Ai-Receptionist-Secret delete
+\t\t\trequest>remote_ip ip_mask 16 32
+\t\t\trequest>client_ip ip_mask 16 32
+\t\t}}
+\t}}
+
+\thandle /calendar* {{
+\t\treverse_proxy {staging_calendar_upstream}
+\t}}
+
+\thandle {{
+\t\treverse_proxy {staging_upstream}
+\t}}
 }}
 """,
         encoding="utf-8",

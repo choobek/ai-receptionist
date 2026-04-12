@@ -5,6 +5,8 @@ services:
     image: docker.n8n.io/n8nio/n8n:2.7.4
     container_name: ${N8N_CONTAINER_NAME:-ai-receptionist-n8n}
     restart: unless-stopped
+    depends_on:
+      - calendar-gateway
     ports:
       - "${N8N_PORT:-5678}:5678"
     environment:
@@ -39,6 +41,9 @@ services:
       - CLINIC_NAME=${CLINIC_NAME}
       - CLINIC_TIMEZONE=${CLINIC_TIMEZONE}
       - GOOGLE_CALENDAR_ID=${GOOGLE_CALENDAR_ID}
+      - GOOGLE_CALENDAR_CONNECTION_ID=${GOOGLE_CALENDAR_CONNECTION_ID}
+      - CALENDAR_GATEWAY_INTERNAL_BASE_URL=${CALENDAR_GATEWAY_INTERNAL_BASE_URL}
+      - CALENDAR_GATEWAY_INTERNAL_API_KEY=${CALENDAR_GATEWAY_INTERNAL_API_KEY}
       - CLINIC_WORKING_HOURS_START=${CLINIC_WORKING_HOURS_START}
       - CLINIC_WORKING_HOURS_END=${CLINIC_WORKING_HOURS_END}
       - DEFAULT_APPOINTMENT_DURATION_MINUTES=${DEFAULT_APPOINTMENT_DURATION_MINUTES}
@@ -48,6 +53,31 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
 
+  calendar-gateway:
+    build:
+      context: ../calendar-gateway
+    container_name: ${CALENDAR_GATEWAY_CONTAINER_NAME:-ai-receptionist-calendar-gateway}
+    restart: unless-stopped
+    ports:
+      - "${CALENDAR_GATEWAY_PORT:-3456}:3000"
+    environment:
+      - NODE_ENV=production
+      - CLINIC_NAME=${CLINIC_NAME}
+      - GOOGLE_CALENDAR_ID=${GOOGLE_CALENDAR_ID}
+      - GOOGLE_CALENDAR_CONNECTION_ID=${GOOGLE_CALENDAR_CONNECTION_ID}
+      - CALENDAR_GATEWAY_DATA_DIR=${CALENDAR_GATEWAY_DATA_DIR}
+      - CALENDAR_GATEWAY_PUBLIC_BASE_URL=${CALENDAR_GATEWAY_PUBLIC_BASE_URL}
+      - CALENDAR_GATEWAY_INTERNAL_API_KEY=${CALENDAR_GATEWAY_INTERNAL_API_KEY}
+      - CALENDAR_GATEWAY_CONNECT_TOKEN=${CALENDAR_GATEWAY_CONNECT_TOKEN}
+      - CALENDAR_GATEWAY_ENCRYPTION_KEY=${CALENDAR_GATEWAY_ENCRYPTION_KEY}
+      - GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID}
+      - GOOGLE_OAUTH_CLIENT_SECRET=${GOOGLE_OAUTH_CLIENT_SECRET}
+      - GOOGLE_OAUTH_SCOPES=${GOOGLE_OAUTH_SCOPES}
+    volumes:
+      - calendar_gateway_data:${CALENDAR_GATEWAY_DATA_DIR:-/data}
+
 volumes:
   n8n_data:
     name: ${N8N_DATA_VOLUME_NAME:-ai-receptionist-n8n-data}
+  calendar_gateway_data:
+    name: ${CALENDAR_GATEWAY_DATA_VOLUME_NAME:-ai-receptionist-calendar-gateway-data}

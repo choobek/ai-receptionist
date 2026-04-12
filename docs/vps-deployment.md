@@ -4,6 +4,7 @@ This guide deploys n8n on a VPS with:
 
 - Docker Compose
 - Caddy as the public HTTPS reverse proxy
+- a sidecar calendar-gateway service for Google OAuth and Calendar API access
 - stable webhook URLs for Vapi
 
 It is intended for a server such as your OVH VPS.
@@ -68,11 +69,18 @@ cp .env.example .env
 Edit root [`.env`](../.env.example) and set at minimum:
 
 - `N8N_DOMAIN`
+- `CALENDAR_GATEWAY_PUBLIC_BASE_URL`
 - `LETSENCRYPT_EMAIL`
 - `CADDY_ADMIN_PASSWORD_HASH`
 - `N8N_ENCRYPTION_KEY`
 - `AI_RECEPTIONIST_WEBHOOK_SECRET`
-- `GOOGLE_CALENDAR_ID` if not `primary`
+- `CALENDAR_GATEWAY_INTERNAL_API_KEY`
+- `CALENDAR_GATEWAY_CONNECT_TOKEN`
+- `CALENDAR_GATEWAY_ENCRYPTION_KEY`
+- `GOOGLE_OAUTH_CLIENT_ID`
+- `GOOGLE_OAUTH_CLIENT_SECRET`
+- `GOOGLE_CALENDAR_CONNECTION_ID`
+- `GOOGLE_CALENDAR_ID` if you want an explicit fallback calendar instead of the one selected during the connect flow
 
 Generate strong secrets like this:
 
@@ -85,11 +93,18 @@ Required production values:
 
 ```dotenv
 N8N_DOMAIN=n8n.example.com
+CALENDAR_GATEWAY_PUBLIC_BASE_URL=https://n8n.example.com
 LETSENCRYPT_EMAIL=ops@example.com
 CADDY_ADMIN_USER=admin
 CADDY_ADMIN_PASSWORD_HASH=replace-with-caddy-hash
 N8N_ENCRYPTION_KEY=replace-with-openssl-output
 AI_RECEPTIONIST_WEBHOOK_SECRET=replace-with-a-long-random-secret
+CALENDAR_GATEWAY_INTERNAL_API_KEY=replace-with-a-long-random-secret
+CALENDAR_GATEWAY_CONNECT_TOKEN=replace-with-a-long-random-secret
+CALENDAR_GATEWAY_ENCRYPTION_KEY=replace-with-a-long-random-secret
+GOOGLE_OAUTH_CLIENT_ID=replace-with-google-oauth-client-id
+GOOGLE_OAUTH_CLIENT_SECRET=replace-with-google-oauth-client-secret
+GOOGLE_CALENDAR_CONNECTION_ID=clinic-default
 N8N_BASIC_AUTH_ACTIVE=false
 N8N_SECURE_COOKIE=true
 N8N_PROXY_HOPS=1
@@ -99,6 +114,13 @@ For an OVH-provided hostname, the first pass would be:
 
 ```dotenv
 N8N_DOMAIN=your-vps-name.vps.ovh.net
+CALENDAR_GATEWAY_PUBLIC_BASE_URL=https://your-vps-name.vps.ovh.net
+```
+
+Google OAuth redirect URI for this production host:
+
+```text
+https://YOUR_HOSTNAME/calendar/oauth/callback
 ```
 
 ## 4. Start the stack
@@ -114,14 +136,22 @@ When Caddy has issued the certificate, open:
 
 You should see the n8n login or owner setup flow.
 
-## 5. Finish n8n setup
+## 5. Finish n8n and calendar setup
 
 After first login:
 
 1. Create the n8n owner account.
 2. Import the workflows from [`n8n/workflows/`](../n8n/workflows).
-3. Create Google Calendar credentials inside n8n.
-4. Attach those credentials to the Google Calendar nodes.
+3. Create a Google OAuth web application in Google Cloud that includes `https://YOUR_HOSTNAME/calendar/oauth/callback` as an authorized redirect URI.
+4. Put that OAuth client ID and secret into the VPS root `.env`.
+5. Restart the stack so the calendar-gateway picks up the Google OAuth config.
+6. Generate a connect URL for the calendar owner:
+
+```bash
+./scripts/print-calendar-connect-url.sh clinic-default
+```
+
+7. Open the generated `/calendar/connect` URL, complete the Google login flow, and choose the calendar that should receive bookings.
 
 ## 6. Point Vapi to the VPS URLs
 
@@ -144,6 +174,7 @@ Update:
 - any Vapi webhook target for `call.ended`
 
 The Caddy config protects the n8n editor with HTTP basic auth while leaving `/webhook/*` publicly reachable for Vapi.
+The same public host also exposes `/calendar/*` for the Google login flow; that path is intentionally not behind n8n editor auth.
 
 When `AI_RECEPTIONIST_WEBHOOK_SECRET` is set, configure the same secret in Vapi:
 
@@ -156,6 +187,7 @@ Quick checks:
 
 ```bash
 curl -I https://YOUR_HOSTNAME
+curl -I "https://YOUR_HOSTNAME/calendar/connect?connectionId=clinic-default&token=REPLACE_WITH_CONNECT_TOKEN"
 curl -sS -X POST https://YOUR_HOSTNAME/webhook/ai-receptionist/lookup-patient \
   -H "Content-Type: application/json" \
   -d '{
@@ -220,6 +252,7 @@ curl -sS -X POST https://YOUR_HOSTNAME/webhook/ai-receptionist/create-reception-
 Expected:
 
 - HTTPS responds successfully
+- the `/calendar/connect` page renders instead of returning a 404 or editor login prompt
 - the patient lookup webhook returns JSON, not HTML
 - the knowledge-base webhook returns JSON, not HTML
 - the availability webhook returns JSON, not HTML
@@ -237,6 +270,7 @@ Inspect logs:
 
 ```bash
 docker compose --env-file .env -f deploy/vps/docker-compose.yml logs -f n8n
+docker compose --env-file .env -f deploy/vps/docker-compose.yml logs -f calendar-gateway
 docker compose --env-file .env -f deploy/vps/docker-compose.yml logs -f caddy
 ```
 

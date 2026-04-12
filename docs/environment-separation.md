@@ -5,7 +5,7 @@ This repo now separates shared application logic from environment bindings:
 - Shared Vapi assistant behavior lives in [`../configs/vapi/assistant.v2.json`](../configs/vapi/assistant.v2.json).
 - Environment-specific Vapi resource IDs and optional assistant overrides live in [`../configs/vapi/environments/staging.json`](../configs/vapi/environments/staging.json) and [`../configs/vapi/environments/production.json`](../configs/vapi/environments/production.json).
 - Local automation reads one root [`.env.example`](../.env.example) template with `STAGING_*` and `PRODUCTION_*` values.
-- Each deployed n8n target still keeps its own unprefixed root `.env` on that host.
+- Each deployed target still keeps its own unprefixed root `.env` on that host for both `n8n` and the calendar gateway sidecar.
 
 ## Commands
 
@@ -49,12 +49,12 @@ The promotion script deploys the exact git ref to the production VPS and then sy
 
 ## Manual Setup Still Required
 
-1. Fill root `.env` with `STAGING_*` and `PRODUCTION_*` SSH targets plus `*_N8N_PUBLIC_BASE_URL`. Use `*_AI_RECEPTIONIST_WEBHOOK_SECRET` when the corresponding public n8n webhooks require a secret. If staging should run on the same host as production, point `STAGING_VPS_COMPOSE_FILE` at `deploy/vps/docker-compose.n8n-only.yml` and give staging its own `STAGING_VPS_COMPOSE_PROJECT_NAME`.
+1. Fill root `.env` with `STAGING_*` and `PRODUCTION_*` SSH targets plus `*_N8N_PUBLIC_BASE_URL`. Use `*_AI_RECEPTIONIST_WEBHOOK_SECRET` when the corresponding public n8n webhooks require a secret. If you want to generate calendar connect links locally, also fill `STAGING_CALENDAR_GATEWAY_CONNECT_TOKEN` and `PRODUCTION_CALENDAR_GATEWAY_CONNECT_TOKEN`. If staging should run on the same host as production, point `STAGING_VPS_COMPOSE_FILE` at `deploy/vps/docker-compose.n8n-only.yml` and give staging its own `STAGING_VPS_COMPOSE_PROJECT_NAME`.
 2. Create a separate staging Vapi assistant and the five core staging Vapi tool resources. Put their IDs into [`../configs/vapi/environments/staging.json`](../configs/vapi/environments/staging.json). Add the optional SMS tool IDs there when you are ready to enable SMS in that environment. The repo includes [`../scripts/create-vapi-tool.sh`](../scripts/create-vapi-tool.sh) to create missing Vapi tool resources and write their IDs back into the binding file.
 3. Keep the existing production Vapi assistant IDs in [`../configs/vapi/environments/production.json`](../configs/vapi/environments/production.json). Do not point staging at those production tool IDs.
-4. Stand up a separate staging n8n deployment with its own root `.env`, encryption key, webhook secret, data volume, credentials, and preferably a separate Google Calendar ID.
-5. If staging and production share one VPS, keep production on [`../deploy/vps/docker-compose.yml`](../deploy/vps/docker-compose.yml), run staging from [`../deploy/vps/docker-compose.n8n-only.yml`](../deploy/vps/docker-compose.n8n-only.yml), give each environment a distinct Compose project name, and set `STAGING_N8N_DOMAIN` plus `STAGING_N8N_UPSTREAM` in the production host's root `.env` so the shared Caddy instance can proxy the staging hostname to the staging container over the shared Docker network.
-6. After the first workflow import into each n8n environment, reattach that environment's credentials before publishing the imported workflows.
+4. Stand up a separate staging deployment with its own root `.env`, `N8N_ENCRYPTION_KEY`, `AI_RECEPTIONIST_WEBHOOK_SECRET`, `CALENDAR_GATEWAY_CONNECT_TOKEN`, `CALENDAR_GATEWAY_INTERNAL_API_KEY`, `CALENDAR_GATEWAY_ENCRYPTION_KEY`, calendar-gateway data volume, Google OAuth client, and preferably a separate connected Google Calendar.
+5. If staging and production share one VPS, keep production on [`../deploy/vps/docker-compose.yml`](../deploy/vps/docker-compose.yml), run staging from [`../deploy/vps/docker-compose.n8n-only.yml`](../deploy/vps/docker-compose.n8n-only.yml), give each environment a distinct Compose project name, and set `STAGING_N8N_DOMAIN`, `STAGING_N8N_UPSTREAM`, and `STAGING_CALENDAR_GATEWAY_UPSTREAM` in the production host's root `.env` so the shared Caddy instance can proxy the staging hostname to the staging `n8n` and calendar-gateway containers over the shared Docker network.
+6. After the first deploy into each environment, complete that environment's Google Calendar connection flow through the environment-specific `/calendar/connect` URL before relying on booking tools.
 
 ## Production Phone Number
 
@@ -73,12 +73,13 @@ For the cleanest separation, staging and production should use:
 - different n8n root `.env` files on the target hosts
 - different webhook secrets
 - different n8n data volumes
-- different Google credentials and preferably different calendar IDs
+- different calendar-gateway data volumes
+- different Google OAuth clients and preferably different Google calendars
 
 The compose files now allow different container names, volume names, and Caddy ports if both environments must coexist on the same machine, but separate hosts or clearly separated app directories are still the safer default.
 
 For same-host staging, the intended split is:
 
 - production app dir: shared Caddy plus production n8n
-- staging app dir: isolated staging n8n only, joined to the shared edge network without opening a public host port
-- production host `.env`: `STAGING_N8N_DOMAIN` and `STAGING_N8N_UPSTREAM=staging-n8n:5678`
+- staging app dir: isolated staging n8n plus calendar-gateway, joined to the shared edge network without opening public host ports
+- production host `.env`: `STAGING_N8N_DOMAIN`, `STAGING_N8N_UPSTREAM=staging-n8n:5678`, and `STAGING_CALENDAR_GATEWAY_UPSTREAM=staging-calendar-gateway:3000`

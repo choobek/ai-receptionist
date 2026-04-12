@@ -131,7 +131,7 @@ Key fields:
 6. For `morning`, `afternoon`, `evening`, or `specific_time` without an explicit date, start from today in the clinic timezone and search a small bounded business-day horizon.
 7. If `requestedDate` falls on a closed clinic day and the request is not `specific_time`, roll the search to the next open clinic day.
 8. Search across one or more working days while skipping overnight hours and past slots on the current day.
-9. Read busy events from Google Calendar.
+9. Ask the calendar gateway for busy events from the connected Google account.
 10. Build up to `limit` valid slots.
 11. Return both machine-friendly slot boundaries plus speech-safe wording for voice playback.
 12. Return an exact tool-completion line that offers the slots or explains the calendar fallback without raw digits.
@@ -213,7 +213,7 @@ Key fields:
 3. Validate required fields and patient details.
 4. Keep the exact `slotStart` and `slotEnd` from the selected availability option.
 5. Re-check availability for the requested slot.
-6. Create the Google Calendar event only if the slot is still free.
+6. Create the Google Calendar event through the calendar gateway only if the slot is still free.
 7. Store both the declared callback number and the live caller number in the calendar description when available.
 8. Keep the calendar description limited to receptionist-facing identity data such as patient name, declared callback number, live caller number, and source call ID.
 9. Prefer the live caller number for the booking-confirmation SMS when telephony metadata is available; otherwise fall back to the declared callback number.

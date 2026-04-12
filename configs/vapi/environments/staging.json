@@ -13,13 +13,13 @@
       }
     },
     "startSpeakingPlan": {
-      "waitSeconds": 0.35,
+      "waitSeconds": 0.2,
       "smartEndpointingPlan": {
         "provider": "vapi"
       },
       "transcriptionEndpointingPlan": {
-        "onPunctuationSeconds": 0.35,
-        "onNoPunctuationSeconds": 1.8,
+        "onPunctuationSeconds": 0.25,
+        "onNoPunctuationSeconds": 1.2,
         "onNumberSeconds": 0.9
       }
     }

@@ -13,6 +13,11 @@ This repo should be operated from one root `.env` and six source-of-truth areas:
 - knowledge-base data: [`knowledge-base/clinic-knowledge.json`](../knowledge-base/clinic-knowledge.json)
 - environment template: [`../.env.example`](../.env.example)
 
+Calendar connection specifics live in:
+
+- operator setup: [`google-calendar-operator-guide.md`](./google-calendar-operator-guide.md)
+- calendar-owner instructions: [`google-calendar-user-testing-guide.md`](./google-calendar-user-testing-guide.md)
+
 ## 1. Root `.env`
 
 Create root `.env` from [`../.env.example`](../.env.example) and fill at minimum:
@@ -25,18 +30,26 @@ Create root `.env` from [`../.env.example`](../.env.example) and fill at minimum
   - `N8N_ENCRYPTION_KEY`
   - `N8N_BASIC_AUTH_USER`
   - `N8N_BASIC_AUTH_PASSWORD`
+  - `CALENDAR_GATEWAY_PUBLIC_BASE_URL`
+  - `CALENDAR_GATEWAY_INTERNAL_API_KEY`
+  - `CALENDAR_GATEWAY_CONNECT_TOKEN`
+  - `CALENDAR_GATEWAY_ENCRYPTION_KEY`
+  - `GOOGLE_OAUTH_CLIENT_ID`
+  - `GOOGLE_OAUTH_CLIENT_SECRET`
 - Staging VPS automation:
   - `STAGING_VPS_SSH_HOST`
   - `STAGING_VPS_SSH_USER`
   - `STAGING_VPS_APP_DIR`
   - `STAGING_VPS_COMPOSE_FILE`
   - `STAGING_VPS_COMPOSE_PROJECT_NAME`
+  - `STAGING_CALENDAR_GATEWAY_CONNECT_TOKEN` if you want to generate staging connect links locally
 - Production VPS automation:
   - `PRODUCTION_VPS_SSH_HOST`
   - `PRODUCTION_VPS_SSH_USER`
   - `PRODUCTION_VPS_APP_DIR`
   - `PRODUCTION_VPS_COMPOSE_FILE`
   - `PRODUCTION_VPS_COMPOSE_PROJECT_NAME`
+  - `PRODUCTION_CALENDAR_GATEWAY_CONNECT_TOKEN` if you want to generate production connect links locally
 
 Optional but strongly recommended for public webhooks:
 
@@ -45,7 +58,10 @@ Optional but strongly recommended for public webhooks:
 
 Each deployed staging or production target still keeps its own unprefixed root `.env`
 on that host for runtime values such as `N8N_DOMAIN`, `N8N_ENCRYPTION_KEY`,
-`GOOGLE_CALENDAR_ID`, `AI_RECEPTIONIST_WEBHOOK_SECRET`, and container or volume names.
+`GOOGLE_CALENDAR_ID`, `GOOGLE_CALENDAR_CONNECTION_ID`, `CALENDAR_GATEWAY_PUBLIC_BASE_URL`,
+`CALENDAR_GATEWAY_CONNECT_TOKEN`, `CALENDAR_GATEWAY_INTERNAL_API_KEY`,
+`CALENDAR_GATEWAY_ENCRYPTION_KEY`, `GOOGLE_OAUTH_CLIENT_ID`,
+`GOOGLE_OAUTH_CLIENT_SECRET`, `AI_RECEPTIONIST_WEBHOOK_SECRET`, and container or volume names.
 
 If both environments share one host, keep production on the full compose file and set:
 
@@ -57,6 +73,7 @@ If both environments share one host, keep production on the full compose file an
 - production host root `.env`:
   - `STAGING_N8N_DOMAIN=<public staging hostname>`
   - `STAGING_N8N_UPSTREAM=staging-n8n:5678`
+  - `STAGING_CALENDAR_GATEWAY_UPSTREAM=staging-calendar-gateway:3000`
 
 ## 2. Update Vapi
 
@@ -181,7 +198,7 @@ To check for drift without modifying files:
 ./scripts/sync-n8n-workflow-data.sh --check
 ```
 
-## 4. Run Local n8n
+## 4. Run Local Stack
 
 Use root `.env`:
 
@@ -195,6 +212,17 @@ If your machine uses the Docker Compose plugin instead of `docker-compose`:
 
 ```bash
 docker compose --env-file .env -f n8n/docker-compose.yml up -d
+```
+
+This compose file now starts both `n8n` and the `calendar-gateway` sidecar.
+
+The calendar owner login URL format is:
+
+```bash
+./scripts/print-calendar-connect-url.sh clinic-default
+# or from the local automation env:
+./scripts/print-calendar-connect-url.sh staging clinic-default
+./scripts/print-calendar-connect-url.sh production clinic-default
 ```
 
 ## 5. Deploy Repo On VPS
@@ -240,28 +268,27 @@ Important:
 - Credentials are not versioned in this repo. Imported workflows can arrive as inactive drafts without the credential attachments used by the currently active workflows.
 - Do not unpublish the active workflows manually before the reconcile step finishes successfully.
 
-### Google Calendar Credential Recovery
+### Google Calendar Connected-Account Recovery
 
-Use this when staging or production starts returning empty or failed availability responses and the n8n executions show Google Calendar auth failures such as `EAUTH` or `invalid_grant`.
+Use this when staging or production starts returning empty or failed availability responses and the calendar gateway shows auth failures such as `invalid_grant`, `reauthorization_required`, or revoked access.
 
 Recommended recovery path:
 
 1. Make sure the desired repo workflow JSON is already deployed to the VPS.
-2. Run the reconcile step for the affected environment:
+2. Check the stored connection status through the calendar gateway:
 
 ```bash
-./scripts/reconcile-n8n-workflows-vps.sh staging
-./scripts/reconcile-n8n-workflows-vps.sh production
+curl -sS "https://<environment-host>/calendar/status?connectionId=<connection-id>&token=<connect-token>"
 ```
 
-This is the safe first move because it:
-- exports workflow and credential backups on the VPS first
-- copies credential attachments from the best matching existing workflows onto the repo-owned workflow IDs
-- republishes the repo-owned workflows and rewires webhooks to those active IDs
+3. If the page shows `Reconnect required`, or the error is `invalid_grant`, send the calendar owner a fresh connect URL and have them complete the Google flow again:
 
-3. If reconcile reports missing Google Calendar credentials, or the next execution still fails with `EAUTH` / `invalid_grant`, refresh or recreate the Google Calendar credential inside the target n8n environment.
-4. Run the reconcile step again after the credential refresh so the repo-owned workflow IDs inherit the live credential attachment.
-5. Verify the fix with both a direct webhook probe and a suite run:
+```bash
+./scripts/print-calendar-connect-url.sh staging <connection-id>
+./scripts/print-calendar-connect-url.sh production <connection-id>
+```
+
+4. Verify the fix with both a direct webhook probe and a suite run:
 
 ```bash
 curl -sS "https://<environment-host>/webhook/ai-receptionist/check-availability?secret=***" \
@@ -274,8 +301,8 @@ node ./scripts/check-workflow-regressions.js
 
 Notes:
 
-- Treat direct sqlite edits as emergency-only incident response, not the standard operator path.
-- If you must do an emergency runtime patch, follow up by refreshing the real n8n credential and rerunning reconcile so the active state is recoverable through normal scripts.
+- Treat direct calendar-gateway data-file edits as emergency-only incident response, not the standard operator path.
+- If the calendar owner removed access from Google Account settings, the old refresh token cannot be repaired in place; the correct fix is a fresh connect flow.
 - A healthy `checkAvailability` response should return JSON with `available`, `slots`, and `normalizedRequest`, not HTTP 200 with an empty body.
 
 ## 7. Promotion

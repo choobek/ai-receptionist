@@ -538,21 +538,23 @@ test('checkAvailability broad weekend requests roll to the next open clinic day'
   assert.equal(result.windowEnd.slice(0, 10), '2026-03-23');
 });
 
-test('calendar availability nodes use timeMin/timeMax fields expected by n8n import', () => {
+test('calendar gateway request nodes keep the expected time window payload shape', () => {
   const checkAvailabilityWorkflow = loadWorkflow('tool_check-availability.json');
   const checkAvailabilityParams = getNodeParameters('tool_check-availability.json', 'Get Busy Events');
-  assert.equal(checkAvailabilityParams.timeMin, '={{ $json.windowStart }}');
-  assert.equal(checkAvailabilityParams.timeMax, '={{ $json.windowEnd }}');
-  assert.equal(checkAvailabilityParams.start, undefined);
-  assert.equal(checkAvailabilityParams.end, undefined);
+  assert.equal(checkAvailabilityParams.method, 'POST');
+  assert.match(checkAvailabilityParams.url, /\/api\/v1\/availability/);
+  assert.match(checkAvailabilityParams.jsonBody, /timeMin: \$json\.windowStart/);
+  assert.match(checkAvailabilityParams.jsonBody, /timeMax: \$json\.windowEnd/);
+  assert.match(checkAvailabilityParams.jsonBody, /connectionId: \$json\.calendarConnectionId/);
   assert.equal(getNode(checkAvailabilityWorkflow, 'Get Busy Events').onError, 'continueRegularOutput');
 
   const createEventWorkflow = loadWorkflow('tool_create-event.json');
   const createEventParams = getNodeParameters('tool_create-event.json', 'Re-check Busy Events');
-  assert.equal(createEventParams.timeMin, '={{ $json.slotStart }}');
-  assert.equal(createEventParams.timeMax, '={{ $json.slotEnd }}');
-  assert.equal(createEventParams.start, undefined);
-  assert.equal(createEventParams.end, undefined);
+  assert.equal(createEventParams.method, 'POST');
+  assert.match(createEventParams.url, /\/api\/v1\/availability/);
+  assert.match(createEventParams.jsonBody, /timeMin: \$json\.slotStart/);
+  assert.match(createEventParams.jsonBody, /timeMax: \$json\.slotEnd/);
+  assert.match(createEventParams.jsonBody, /connectionId: \$json\.calendarConnectionId/);
   assert.equal(getNode(createEventWorkflow, 'Re-check Busy Events').onError, 'continueRegularOutput');
 });
 
@@ -1724,7 +1726,7 @@ test('createEvent captures caller phone metadata from Vapi tool payloads', () =>
   const formatResult = executeCode(getNodeCode(loadWorkflow('tool_create-event.json'), 'Format Success'), {
     $: makeSelector({
       'Slot Available?': parseResult,
-      'Create Calendar Event': { id: 'evt_booking_001' }
+      'Normalize Created Event': { id: 'evt_booking_001', calendarId: 'primary' }
     }),
     $json: {
       accepted: true,
@@ -1773,7 +1775,7 @@ test('createEvent captures caller phone metadata from Vapi tool payloads', () =>
 
 test('createEvent calendar description keeps only receptionist-facing identity fields', () => {
   const params = getNodeParameters('tool_create-event.json', 'Create Calendar Event');
-  const description = params.additionalFields?.description || '';
+  const description = params.jsonBody || '';
 
   assert.match(description, /Patient:/);
   assert.match(description, /Callback phone:/);
@@ -1829,7 +1831,7 @@ test('createEvent booking SMS uses the live caller number even when the declared
     'Prepare Booking SMS',
     {
       'Slot Available?': parseResult,
-      'Create Calendar Event': { id: 'evt_booking_sms_001' }
+      'Normalize Created Event': { id: 'evt_booking_sms_001', calendarId: 'primary' }
     },
     [],
     { ...defaultEnv, CLINIC_NAME: 'Demo Dental Clinic' }
@@ -1913,7 +1915,7 @@ test('createEvent booking SMS keeps explicit deferred dispatch available', () =>
     'Prepare Booking SMS',
     {
       'Slot Available?': parseResult,
-      'Create Calendar Event': { id: 'evt_booking_sms_deferred_001' }
+      'Normalize Created Event': { id: 'evt_booking_sms_deferred_001', calendarId: 'primary' }
     },
     [],
     defaultEnv
@@ -1969,7 +1971,7 @@ test('createEvent booking SMS falls back to the declared phone when no live call
     'Prepare Booking SMS',
     {
       'Slot Available?': parseResult,
-      'Create Calendar Event': { id: 'evt_booking_sms_declared_001' }
+      'Normalize Created Event': { id: 'evt_booking_sms_declared_001', calendarId: 'primary' }
     },
     [],
     defaultEnv
@@ -2850,6 +2852,27 @@ test('searchKnowledgeBase matches the assistant paraphrase for veneers versus bo
   assert.match(searchResult.answer, /Licowki|Bonding/i);
 });
 
+test('searchKnowledgeBase matches local smoke phrasing for bonding versus veneers', () => {
+  const workflow = loadWorkflow('tool_search-knowledge-base.json');
+  const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
+    $json: {
+      query: 'Czym rozni sie bonding od licowek?',
+      language: 'pl',
+      limit: 1
+    },
+    $env: defaultEnv
+  })[0].json;
+  assert.equal(parseResult.ok, true);
+
+  const searchResult = executeCode(getNodeCode(workflow, 'Search KB'), {
+    $: makeSelector({ 'Parse Request': parseResult })
+  })[0].json;
+
+  assert.equal(searchResult.found, true);
+  assert.equal(searchResult.matches[0].id, 'kb_veneers_vs_bonding');
+  assert.match(searchResult.answer, /Licowki|Bonding/i);
+});
+
 test('searchKnowledgeBase matches the staging veneers-versus-bonding phrasing with scope extras', () => {
   const workflow = loadWorkflow('tool_search-knowledge-base.json');
   const parseResult = executeCode(getNodeCode(workflow, 'Parse Request'), {
@@ -3289,6 +3312,10 @@ test('createEvent formats a speech-safe tool-complete confirmation for Vapi', ()
       },
       'Create Calendar Event': {
         id: 'calendar_sample_001'
+      },
+      'Normalize Created Event': {
+        id: 'calendar_sample_001',
+        calendarId: 'primary'
       }
     }),
     $json: {
@@ -3908,7 +3935,7 @@ test('assistant renderer excludes the direct patient SMS tool from staging bindi
   assert.equal(rendered.toolBindings.some((binding) => binding.name === 'sendSmsToPatient'), false);
 });
 
-test('assistant renderer keeps staging on explicit Vapi smart endpointing with conservative thresholds', () => {
+test('assistant renderer keeps staging on explicit fast-turn endpointing experiment overrides', () => {
   const shared = loadAssistantConfig();
   const rendered = renderAssistantConfig('staging', {
     STAGING_N8N_PUBLIC_BASE_URL: 'https://staging.example.test',
@@ -3918,7 +3945,9 @@ test('assistant renderer keeps staging on explicit Vapi smart endpointing with c
   assert.equal(shared.assistant?.name, 'Ola');
   assert.equal(shared.assistant?.transcriber?.provider, '11labs');
   assert.equal(shared.assistant?.transcriber?.model, 'scribe_v2');
+  assert.equal(shared.assistant?.model?.model, 'gpt-5.2-chat-latest');
   assert.equal(rendered.assistant?.name, 'Ola [staging]');
+  assert.equal(rendered.assistant?.model?.model, 'gpt-5.2-chat-latest');
   assert.equal(rendered.assistant?.transcriber?.provider, '11labs');
   assert.equal(rendered.assistant?.transcriber?.model, 'scribe_v2');
   assert.equal(rendered.assistant?.transcriber?.language, 'pl');
@@ -3926,10 +3955,10 @@ test('assistant renderer keeps staging on explicit Vapi smart endpointing with c
   assert.equal(shared.assistant?.startSpeakingPlan?.waitSeconds, 0.35);
   assert.equal(shared.assistant?.startSpeakingPlan?.smartEndpointingPlan, undefined);
   assert.equal(rendered.assistant?.voice?.chunkPlan?.minCharacters, 32);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.35);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.2);
   assert.equal(rendered.assistant?.startSpeakingPlan?.smartEndpointingPlan?.provider, 'vapi');
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.35);
-  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 1.8);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.25);
+  assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNoPunctuationSeconds, 1.2);
   assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onNumberSeconds, 0.9);
   assert.equal(rendered.assistant?.silenceTimeoutSeconds, 60);
   assert.deepEqual(rendered.assistant?.hooks, []);
@@ -4630,7 +4659,8 @@ test('docker compose files expose SMS runtime variables to n8n', () => {
 
 test('Caddy access log filter redacts webhook secret carriers before observability enrichment', () => {
   const caddyfile = loadText(path.join(rootDir, 'deploy', 'vps', 'Caddyfile'));
-  assert.match(caddyfile, /request>uri query\s*\{\s*replace secret REDACTED\s*\}/m);
+  assert.match(caddyfile, /request>uri query\s*\{[\s\S]*replace secret REDACTED/m);
+  assert.match(caddyfile, /request>uri query\s*\{[\s\S]*replace token REDACTED/m);
   assert.match(caddyfile, /request>headers>X-Ai-Receptionist-Secret delete/);
 });
 
