@@ -37,7 +37,7 @@
 	}
 
 	handle /calendar* {
-		reverse_proxy calendar-gateway:3000
+		reverse_proxy {$CALENDAR_GATEWAY_UPSTREAM:ai-receptionist-calendar-gateway:3000}
 		log_append upstream_host {rp.upstream.host}
 		log_append upstream_duration_ms {rp.upstream.duration_ms}
 		log_append upstream_latency_ms {rp.upstream.latency_ms}

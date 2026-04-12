@@ -8,6 +8,7 @@ services:
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
       - CADDY_ADMIN_USER=${CADDY_ADMIN_USER}
       - CADDY_ADMIN_PASSWORD_HASH=${CADDY_ADMIN_PASSWORD_HASH}
+      - CALENDAR_GATEWAY_UPSTREAM=${CALENDAR_GATEWAY_UPSTREAM:-ai-receptionist-calendar-gateway:3000}
     depends_on:
       - n8n
       - calendar-gateway
