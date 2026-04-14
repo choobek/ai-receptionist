@@ -2,6 +2,8 @@ const express = require('express');
 const { signPayload, verifySignedPayload, sha256Hex } = require('./crypto');
 const { CalendarProviderError } = require('./google-provider');
 
+const publicProductName = 'AI Receptionist';
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -12,7 +14,7 @@ function escapeHtml(value) {
 }
 
 function formatDateTime(value) {
-  if (!value) return 'never';
+  if (!value) return 'nigdy';
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return String(value);
   return parsed.toISOString().replace('T', ' ').replace('.000Z', ' UTC');
@@ -22,7 +24,7 @@ function renderPage({ title, body, status = 200 }) {
   return {
     status,
     html: `<!doctype html>
-<html lang="en">
+<html lang="pl">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -220,12 +222,12 @@ function createApp({ config, store, calendarProvider }) {
     sendPage(
       res,
       renderPage({
-        title: 'Calendar Connection Unavailable',
+        title: 'Połączenie kalendarza niedostępne',
         status: 503,
         body: `
-          <div class="status error">Setup required</div>
-          <h1>Calendar connection is not configured yet</h1>
-          <p class="muted">The clinic still needs to finish the Google OAuth setup for this environment.</p>
+          <div class="status error">Wymagana konfiguracja</div>
+          <h1>Połączenie z kalendarzem nie jest jeszcze skonfigurowane</h1>
+          <p class="muted">Najpierw trzeba dokończyć konfigurację Google OAuth dla tego środowiska.</p>
         `
       })
     );
@@ -307,11 +309,11 @@ function createApp({ config, store, calendarProvider }) {
     sendPage(
       res,
       renderPage({
-        title: 'Calendar Gateway',
+        title: 'Połączenie kalendarza',
         body: `
-          <div class="status">Calendar gateway</div>
-          <h1>Use the full connection link</h1>
-          <p class="muted">This page is intended to be opened through a clinic-issued Google Calendar connection URL.</p>
+          <div class="status">Połączenie kalendarza</div>
+          <h1>Użyj pełnego linku autoryzacyjnego</h1>
+          <p class="muted">Ta strona działa po otwarciu pełnego linku do połączenia Kalendarza Google.</p>
         `
       })
     );
@@ -326,12 +328,12 @@ function createApp({ config, store, calendarProvider }) {
       sendPage(
         res,
         renderPage({
-          title: 'Access Denied',
+          title: 'Brak dostępu',
           status: 403,
           body: `
-            <div class="status error">Access denied</div>
-            <h1>This connection link is invalid</h1>
-            <p class="muted">Please return to the clinic and ask for a fresh Google Calendar connection link.</p>
+            <div class="status error">Brak dostępu</div>
+            <h1>Ten link autoryzacyjny jest nieprawidłowy</h1>
+            <p class="muted">Poproś o nowy link do połączenia Kalendarza Google.</p>
           `
         })
       );
@@ -345,21 +347,21 @@ function createApp({ config, store, calendarProvider }) {
     if (preferredCalendarId) startUrl.searchParams.set('calendarId', preferredCalendarId);
 
     const statusPill = connection?.status === 'connected'
-      ? '<div class="status success">Connected</div>'
+      ? '<div class="status success">Połączono</div>'
       : connection?.status === 'reauthorization_required'
-        ? '<div class="status error">Reconnect required</div>'
-        : '<div class="status">Not connected</div>';
+        ? '<div class="status error">Wymagane ponowne połączenie</div>'
+        : '<div class="status">Nie połączono</div>';
 
     const connectionDetails = connection
       ? `
         <div class="panel">
-          <p><strong>Connection ID:</strong> <code>${escapeHtml(connection.connectionId)}</code></p>
-          <p><strong>Google account:</strong> ${escapeHtml(connection.googleAccountEmail || 'not connected yet')}</p>
-          <p><strong>Selected calendar:</strong> ${escapeHtml(connection.selectedCalendarSummary || connection.selectedCalendarId || 'not selected yet')}</p>
-          <p><strong>Last verified:</strong> ${escapeHtml(formatDateTime(connection.lastVerifiedAt))}</p>
+          <p><strong>Identyfikator połączenia:</strong> <code>${escapeHtml(connection.connectionId)}</code></p>
+          <p><strong>Konto Google:</strong> ${escapeHtml(connection.googleAccountEmail || 'jeszcze nie połączono')}</p>
+          <p><strong>Wybrany kalendarz:</strong> ${escapeHtml(connection.selectedCalendarSummary || connection.selectedCalendarId || 'jeszcze nie wybrano')}</p>
+          <p><strong>Ostatnio sprawdzono:</strong> ${escapeHtml(formatDateTime(connection.lastVerifiedAt))}</p>
           ${
             connection.lastError
-              ? `<p><strong>Last error:</strong> ${escapeHtml(connection.lastError.message)}</p>`
+              ? `<p><strong>Ostatni błąd:</strong> ${escapeHtml(connection.lastError.message)}</p>`
               : ''
           }
         </div>
@@ -369,15 +371,15 @@ function createApp({ config, store, calendarProvider }) {
     sendPage(
       res,
       renderPage({
-        title: 'Connect Google Calendar',
+        title: 'Połącz Kalendarz Google',
         body: `
           ${statusPill}
-          <h1>Connect your Google Calendar</h1>
-          <p>${escapeHtml(config.clinicName)} uses this secure page to connect the calendar that should be used for appointment scheduling.</p>
-          <p class="muted">Google will ask you to sign in and approve calendar access. After approval, you can confirm which writable calendar should receive bookings.</p>
+          <h1>Połącz Kalendarz Google</h1>
+          <p>${escapeHtml(publicProductName)} używa tej bezpiecznej strony, aby połączyć kalendarz wykorzystywany do umawiania wizyt.</p>
+          <p class="muted">Google poprosi o zalogowanie i zatwierdzenie dostępu do kalendarza. Po autoryzacji będzie można wybrać kalendarz, do którego mają trafiać rezerwacje.</p>
           ${connectionDetails}
           <div class="actions">
-            <a class="button" href="${escapeHtml(startUrl.toString())}">${connection?.status === 'connected' ? 'Reconnect with Google' : 'Continue with Google'}</a>
+            <a class="button" href="${escapeHtml(startUrl.toString())}">${connection?.status === 'connected' ? 'Połącz ponownie z Google' : 'Kontynuuj z Google'}</a>
           </div>
         `
       })
@@ -402,12 +404,12 @@ function createApp({ config, store, calendarProvider }) {
         sendPage(
           res,
           renderPage({
-            title: 'Access Denied',
+            title: 'Brak dostępu',
             status: 403,
             body: `
-              <div class="status error">Access denied</div>
-              <h1>This connection link is invalid</h1>
-              <p class="muted">Please return to the clinic and ask for a fresh connection link.</p>
+              <div class="status error">Brak dostępu</div>
+              <h1>Ten link autoryzacyjny jest nieprawidłowy</h1>
+              <p class="muted">Poproś o nowy link autoryzacyjny.</p>
             `
           })
         );
@@ -433,12 +435,12 @@ function createApp({ config, store, calendarProvider }) {
         sendPage(
           res,
           renderPage({
-            title: 'Connection Cancelled',
+            title: 'Połączenie przerwane',
             status: 400,
             body: `
-              <div class="status error">Google sign-in did not finish</div>
-              <h1>Calendar connection was not completed</h1>
-              <p class="muted">Google returned: <code>${escapeHtml(req.query.error)}</code>.</p>
+              <div class="status error">Logowanie przez Google nie zostało ukończone</div>
+              <h1>Połączenie z kalendarzem nie zostało zakończone</h1>
+              <p class="muted">Google zwrócił: <code>${escapeHtml(req.query.error)}</code>.</p>
             `
           })
         );
@@ -451,11 +453,11 @@ function createApp({ config, store, calendarProvider }) {
         sendPage(
           res,
           renderPage({
-            title: 'Invalid Callback',
+            title: 'Nieprawidłowa odpowiedź',
             status: 400,
             body: `
-              <div class="status error">Invalid callback</div>
-              <h1>Google did not return a complete authorization response</h1>
+              <div class="status error">Nieprawidłowa odpowiedź</div>
+              <h1>Google nie zwrócił pełnej odpowiedzi autoryzacyjnej</h1>
             `
           })
         );
@@ -489,13 +491,13 @@ function createApp({ config, store, calendarProvider }) {
         sendPage(
           res,
           renderPage({
-            title: 'Connected With Warning',
+            title: 'Połączono z ostrzeżeniem',
             body: `
-              <div class="status success">Connected</div>
-              <h1>Google login succeeded</h1>
-              <p>The account <strong>${escapeHtml(connection.googleAccountEmail || exchange.profile.email || 'unknown')}</strong> is now stored.</p>
-              <p class="muted">The calendar list could not be loaded right away: ${escapeHtml(normalized.message)}.</p>
-              <p class="muted">The clinic can reconnect later if calendar selection needs to be changed.</p>
+              <div class="status success">Połączono</div>
+              <h1>Logowanie przez Google zakończone</h1>
+              <p>Konto <strong>${escapeHtml(connection.googleAccountEmail || exchange.profile.email || 'nieznane')}</strong> zostało zapisane.</p>
+              <p class="muted">Nie udało się od razu pobrać listy kalendarzy: ${escapeHtml(normalized.message)}.</p>
+              <p class="muted">Możesz połączyć konto ponownie później, jeśli trzeba będzie zmienić wybrany kalendarz.</p>
             `
           })
         );
@@ -518,12 +520,12 @@ function createApp({ config, store, calendarProvider }) {
         sendPage(
           res,
           renderPage({
-            title: 'Calendar Connected',
+            title: 'Kalendarz połączony',
             body: `
-              <div class="status success">Connected</div>
-              <h1>Google Calendar is ready</h1>
-              <p>The account <strong>${escapeHtml(connection.googleAccountEmail || exchange.profile.email || 'unknown')}</strong> is connected.</p>
-              <p>The booking calendar is set to <strong>${escapeHtml(selectedCalendar?.summary || selectedCalendar?.id || config.defaultCalendarId)}</strong>.</p>
+              <div class="status success">Połączono</div>
+              <h1>Kalendarz Google jest gotowy</h1>
+              <p>Konto <strong>${escapeHtml(connection.googleAccountEmail || exchange.profile.email || 'nieznane')}</strong> jest połączone.</p>
+              <p>Kalendarz rezerwacji ustawiono na <strong>${escapeHtml(selectedCalendar?.summary || selectedCalendar?.id || config.defaultCalendarId)}</strong>.</p>
             `
           })
         );
@@ -543,7 +545,7 @@ function createApp({ config, store, calendarProvider }) {
                 selectedCalendar && selectedCalendar.id === calendar.id ? 'checked' : ''
               }>
               <strong>${escapeHtml(calendar.summary || calendar.id)}</strong><br>
-              <span class="muted"><code>${escapeHtml(calendar.id)}</code>${calendar.primary ? ' • primary' : ''}</span>
+              <span class="muted"><code>${escapeHtml(calendar.id)}</code>${calendar.primary ? ' • główny' : ''}</span>
             </label>
           `
         )
@@ -552,16 +554,16 @@ function createApp({ config, store, calendarProvider }) {
       sendPage(
         res,
         renderPage({
-          title: 'Choose Calendar',
+          title: 'Wybierz kalendarz',
           body: `
-            <div class="status success">Google login succeeded</div>
-            <h1>Choose the calendar to use for bookings</h1>
-            <p>The account <strong>${escapeHtml(connection.googleAccountEmail || exchange.profile.email || 'unknown')}</strong> is now connected. Pick the writable calendar that should receive appointments.</p>
+            <div class="status success">Logowanie przez Google zakończone</div>
+            <h1>Wybierz kalendarz do rezerwacji</h1>
+            <p>Konto <strong>${escapeHtml(connection.googleAccountEmail || exchange.profile.email || 'nieznane')}</strong> jest połączone. Wybierz kalendarz, do którego mają trafiać wizyty.</p>
             <form method="post" action="/calendar/select">
               <input type="hidden" name="selectionToken" value="${escapeHtml(selectionToken)}">
               ${options}
               <div class="actions">
-                <button type="submit">Save selected calendar</button>
+                <button type="submit">Zapisz wybrany kalendarz</button>
               </div>
             </form>
           `
@@ -580,11 +582,11 @@ function createApp({ config, store, calendarProvider }) {
         sendPage(
           res,
           renderPage({
-            title: 'Calendar Selection Failed',
+            title: 'Nie udało się wybrać kalendarza',
             status: 400,
             body: `
-              <div class="status error">Selection failed</div>
-              <h1>Missing calendar selection</h1>
+              <div class="status error">Nie udało się zapisać wyboru</div>
+              <h1>Nie wybrano kalendarza</h1>
             `
           })
         );
@@ -598,11 +600,11 @@ function createApp({ config, store, calendarProvider }) {
         sendPage(
           res,
           renderPage({
-            title: 'Calendar Selection Failed',
+            title: 'Nie udało się wybrać kalendarza',
             status: 400,
             body: `
-              <div class="status error">Selection failed</div>
-              <h1>The selected calendar is no longer available</h1>
+              <div class="status error">Nie udało się zapisać wyboru</div>
+              <h1>Wybrany kalendarz nie jest już dostępny</h1>
             `
           })
         );
@@ -612,12 +614,12 @@ function createApp({ config, store, calendarProvider }) {
       sendPage(
         res,
         renderPage({
-          title: 'Calendar Saved',
+          title: 'Kalendarz zapisany',
           body: `
-            <div class="status success">Saved</div>
-            <h1>Google Calendar connection is ready</h1>
-            <p>The account <strong>${escapeHtml(connection?.googleAccountEmail || 'unknown')}</strong> will now use <strong>${escapeHtml(selectedCalendar.summary || selectedCalendar.id)}</strong> for bookings.</p>
-            <p class="muted">You can close this page and let the clinic know the connection succeeded.</p>
+            <div class="status success">Zapisano</div>
+            <h1>Połączenie z Kalendarzem Google jest gotowe</h1>
+            <p>Konto <strong>${escapeHtml(connection?.googleAccountEmail || 'nieznane')}</strong> będzie używać kalendarza <strong>${escapeHtml(selectedCalendar.summary || selectedCalendar.id)}</strong> do rezerwacji.</p>
+            <p class="muted">Możesz zamknąć tę stronę.</p>
           `
         })
       );
@@ -725,11 +727,11 @@ function createApp({ config, store, calendarProvider }) {
       sendPage(
         res,
         renderPage({
-          title: 'Google Calendar Error',
+          title: 'Błąd Kalendarza Google',
           status: error.status || 502,
           body: `
-            <div class="status error">Google Calendar error</div>
-            <h1>The Google connection could not be completed</h1>
+            <div class="status error">Błąd Kalendarza Google</div>
+            <h1>Nie udało się zakończyć połączenia z Google</h1>
             <p class="muted">${escapeHtml(error.message)}</p>
           `
         })
@@ -739,12 +741,12 @@ function createApp({ config, store, calendarProvider }) {
     sendPage(
       res,
       renderPage({
-        title: 'Unexpected Error',
+        title: 'Nieoczekiwany błąd',
         status: 500,
         body: `
-          <div class="status error">Unexpected error</div>
-          <h1>Something went wrong</h1>
-          <p class="muted">${escapeHtml(error?.message || 'Unexpected error')}</p>
+          <div class="status error">Nieoczekiwany błąd</div>
+          <h1>Coś poszło nie tak</h1>
+          <p class="muted">${escapeHtml(error?.message || 'Nieoczekiwany błąd')}</p>
         `
       })
     );

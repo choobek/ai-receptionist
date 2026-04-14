@@ -115,8 +115,10 @@ test('connect page accepts a valid connect token', async () => {
     );
     assert.equal(response.status, 200);
     const html = await response.text();
-    assert.match(html, /Connect your Google Calendar/);
-    assert.match(html, /Continue with Google/);
+    assert.match(html, /Połącz Kalendarz Google/);
+    assert.match(html, /AI Receptionist używa tej bezpiecznej strony/);
+    assert.doesNotMatch(html, /Demo Dental Clinic/);
+    assert.match(html, /Kontynuuj z Google/);
   } finally {
     await fixture.close();
   }
@@ -140,7 +142,7 @@ test('oauth callback stores the refresh token and renders calendar selection', a
     );
     assert.equal(response.status, 200);
     const html = await response.text();
-    assert.match(html, /Choose the calendar to use for bookings/);
+    assert.match(html, /Wybierz kalendarz do rezerwacji/);
     assert.match(html, /Primary Calendar/);
     const connection = await fixture.store.getConnection('clinic-default');
     assert.equal(connection.status, 'connected');

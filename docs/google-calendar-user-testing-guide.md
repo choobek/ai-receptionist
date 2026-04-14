@@ -5,7 +5,7 @@ Send this to the calendar owner.
 ## Steps
 
 1. Open the link the clinic sent you.
-2. On the page, click `Continue with Google`.
+2. On the page, click `Kontynuuj z Google`.
 3. Sign in with the Google account that owns or manages the clinic calendar.
 4. Approve calendar access when Google asks.
 5. If you see a list of calendars, choose the calendar that should receive clinic bookings.
