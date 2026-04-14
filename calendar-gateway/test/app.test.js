@@ -119,6 +119,22 @@ test('connect page accepts a valid connect token', async () => {
     assert.match(html, /AI Receptionist używa tej bezpiecznej strony/);
     assert.doesNotMatch(html, /Demo Dental Clinic/);
     assert.match(html, /Kontynuuj z Google/);
+    assert.match(html, /Instrukcja autoryzacji/);
+    assert.match(html, /Kliknij „Zaawansowane”/);
+    assert.match(html, /5-wybierz-kalendarz\.webp/);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('connect page serves authorization guide screenshots', async () => {
+  const fixture = await createFixture();
+  try {
+    const response = await fetch(
+      `${fixture.baseUrl}/calendar/assets/google-calendar-auth/1-ta-aplikacja.webp`
+    );
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type') || '', /image\/webp/);
   } finally {
     await fixture.close();
   }

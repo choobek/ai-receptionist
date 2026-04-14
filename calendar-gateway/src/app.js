@@ -1,8 +1,42 @@
+const path = require('node:path');
 const express = require('express');
 const { signPayload, verifySignedPayload, sha256Hex } = require('./crypto');
 const { CalendarProviderError } = require('./google-provider');
 
 const publicProductName = 'AI Receptionist';
+
+const googleCalendarAuthSteps = [
+  {
+    title: 'Kliknij „Zaawansowane”',
+    description: 'Jeśli Google pokaże ostrzeżenie o niezweryfikowanej aplikacji, rozwiń szczegóły.',
+    imagePath: '/calendar/assets/google-calendar-auth/1-ta-aplikacja.webp',
+    alt: 'Ekran Google z ostrzeżeniem o niezweryfikowanej aplikacji i linkiem Zaawansowane.'
+  },
+  {
+    title: 'Kliknij „Otwórz: ovh.net”',
+    description: 'Po rozwinięciu szczegółów wybierz link na dole ekranu, aby kontynuować.',
+    imagePath: '/calendar/assets/google-calendar-auth/2-zatwierdz.webp',
+    alt: 'Rozwinięty ekran ostrzeżenia Google z linkiem Otwórz: ovh.net.'
+  },
+  {
+    title: 'Potwierdź konto Google',
+    description: 'Na ekranie logowania kliknij „Dalej” przy właściwym koncie Google.',
+    imagePath: '/calendar/assets/google-calendar-auth/3-login.webp',
+    alt: 'Ekran logowania przez Google z przyciskiem Dalej.'
+  },
+  {
+    title: 'Zatwierdź dostęp',
+    description: 'Na ekranie dostępu kliknij „Dalej”, żeby pozwolić na połączenie kalendarza.',
+    imagePath: '/calendar/assets/google-calendar-auth/4-google-dostep.webp',
+    alt: 'Ekran zgody Google z informacją o dostępie do konta i przyciskiem Dalej.'
+  },
+  {
+    title: 'Wybierz kalendarz rezerwacji',
+    description: 'Po powrocie na stronę wybierz właściwy kalendarz i kliknij „Zapisz wybrany kalendarz”.',
+    imagePath: '/calendar/assets/google-calendar-auth/5-wybierz-kalendarz.webp',
+    alt: 'Ekran wyboru kalendarza do rezerwacji z przyciskiem Zapisz wybrany kalendarz.'
+  }
+];
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -18,6 +52,31 @@ function formatDateTime(value) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return String(value);
   return parsed.toISOString().replace('T', ' ').replace('.000Z', ' UTC');
+}
+
+function renderGoogleCalendarAuthGuide() {
+  const steps = googleCalendarAuthSteps
+    .map((step, index) => `
+      <details class="guide-step"${index === 0 ? ' open' : ''}>
+        <summary>
+          <span class="step-number">${index + 1}</span>
+          <span>${escapeHtml(step.title)}</span>
+        </summary>
+        <p class="muted">${escapeHtml(step.description)}</p>
+        <a class="screenshot-link" href="${escapeHtml(step.imagePath)}" target="_blank" rel="noreferrer">
+          <img src="${escapeHtml(step.imagePath)}" alt="${escapeHtml(step.alt)}" loading="lazy">
+        </a>
+      </details>
+    `)
+    .join('');
+
+  return `
+    <section class="guide" aria-labelledby="google-auth-guide-title">
+      <h2 id="google-auth-guide-title">Instrukcja autoryzacji</h2>
+      <p class="muted">Jeśli Google pokaże dodatkowe ekrany, przejdź przez nie według poniższych kroków. Kliknij krok, żeby rozwinąć zrzut ekranu.</p>
+      ${steps}
+    </section>
+  `;
 }
 
 function renderPage({ title, body, status = 200 }) {
@@ -155,6 +214,55 @@ function renderPage({ title, body, status = 200 }) {
       ul {
         padding-left: 20px;
       }
+      .guide {
+        margin-top: 28px;
+      }
+      .guide-step {
+        margin-top: 10px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(255,255,255,0.72);
+        overflow: hidden;
+      }
+      .guide-step summary {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .guide-step summary::-webkit-details-marker {
+        display: none;
+      }
+      .step-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        flex: 0 0 28px;
+        border-radius: 999px;
+        background: rgba(15,118,110,0.12);
+        color: var(--accent);
+      }
+      .guide-step p {
+        margin: 0;
+        padding: 0 14px 14px;
+      }
+      .screenshot-link {
+        display: block;
+        padding: 0 14px 14px;
+      }
+      .screenshot-link img {
+        display: block;
+        width: 100%;
+        max-height: 72vh;
+        object-fit: contain;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
     </style>
   </head>
   <body>
@@ -203,6 +311,13 @@ function createApp({ config, store, calendarProvider }) {
   app.set('trust proxy', true);
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: false }));
+  app.use(
+    '/calendar/assets',
+    express.static(path.join(__dirname, 'assets'), {
+      immutable: true,
+      maxAge: '30d'
+    })
+  );
 
   const buildSignedToken = (payload) => signPayload(payload, config.encryptionKey);
 
@@ -381,6 +496,7 @@ function createApp({ config, store, calendarProvider }) {
           <div class="actions">
             <a class="button" href="${escapeHtml(startUrl.toString())}">${connection?.status === 'connected' ? 'Połącz ponownie z Google' : 'Kontynuuj z Google'}</a>
           </div>
+          ${renderGoogleCalendarAuthGuide()}
         `
       })
     );
