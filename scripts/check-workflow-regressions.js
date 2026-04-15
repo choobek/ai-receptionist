@@ -1166,7 +1166,8 @@ test('checkAvailability speaks the resolved open-day date when an explicit first
   assert.equal(result.available, true);
   assert.equal(result.requestedRangeAvailable, true);
   assert.equal(result.normalizedRequest?.requestedDate, '2026-03-21');
-  assert.equal(result.resolvedSearch, undefined);
+  assert.equal(result.resolvedSearch?.stage, 'primary');
+  assert.equal(result.resolvedSearch?.requestedDate, '2026-03-21');
   assert.deepEqual(
     result.slots.map((slot) => slot.start),
     [
@@ -2136,6 +2137,9 @@ test('Vapi tool sync scripts treat createReceptionTask as a repo-owned tool defi
   assert.equal(createReceptionTask?.parameters?.[0]?.value, '{{ confirmedPatientPhoneE164 }}');
   assert.equal(lookupPatient?.variableExtractionPlan?.aliases?.[0]?.key, 'confirmedPatientPhoneE164');
   assert.equal(lookupPatient?.variableExtractionPlan?.aliases?.[0]?.value, '{{ $.phone.normalizedE164 }}');
+  assert.equal(createReceptionTask?.variableExtractionPlan?.aliases?.[0]?.key, 'receptionTaskAccepted');
+  assert.equal(createReceptionTask?.variableExtractionPlan?.aliases?.[1]?.key, 'receptionTaskType');
+  assert.equal(createReceptionTask?.variableExtractionPlan?.aliases?.[3]?.value, '{{ $.error.code | default: "" }}');
 });
 
 test('Vapi tool sync scripts keep searchKnowledgeBase and delayed tool messages repo-owned', () => {
@@ -2148,6 +2152,13 @@ test('Vapi tool sync scripts keep searchKnowledgeBase and delayed tool messages 
   assert.match(syncScript, /searchKnowledgeBase/);
   assert.match(syncScript, /TOOL_DEFINITION_DELAY_SECONDS/);
   assert.equal(searchKnowledgeBase?.schemaPath, 'schemas/searchKnowledgeBase.request.json');
+  assert.equal(searchKnowledgeBase?.variableExtractionPlan?.aliases?.[0]?.key, 'kbFound');
+  assert.equal(checkAvailability?.variableExtractionPlan?.aliases?.[0]?.key, 'availabilityFound');
+  assert.equal(checkAvailability?.variableExtractionPlan?.aliases?.[1]?.key, 'availabilityServiceId');
+  assert.equal(checkAvailability?.variableExtractionPlan?.aliases?.[3]?.value, '{{ $.error.code | default: "" }}');
+  assert.equal(searchKnowledgeBase?.variableExtractionPlan?.aliases?.[2]?.value, '{{ $.error.code | default: "" }}');
+  assert.equal(createEvent?.variableExtractionPlan?.aliases?.[0]?.key, 'bookingCreated');
+  assert.equal(createEvent?.variableExtractionPlan?.aliases?.[3]?.value, '{{ $.error.code | default: "" }}');
   assert.equal(searchKnowledgeBase?.endpoint, '/webhook/ai-receptionist/search-knowledge-base');
   assert.equal(searchKnowledgeBase?.messages?.[1]?.type, 'request-response-delayed');
   assert.match(checkAvailability?.description || '', /requestedDate plus searchDays 1 for one specific day/i);
@@ -3591,10 +3602,14 @@ assistantInvariantTest('assistant system message bundle locks spoken brand, exac
 
   assert.match(normalizedSystemMessages, /ipokrzyku pe el/i);
   assert.match(normalizedSystemMessages, /mow "ipokrzyku pe el", nie "ipokrzyku\.pl", "pl" ani "i pokrzyku"/i);
-  assert.match(normalizedSystemMessages, /result\.message albo request-complete/i);
+  assert.match(normalizedSystemMessages, /result\.message\/request-complete/i);
   assert.match(
     normalizedSystemMessages,
-    /(wypowiedz dokladnie to pole i niczego nie dopisuj|wypowiedz je doslownie bez zmian)/i
+    /checkAvailability\/createEvent\/lookupPatient/i
+  );
+  assert.match(
+    normalizedSystemMessages,
+    /dla (KB|searchKnowledgeBase) mow answer/i
   );
   assert.match(
     normalizedSystemMessages,
@@ -3619,7 +3634,7 @@ test('assistant prompt keeps phone-collection logic as plain text without unreso
   assert.match(normalizedPrompt, /Popros po prostu o numer telefonu/i);
   assert.match(
     normalizedPrompt,
-    /po numerze powtorz go i pytaj tylko: "Czy wszystko sie zgadza\?" \/? "Is that correct\?"/i
+    /po numerze powtorz go w trzech grupach po trzy cyfry, bez dodawania cyfr, i pytaj: "Czy wszystko sie zgadza\?"/i
   );
   assert.match(normalizedPrompt, /przy samych danych najpierw potwierdz numer.*"W czym moge pomoc\?"/i);
   assert.doesNotMatch(normalizedPrompt, /nie czytaj go na glos/i);
@@ -3875,7 +3890,7 @@ assistantInvariantTest('assistant prompt forbids small talk and keeps the brief-
   );
   assert.match(
     normalizedSystemMessages,
-    /((jesli rozmowca zadaje krotkie pytanie operacyjne przed handoffem|na krotkie pytanie operacyjne przed handoffem) odpowiedz jednym zdaniem i od razu przejdz do brakujacej danej|na krotkie pytanie przed handoffem odpowiedz jednym zdaniem i przejdz do brakujacej danej)/i
+    /(przed handoffem na pytanie o lekarza lub terminy najpierw powiedz: "takie terminy sprawdza recepcja", potem popros o brakujace dane|(jesli rozmowca zadaje krotkie pytanie operacyjne przed handoffem|na krotkie pytanie operacyjne przed handoffem) odpowiedz jednym zdaniem i od razu przejdz do brakujacej danej|na krotkie pytanie przed handoffem odpowiedz jednym zdaniem i przejdz do brakujacej danej)/i
   );
 });
 
@@ -3900,11 +3915,15 @@ assistantInvariantTest('assistant prompt keeps speech-safe wording and calendar-
   );
   assert.match(
     normalizedPrompt,
-    /nie wywoluj `?lookupPatient`? tylko po to, zeby przeczytac jasny numer/i
+    /`?lookupPatient`? uzyj tylko przy numerze niepelnym, sprzecznym, poprawianym albo niepewnym/i
   );
   assert.match(
     normalizedPrompt,
-    /(jesli|gdy) wynik narzedzia (zawiera|ma) gotowe pole message, nastepna wypowiedz do pacjenta ma byc dokladnie tym polem/i
+    /gotowe message czytaj doslownie tylko z checkAvailability, createEvent i lookupPatient/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /dla searchKnowledgeBase mow answer/i
   );
   assert.match(
     normalizedPrompt,
@@ -3980,7 +3999,7 @@ assistantInvariantTest('assistant prompt bundle keeps anti-fragment speech rules
   );
   assert.match(
     normalizedPrompt,
-    /urwanego startu typu "Wtorek, sroda" albo "Siedem"/i
+    /nie zostawiaj urwanego startu/i
   );
   assert.match(
     normalizedPrompt,
@@ -3988,7 +4007,15 @@ assistantInvariantTest('assistant prompt bundle keeps anti-fragment speech rules
   );
   assert.match(
     normalizedPrompt,
-    /(?:lookupPatient uzyj tylko(?: wtedy)?, gdy numer|nie wywoluj `?lookupPatient`? tylko po to, zeby przeczytac jasny numer\. uzyj go tylko przy numerze) (?:jest )?(?:niejasny, fragmentaryczny albo nadal wymaga technicznej normalizacji po doprecyzowaniu|niepelnym, sprzecznym albo wymagajacym naprawy po doprecyzowaniu|niepelny, sprzeczny albo wymagajacym naprawy po doprecyzowaniu|niepelny, sprzeczny albo nadal wymaga normalizacji po doprecyzowaniu)/i
+    /(?:lookupPatient uzyj tylko(?: wtedy)?, gdy numer|`?lookupPatient`? uzyj tylko przy numerze) (?:jest )?(?:niejasny, fragmentaryczny albo nadal wymaga technicznej normalizacji po doprecyzowaniu|niepelnym, sprzecznym, poprawianym albo niepewnym|niepelnym, sprzecznym albo wymagajacym naprawy po doprecyzowaniu|niepelny, sprzeczny albo wymagajacym naprawy po doprecyzowaniu|niepelny, sprzeczny albo nadal wymaga normalizacji po doprecyzowaniu)/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /powtorz go w trzech grupach po trzy cyfry, bez dodawania cyfr/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /po "powtorzyc\?" powiedz: "tak, prosze podac numer cyfra po cyfrze\.?"/i
   );
   assert.match(
     normalizedPrompt,
@@ -4004,7 +4031,15 @@ assistantInvariantTest('assistant prompt bundle keeps anti-fragment speech rules
   );
   assert.match(
     normalizedPrompt,
-    /w nowej rezerwacji albo zanim intencja bedzie pelna, po numerze powtorz go i pytaj tylko/i
+    /po numerze powtorz go w trzech grupach po trzy cyfry, bez dodawania cyfr, i pytaj/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /przy `?createReceptionTask`? z pelnymi danymi pomin te ture i uzyj narzedzia od razu/i
+  );
+  assert.match(
+    normalizedPrompt,
+    /jesli numer jest jasny, nie rob readbacku ani lookupPatient/i
   );
   assert.match(
     normalizedPrompt,
@@ -4078,18 +4113,30 @@ test('assistant renderer keeps staging on explicit fast-turn endpointing experim
   });
 
   assert.equal(shared.assistant?.name, 'Lena');
-  assert.equal(shared.assistant?.transcriber?.provider, '11labs');
-  assert.equal(shared.assistant?.transcriber?.model, 'scribe_v2');
+  assert.equal(shared.assistant?.transcriber?.provider, 'openai');
+  assert.equal(shared.assistant?.transcriber?.model, 'gpt-4o-transcribe');
+  assert.equal(shared.assistant?.transcriber?.fallbackPlan?.transcribers?.[0]?.provider, '11labs');
+  assert.equal(shared.assistant?.transcriber?.fallbackPlan?.transcribers?.[0]?.model, 'scribe_v2');
   assert.equal(shared.assistant?.model?.model, 'gpt-5.2-chat-latest');
   assert.equal(rendered.assistant?.name, 'Lena [staging]');
   assert.equal(rendered.assistant?.model?.model, 'gpt-5.2-chat-latest');
-  assert.equal(rendered.assistant?.transcriber?.provider, '11labs');
-  assert.equal(rendered.assistant?.transcriber?.model, 'scribe_v2');
+  assert.equal(rendered.assistant?.transcriber?.provider, 'openai');
+  assert.equal(rendered.assistant?.transcriber?.model, 'gpt-4o-transcribe');
   assert.equal(rendered.assistant?.transcriber?.language, 'pl');
+  assert.equal(rendered.assistant?.transcriber?.fallbackPlan?.transcribers?.[0]?.provider, '11labs');
+  assert.equal(rendered.assistant?.transcriber?.fallbackPlan?.transcribers?.[0]?.model, 'scribe_v2');
   assert.equal(shared.assistant?.voice?.chunkPlan?.minCharacters, 48);
+  assert.equal(shared.assistant?.voice?.chunkPlan?.formatPlan?.enabled, true);
+  assert.equal(shared.assistant?.artifactPlan?.fullMessageHistoryEnabled, true);
+  assert.equal(shared.assistant?.artifactPlan?.transcriptPlan?.assistantName, 'Lena');
+  assert.equal(shared.assistant?.artifactPlan?.transcriptPlan?.userName, 'Pacjent');
+  assert.equal(shared.assistant?.modelOutputInMessagesEnabled, true);
+  assert.equal(shared.assistant?.analysisPlan?.summaryPlan?.enabled, true);
+  assert.equal(shared.assistant?.analysisPlan?.successEvaluationPlan?.enabled, false);
   assert.equal(shared.assistant?.startSpeakingPlan?.waitSeconds, 0.35);
   assert.equal(shared.assistant?.startSpeakingPlan?.smartEndpointingPlan, undefined);
   assert.equal(rendered.assistant?.voice?.chunkPlan?.minCharacters, 32);
+  assert.equal(rendered.assistant?.voice?.chunkPlan?.formatPlan?.replacements?.[0]?.key, 'Ipokrzyku.pl');
   assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.2);
   assert.equal(rendered.assistant?.startSpeakingPlan?.smartEndpointingPlan?.provider, 'vapi');
   assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.25);
@@ -4107,13 +4154,19 @@ test('assistant renderer keeps production on explicit Vapi smart endpointing wit
   });
 
   assert.equal(shared.assistant?.name, 'Lena');
-  assert.equal(shared.assistant?.transcriber?.provider, '11labs');
-  assert.equal(shared.assistant?.transcriber?.model, 'scribe_v2');
+  assert.equal(shared.assistant?.transcriber?.provider, 'openai');
+  assert.equal(shared.assistant?.transcriber?.model, 'gpt-4o-transcribe');
   assert.equal(rendered.assistant?.name, 'Lena');
   assert.equal(rendered.assistant?.transcriber?.provider, 'openai');
   assert.equal(rendered.assistant?.transcriber?.model, 'gpt-4o-transcribe');
   assert.equal(rendered.assistant?.transcriber?.language, 'pl');
+  assert.equal(rendered.assistant?.transcriber?.fallbackPlan?.transcribers?.[0]?.provider, '11labs');
+  assert.equal(rendered.assistant?.transcriber?.fallbackPlan?.transcribers?.[0]?.model, 'scribe_v2');
   assert.equal(rendered.assistant?.voice?.chunkPlan?.minCharacters, 32);
+  assert.equal(rendered.assistant?.voice?.chunkPlan?.formatPlan?.enabled, true);
+  assert.equal(rendered.assistant?.artifactPlan?.fullMessageHistoryEnabled, true);
+  assert.equal(rendered.assistant?.artifactPlan?.transcriptPlan?.enabled, true);
+  assert.equal(rendered.assistant?.modelOutputInMessagesEnabled, true);
   assert.equal(rendered.assistant?.startSpeakingPlan?.waitSeconds, 0.2);
   assert.equal(rendered.assistant?.startSpeakingPlan?.smartEndpointingPlan?.provider, 'vapi');
   assert.equal(rendered.assistant?.startSpeakingPlan?.transcriptionEndpointingPlan?.onPunctuationSeconds, 0.25);
@@ -4336,7 +4389,7 @@ assistantInvariantTest('alternative-day refresh scenario uses a stable explicit 
   });
 });
 
-assistantInvariantTest('first-visit Thursday follow-up scenario accepts explicit no-visit wording', () => {
+assistantInvariantTest('first-visit Thursday follow-up scenario accepts explicit no-visit and slot-selection wording', () => {
   const scenario = loadStagingScenario('first-visit-follow-up-keeps-szajnar.v1.json');
   const acceptedPhrases = getScenarioCriterion(scenario, 'second-turn-asks-for-choice')
     .rule
@@ -4344,6 +4397,7 @@ assistantInvariantTest('first-visit Thursday follow-up scenario accepts explicit
 
   assert.ok(acceptedPhrases.includes('nie ma wizyty w czwartek'));
   assert.ok(acceptedPhrases.includes('nie ma terminu w czwartek'));
+  assert.ok(acceptedPhrases.includes('czy ten termin mam wybrac'));
 });
 
 assistantInvariantTest('existing-patient doctor-question scenario answers briefly before handoff and still avoids scheduling', () => {
@@ -6267,6 +6321,55 @@ test('latency diagnostics prefer caller-heard Vapi speech gaps over delayed tool
   });
 });
 
+test('Vapi ingest preserves only non-PII variable aliases for quality segmentation', () => {
+  const record = {
+    id: 'call_quality_segments',
+    assistantId: 'assistant_123',
+    status: 'ended',
+    endedReason: 'assistant-ended-call',
+    artifact: {
+      variableValues: {
+        availabilityFound: true,
+        availabilityServiceId: 'urgent_consultation',
+        availabilityStage: 'primary_window',
+        availabilityErrorCode: '{{ $.error.code }}',
+        bookingCreated: false,
+        bookingErrorCode: 'CALENDAR_PROVIDER_REJECTED',
+        receptionTaskType: 'existing_patient_booking',
+        receptionTaskErrorCode: '{{ $.error.code }}',
+        confirmedPatientPhoneE164: '+48500100200'
+      },
+      structuredOutputs: {},
+      scorecards: {}
+    }
+  };
+
+  const run = buildRun(
+    {
+      record,
+      wrapper: record,
+      index: 0,
+      sourceKind: 'call_object'
+    },
+    {
+      scenarioId: null,
+      environment: 'staging',
+      runKind: 'real_call'
+    },
+    null
+  );
+
+  assert.deepEqual(run.observability.variable_values, {
+    availabilityFound: true,
+    availabilityServiceId: 'urgent_consultation',
+    availabilityStage: 'primary_window',
+    bookingCreated: false,
+    bookingErrorCode: 'CALENDAR_PROVIDER_REJECTED',
+    receptionTaskType: 'existing_patient_booking'
+  });
+  assert.equal(run.observability.variable_values.confirmedPatientPhoneE164, undefined);
+});
+
 test('live autoeval report renders decomposed tool latency attribution and enrichment coverage', () => {
   const report = renderSuiteReport({
     suite_run_id: 'staging-vapi-live-autoeval-20260405T120000Z',
@@ -6279,6 +6382,34 @@ test('live autoeval report renders decomposed tool latency attribution and enric
     pass_count: 0,
     policy_path: 'configs/vapi/autoevaluation-policy.v1.json',
     average_scorecards: [],
+    quality_segments: {
+      dimensions: [
+        {
+          key: 'service_id',
+          label: 'Service ID',
+          buckets: [
+            {
+              value: 'urgent_consultation',
+              call_count: 1,
+              review_required_count: 1,
+              review_rate_percent: 100,
+              average_scorecards: [
+                {
+                  name: 'Core Call Quality',
+                  average_score_normalized: 0.4
+                }
+              ],
+              top_reasons: [
+                {
+                  reason: 'scorecard:Core Call Quality',
+                  count: 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
     reason_counts: [],
     coverage_warning_counts: [],
     latency_summary: {
@@ -6411,6 +6542,9 @@ test('live autoeval report renders decomposed tool latency attribution and enric
   });
 
   assert.match(report, /Average max tool dispatch gap: 1041ms/);
+  assert.match(report, /## Quality Segments/);
+  assert.match(report, /### Service ID/);
+  assert.match(report, /urgent_consultation: calls=1, review=1, review_rate=100%, scores=Core Call Quality=0.4, top_reasons=scorecard:Core Call Quality:1/);
   assert.match(report, /Average max Vapi webhook request latency: 441ms/);
   assert.match(report, /Average max tool-to-speech latency: 2283ms/);
   assert.match(report, /Average max Vapi webhook-to-speech gap: 1542ms/);

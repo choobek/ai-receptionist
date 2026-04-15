@@ -4,6 +4,24 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
+const QUALITY_VARIABLE_VALUE_KEYS = [
+  'availabilityFound',
+  'availabilityServiceId',
+  'availabilityStage',
+  'availabilityErrorCode',
+  'kbFound',
+  'kbTopCategory',
+  'kbErrorCode',
+  'bookingCreated',
+  'bookedServiceId',
+  'bookingSmsStatus',
+  'bookingErrorCode',
+  'receptionTaskAccepted',
+  'receptionTaskType',
+  'receptionTaskServiceBucket',
+  'receptionTaskErrorCode'
+];
+
 function usage() {
   console.log(`Usage:
   node scripts/autonomy/ingest-vapi-call-log.js --input <path> [options]
@@ -822,6 +840,36 @@ function getStructuredOutputs(record, wrapper) {
 
 function getScorecards(record, wrapper) {
   return safeObject(getArtifact(record, wrapper)?.scorecards) || {};
+}
+
+function getVariableValues(record, wrapper) {
+  const artifact = getArtifact(record, wrapper);
+  return safeObject(artifact?.variableValues) || safeObject(artifact?.variables) || {};
+}
+
+function normalizeQualityVariableValues(record, wrapper) {
+  const source = getVariableValues(record, wrapper);
+  const normalized = {};
+
+  for (const key of QUALITY_VARIABLE_VALUE_KEYS) {
+    const value = source[key];
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed && !/^\{\{[\s\S]*\}\}$/.test(trimmed)) {
+        normalized[key] = trimmed;
+      }
+      continue;
+    }
+    if (typeof value === 'boolean') {
+      normalized[key] = value;
+      continue;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      normalized[key] = value;
+    }
+  }
+
+  return normalized;
 }
 
 function normalizeStructuredOutputs(record, wrapper) {
@@ -1643,9 +1691,11 @@ function buildRun(entry, options, inputPath) {
   const ingestedAt = stableNowIso();
   const structuredOutputs = normalizeStructuredOutputs(entry.record, entry.wrapper);
   const scorecards = normalizeScorecards(entry.record, entry.wrapper, structuredOutputs);
+  const variableValues = normalizeQualityVariableValues(entry.record, entry.wrapper);
   const observability = {
     structured_outputs: structuredOutputs,
-    scorecards
+    scorecards,
+    variable_values: variableValues
   };
   const structuredOutput = detectStructuredOutput(entry.record, entry.wrapper, structuredOutputs);
   const { conversation, tool_trace } = normalizeConversation(entry.record);
@@ -1718,6 +1768,7 @@ function buildRun(entry, options, inputPath) {
       result: sanitizeRealCallStructuredOutput(run.structured_output?.result)
     },
     observability: {
+      variable_values: run.observability?.variable_values || {},
       structured_outputs: safeArray(run.observability?.structured_outputs).map((item) => ({
         ...item,
         result: sanitizeRealCallObservabilityResult(item.result)

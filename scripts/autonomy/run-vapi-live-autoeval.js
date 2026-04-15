@@ -1866,6 +1866,89 @@ function buildScorecardSummary(run) {
   }));
 }
 
+const QUALITY_SEGMENT_DEFINITIONS = [
+  { key: 'service_id', label: 'Service ID' },
+  { key: 'task_type', label: 'Reception Task Type' },
+  { key: 'kb_found', label: 'Knowledge Base Found' },
+  { key: 'booking_created', label: 'Booking Created' },
+  { key: 'tool_error_code', label: 'Tool Error Code' },
+  { key: 'availability_stage', label: 'Availability Stage' }
+];
+
+function primitiveSegmentValue(value) {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^\{\{[\s\S]*\}\}$/.test(trimmed)) {
+      return null;
+    }
+    return trimmed || null;
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false';
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  return null;
+}
+
+function firstSegmentValue(source, keys) {
+  for (const key of keys) {
+    const value = primitiveSegmentValue(source?.[key]);
+    if (value !== null) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function firstToolErrorSegment(source) {
+  for (const [toolName, key] of [
+    ['checkAvailability', 'availabilityErrorCode'],
+    ['searchKnowledgeBase', 'kbErrorCode'],
+    ['createEvent', 'bookingErrorCode'],
+    ['createReceptionTask', 'receptionTaskErrorCode']
+  ]) {
+    const value = primitiveSegmentValue(source?.[key]);
+    if (value !== null) {
+      return `${toolName}:${value}`;
+    }
+  }
+  return null;
+}
+
+function deriveQualitySegments(variableValues) {
+  const source = safeObject(variableValues) || {};
+  const segments = {};
+  const serviceId = firstSegmentValue(source, ['bookedServiceId', 'availabilityServiceId']);
+  const taskType = firstSegmentValue(source, ['receptionTaskType']);
+  const kbFound = firstSegmentValue(source, ['kbFound']);
+  const bookingCreated = firstSegmentValue(source, ['bookingCreated']);
+  const toolErrorCode = firstToolErrorSegment(source);
+  const availabilityStage = firstSegmentValue(source, ['availabilityStage']);
+
+  if (serviceId !== null) {
+    segments.service_id = serviceId;
+  }
+  if (taskType !== null) {
+    segments.task_type = taskType;
+  }
+  if (kbFound !== null) {
+    segments.kb_found = kbFound;
+  }
+  if (bookingCreated !== null) {
+    segments.booking_created = bookingCreated;
+  }
+  if (toolErrorCode !== null) {
+    segments.tool_error_code = toolErrorCode;
+  }
+  if (availabilityStage !== null) {
+    segments.availability_stage = availabilityStage;
+  }
+
+  return segments;
+}
+
 function sanitizeFileComponent(value) {
   return String(value || 'unknown').replace(/[^a-zA-Z0-9._-]+/g, '-');
 }
@@ -1879,6 +1962,93 @@ function average(numbers) {
 
 function roundMaybe(value) {
   return typeof value === 'number' ? Math.round(value * 10) / 10 : null;
+}
+
+function percentMaybe(numerator, denominator) {
+  if (!denominator) {
+    return null;
+  }
+  return roundMaybe((numerator / denominator) * 100);
+}
+
+function summarizeQualitySegments(calls) {
+  const dimensions = [];
+
+  for (const definition of QUALITY_SEGMENT_DEFINITIONS) {
+    const buckets = new Map();
+    for (const call of calls) {
+      const value = primitiveSegmentValue(call.quality_segments?.[definition.key]);
+      if (value === null) {
+        continue;
+      }
+
+      const bucket = buckets.get(value) || {
+        value,
+        call_count: 0,
+        review_required_count: 0,
+        scorecardBuckets: new Map(),
+        reasonCounts: new Map()
+      };
+      bucket.call_count += 1;
+      if (call.review?.requires_review) {
+        bucket.review_required_count += 1;
+      }
+      for (const scorecard of safeArray(call.scorecards)) {
+        if (!scorecard.name_canonical || typeof scorecard.score_normalized !== 'number') {
+          continue;
+        }
+        const scoreBucket = bucket.scorecardBuckets.get(scorecard.name_canonical) || [];
+        scoreBucket.push(scorecard.score_normalized);
+        bucket.scorecardBuckets.set(scorecard.name_canonical, scoreBucket);
+      }
+      for (const reason of safeArray(call.review?.reasons)) {
+        const reasonKey = reason.type === 'failure_category'
+          ? `failure:${reason.code}`
+          : reason.type === 'bad_boolean_output'
+            ? `boolean:${reason.output_name}`
+            : reason.type === 'scorecard_threshold'
+              ? `scorecard:${reason.scorecard_name}`
+              : reason.type;
+        bucket.reasonCounts.set(reasonKey, (bucket.reasonCounts.get(reasonKey) || 0) + 1);
+      }
+      buckets.set(value, bucket);
+    }
+
+    const renderedBuckets = Array.from(buckets.values())
+      .map((bucket) => ({
+        value: bucket.value,
+        call_count: bucket.call_count,
+        review_required_count: bucket.review_required_count,
+        review_rate_percent: percentMaybe(bucket.review_required_count, bucket.call_count),
+        average_scorecards: Array.from(bucket.scorecardBuckets.entries())
+          .map(([name, values]) => ({
+            name,
+            average_score_normalized: roundMaybe(average(values))
+          }))
+          .sort((left, right) => left.name.localeCompare(right.name)),
+        top_reasons: Array.from(bucket.reasonCounts.entries())
+          .map(([reason, count]) => ({ reason, count }))
+          .sort((left, right) => right.count - left.count || left.reason.localeCompare(right.reason))
+          .slice(0, 3)
+      }))
+      .sort((left, right) => (
+        right.review_required_count - left.review_required_count
+        || right.call_count - left.call_count
+        || left.value.localeCompare(right.value)
+      ));
+
+    if (renderedBuckets.length > 0) {
+      dimensions.push({
+        key: definition.key,
+        label: definition.label,
+        buckets: renderedBuckets
+      });
+    }
+  }
+
+  return {
+    dimensions
+  };
 }
 
 function summarizeSuite({
@@ -2148,6 +2318,7 @@ function summarizeSuite({
       name,
       average_score_normalized: roundMaybe(average(values))
     })),
+    quality_segments: summarizeQualitySegments(calls),
     reason_counts: Array.from(reasonCounts.entries())
       .map(([reason, count]) => ({ reason, count }))
       .sort((left, right) => right.count - left.count || left.reason.localeCompare(right.reason)),
@@ -2165,6 +2336,8 @@ function summarizeSuite({
       severity: call.review.severity,
       requires_review: call.review.requires_review,
       scorecards: call.scorecards,
+      variable_values: call.variable_values,
+      quality_segments: call.quality_segments,
       latency_diagnostics: call.latency_diagnostics,
       summary: call.summary,
       coverage_warnings: call.review.coverage_warnings.map((warning) => ({
@@ -2201,6 +2374,35 @@ function renderSuiteReport(summary) {
       lines.push(`- ${scorecard.name}: ${scorecard.average_score_normalized}`);
     }
     lines.push('');
+  }
+
+  const qualitySegmentDimensions = safeArray(summary.quality_segments?.dimensions);
+  if (qualitySegmentDimensions.length > 0) {
+    lines.push('## Quality Segments', '');
+    for (const dimension of qualitySegmentDimensions) {
+      lines.push(`### ${dimension.label || dimension.key}`, '');
+      for (const bucket of safeArray(dimension.buckets)) {
+        const details = [
+          `calls=${bucket.call_count}`,
+          `review=${bucket.review_required_count}`,
+          `review_rate=${bucket.review_rate_percent}%`
+        ];
+        const scorecards = safeArray(bucket.average_scorecards)
+          .map((scorecard) => `${scorecard.name}=${scorecard.average_score_normalized}`)
+          .join(', ');
+        if (scorecards) {
+          details.push(`scores=${scorecards}`);
+        }
+        const reasons = safeArray(bucket.top_reasons)
+          .map((reason) => `${reason.reason}:${reason.count}`)
+          .join(', ');
+        if (reasons) {
+          details.push(`top_reasons=${reasons}`);
+        }
+        lines.push(`- ${bucket.value}: ${details.join(', ')}`);
+      }
+      lines.push('');
+    }
   }
 
   const latencySummary = safeObject(summary.latency_summary) || {};
@@ -2680,6 +2882,7 @@ async function main() {
     writeRun(suiteRun.run, suiteRun.normalizedRunPath);
 
     const review = evaluateRunAgainstPolicy(suiteRun.run, policy, suiteRun.fullCall);
+    const variableValues = safeObject(suiteRun.run.observability?.variable_values) || {};
     calls.push({
       call_id: suiteRun.run.call.call_id,
       ended_at: suiteRun.run.call.ended_at,
@@ -2688,6 +2891,8 @@ async function main() {
       failure_category: suiteRun.run.evaluation?.result?.failure_category || 'other',
       summary: suiteRun.run.evaluation?.result?.summary || null,
       scorecards: buildScorecardSummary(suiteRun.run),
+      variable_values: variableValues,
+      quality_segments: deriveQualitySegments(variableValues),
       latency_diagnostics: suiteRun.run.call?.latency_diagnostics || null,
       review
     });

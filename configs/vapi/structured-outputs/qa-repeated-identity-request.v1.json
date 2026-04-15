@@ -3,10 +3,10 @@
   "key": "repeatedIdentityRequest",
   "rank": 50,
   "name": "QA: Repeated Identity",
-  "description": "Boolean QA metric: true only if the assistant asked again for name or phone after they were already provided clearly.",
+  "description": "Boolean QA metric: true only if the assistant asked again for name or phone after they were already provided clearly. Do not flag when the prior answer was partial, ambiguous, joking, not a full name, or an invalid/unclear phone number.",
   "type": "ai",
   "schema": {
     "type": "boolean",
-    "description": "True if the assistant asked again for the caller's name or phone number after those details had already been provided clearly."
+    "description": "True only if the assistant asked again for the caller's name or phone number after those details had already been provided clearly and completely. Return false when the assistant asks for the missing or corrected part after a partial, ambiguous, joking, invalid, or unclear answer, such as an answer that is not a full name or is not a valid phone number."
   }
 }

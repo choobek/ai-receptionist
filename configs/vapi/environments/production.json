@@ -4,11 +4,6 @@
   "assistantId": "6db99c99-3f93-41e3-ae4e-fefe3974e2d6",
   "assistantName": "Lena",
   "assistantOverrides": {
-    "transcriber": {
-      "provider": "openai",
-      "model": "gpt-4o-transcribe",
-      "language": "pl"
-    },
     "voice": {
       "chunkPlan": {
         "minCharacters": 32

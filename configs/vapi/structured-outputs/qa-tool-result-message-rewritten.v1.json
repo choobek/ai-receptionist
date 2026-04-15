@@ -7,6 +7,6 @@
   "type": "ai",
   "schema": {
     "type": "boolean",
-    "description": "True only if a caller-facing tool result such as createEvent, checkAvailability, or lookupPatient contained a result.message or request-complete message and the assistant's next substantive caller-facing reply materially rewrote, contradicted, omitted, or made less speech-safe that message instead of saying it verbatim. Ignore short waiting phrases before the final answer. Do not flag internal handoff or SMS tool messages from createReceptionTask, sendSmsToReceptionists, or sendSmsToPatient when the assistant appropriately summarizes the handoff instead of reading internal delivery details."
+    "description": "True only if a caller-facing tool result such as createEvent, checkAvailability, or lookupPatient contained a result.message or request-complete message and the assistant's next substantive caller-facing reply materially rewrote, contradicted, omitted, or made less speech-safe that message instead of saying it verbatim. Ignore short waiting phrases before the final answer. For searchKnowledgeBase, result.message is a technical status; return false when the assistant speaks the result.answer content faithfully instead of reading that status message. Do not flag internal handoff or SMS tool messages from createReceptionTask, sendSmsToReceptionists, or sendSmsToPatient when the assistant appropriately summarizes the handoff instead of reading internal delivery details."
   }
 }

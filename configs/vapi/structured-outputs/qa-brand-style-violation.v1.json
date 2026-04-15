@@ -3,10 +3,10 @@
   "key": "brandStyleViolation",
   "rank": 88,
   "name": "QA: Brand/Style Violation",
-  "description": "Boolean QA metric: true only if the assistant violated explicit clinic-name or no-small-talk style rules.",
+  "description": "Boolean QA metric: true only if an assistant message violated explicit clinic-name or banned small-talk style rules. Ignore caller wording, tool payloads, and normal courteous closings.",
   "type": "ai",
   "schema": {
     "type": "boolean",
-    "description": "True only if an assistant reply mispronounced or rewrote the clinic name/domain contrary to the prompt, for example Ipokrzyku.pl, PL, or i Pokrzyku instead of Ipokrzyku pe el, or used banned casual small talk such as Cześć, jak się masz?. Ignore caller wording and tool payloads."
+    "description": "True only if an assistant reply mispronounced or rewrote the clinic name/domain contrary to the prompt, for example Ipokrzyku.pl, PL, or i Pokrzyku instead of Ipokrzyku pe el, or used banned casual small talk such as Cześć, jak się masz?. Inspect assistant messages only. Ignore caller wording, tool payloads, and normal courteous acknowledgements or closings such as Dziękuję."
   }
 }

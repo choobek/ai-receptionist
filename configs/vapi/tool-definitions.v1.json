@@ -47,7 +47,27 @@
           "type": "request-failed",
           "content": "Przepraszam, mam chwilowy problem ze sprawdzeniem terminów."
         }
-      ]
+      ],
+      "variableExtractionPlan": {
+        "aliases": [
+          {
+            "key": "availabilityFound",
+            "value": "{{ $.available }}"
+          },
+          {
+            "key": "availabilityServiceId",
+            "value": "{{ $.resolvedSearch.serviceId }}"
+          },
+          {
+            "key": "availabilityStage",
+            "value": "{{ $.resolvedSearch.stage }}"
+          },
+          {
+            "key": "availabilityErrorCode",
+            "value": "{{ $.error.code | default: \"\" }}"
+          }
+        ]
+      }
     },
     "searchKnowledgeBase": {
       "schemaPath": "schemas/searchKnowledgeBase.request.json",
@@ -68,7 +88,23 @@
           "type": "request-failed",
           "content": "Przepraszam, mam chwilowy problem z wyszukaniem tej informacji."
         }
-      ]
+      ],
+      "variableExtractionPlan": {
+        "aliases": [
+          {
+            "key": "kbFound",
+            "value": "{{ $.found }}"
+          },
+          {
+            "key": "kbTopCategory",
+            "value": "{{ $.matches[0].category }}"
+          },
+          {
+            "key": "kbErrorCode",
+            "value": "{{ $.error.code | default: \"\" }}"
+          }
+        ]
+      }
     },
     "createEvent": {
       "schemaPath": "schemas/createEvent.vapi.request.json",
@@ -95,7 +131,27 @@
           "type": "request-failed",
           "content": "Przepraszam, nie udało mi się teraz zapisać wizyty."
         }
-      ]
+      ],
+      "variableExtractionPlan": {
+        "aliases": [
+          {
+            "key": "bookingCreated",
+            "value": "{{ $.created }}"
+          },
+          {
+            "key": "bookedServiceId",
+            "value": "{{ $.appointment.service.id }}"
+          },
+          {
+            "key": "bookingSmsStatus",
+            "value": "{{ $.bookingConfirmationSms.delivery.status }}"
+          },
+          {
+            "key": "bookingErrorCode",
+            "value": "{{ $.error.code | default: \"\" }}"
+          }
+        ]
+      }
     },
     "createReceptionTask": {
       "schemaPath": "schemas/createReceptionTask.request.json",
@@ -122,7 +178,27 @@
           "type": "request-failed",
           "content": "Przepraszam, nie udało mi się teraz zapisać prośby dla recepcji."
         }
-      ]
+      ],
+      "variableExtractionPlan": {
+        "aliases": [
+          {
+            "key": "receptionTaskAccepted",
+            "value": "{{ $.accepted }}"
+          },
+          {
+            "key": "receptionTaskType",
+            "value": "{{ $.task.taskType }}"
+          },
+          {
+            "key": "receptionTaskServiceBucket",
+            "value": "{{ $.task.serviceBucket }}"
+          },
+          {
+            "key": "receptionTaskErrorCode",
+            "value": "{{ $.error.code | default: \"\" }}"
+          }
+        ]
+      }
     },
     "sendSmsToReceptionists": {
       "schemaPath": "schemas/sendSmsToReceptionists.request.json",
